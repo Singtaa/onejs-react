@@ -8,6 +8,48 @@
 // Track all created elements for test assertions
 let createdElements: MockVisualElement[] = [];
 
+// MARK: Unity Types
+
+/**
+ * Mock Unity Color struct
+ */
+export class MockColor {
+    constructor(
+        public r: number,
+        public g: number,
+        public b: number,
+        public a: number
+    ) {}
+}
+
+/**
+ * Mock Unity UIElements Length struct
+ */
+export class MockLength {
+    constructor(
+        public value: number,
+        public unit: number = 0
+    ) {}
+}
+
+/**
+ * Mock LengthUnit enum
+ */
+export const MockLengthUnit = {
+    Pixel: 0,
+    Percent: 1,
+};
+
+/**
+ * Mock StyleKeyword enum
+ */
+export const MockStyleKeyword = {
+    Undefined: 0,
+    Auto: 1,
+    None: 2,
+    Initial: 3,
+};
+
 /**
  * Mock VisualElement - base class for all UI Toolkit elements
  */
@@ -178,6 +220,9 @@ export class MockImage extends MockVisualElement {
 export function createMockCS() {
     return {
         UnityEngine: {
+            // Core types
+            Color: MockColor,
+            // UI Elements
             UIElements: {
                 VisualElement: MockVisualElement,
                 Label: MockLabel,
@@ -187,6 +232,10 @@ export function createMockCS() {
                 Slider: MockSlider,
                 ScrollView: MockScrollView,
                 Image: MockImage,
+                // Style types
+                Length: MockLength,
+                LengthUnit: MockLengthUnit,
+                StyleKeyword: MockStyleKeyword,
             },
         },
     };

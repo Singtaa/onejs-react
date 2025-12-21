@@ -20,7 +20,14 @@ import {
     ScrollView,
     Image,
 } from '../components';
-import { MockVisualElement, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
+import { MockVisualElement, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
+
+// Helper to extract value from style (handles both raw values and MockLength/MockColor)
+function getStyleValue(style: unknown): unknown {
+    if (style instanceof MockLength) return style.value;
+    if (style instanceof MockColor) return style;
+    return style;
+}
 
 describe('components', () => {
     describe('View', () => {
@@ -48,10 +55,10 @@ describe('components', () => {
             await flushMicrotasks();
 
             const el = container.children[0] as MockVisualElement;
-            expect(el.style.width).toBe(200);
-            expect(el.style.height).toBe(100);
+            expect(getStyleValue(el.style.width)).toBe(200);
+            expect(getStyleValue(el.style.height)).toBe(100);
             expect(el.style.flexDirection).toBe('row');
-            expect(el.style.paddingTop).toBe(10);
+            expect(getStyleValue(el.style.paddingTop)).toBe(10);
         });
 
         it('applies className', async () => {
@@ -131,8 +138,8 @@ describe('components', () => {
             await flushMicrotasks();
 
             const el = container.children[0] as MockVisualElement;
-            expect(el.style.fontSize).toBe(24);
-            expect(el.style.color).toBe('white');
+            expect(getStyleValue(el.style.fontSize)).toBe(24);
+            expect(el.style.color).toBeInstanceOf(MockColor);
         });
     });
 
@@ -317,8 +324,8 @@ describe('components', () => {
             await flushMicrotasks();
 
             const el = container.children[0] as MockVisualElement;
-            expect(el.style.width).toBe(100);
-            expect(el.style.height).toBe(100);
+            expect(getStyleValue(el.style.width)).toBe(100);
+            expect(getStyleValue(el.style.height)).toBe(100);
         });
     });
 

@@ -1,18 +1,54 @@
 import type { ReactNode } from 'react';
 
-// Style types (subset of UI Toolkit USS properties)
-export interface ViewStyle {
-  // Layout
-  width?: number | string;
-  height?: number | string;
-  minWidth?: number | string;
-  minHeight?: number | string;
-  maxWidth?: number | string;
-  maxHeight?: number | string;
+/**
+ * Length value - can be a number (pixels) or string with unit
+ * @example
+ * 100        // 100px
+ * "100px"    // 100px
+ * "50%"      // 50 percent
+ * "auto"     // auto keyword
+ */
+export type StyleLength = number | string;
 
+/**
+ * Color value - supports multiple formats
+ * @example
+ * "#fff"              // Short hex
+ * "#ffffff"           // Full hex
+ * "#ffffff80"         // Hex with alpha
+ * "rgb(255, 0, 0)"    // RGB
+ * "rgba(255, 0, 0, 0.5)" // RGBA
+ * "red"               // Named color
+ */
+export type StyleColor = string;
+
+/**
+ * Style properties for UI elements (subset of UI Toolkit USS properties)
+ *
+ * Length values accept:
+ * - Numbers: treated as pixels (e.g., `100` = 100px)
+ * - Strings: "100px", "50%", "auto"
+ *
+ * Color values accept:
+ * - Hex: "#fff", "#ffffff", "#ffffffff" (with alpha)
+ * - RGB: "rgb(255, 0, 0)", "rgba(255, 0, 0, 0.5)"
+ * - Named: "red", "blue", "transparent", etc.
+ */
+export interface ViewStyle {
+  // Layout - dimensions
+  /** Width in pixels or percentage. Examples: 100, "100px", "50%", "auto" */
+  width?: StyleLength;
+  /** Height in pixels or percentage. Examples: 100, "100px", "50%", "auto" */
+  height?: StyleLength;
+  minWidth?: StyleLength;
+  minHeight?: StyleLength;
+  maxWidth?: StyleLength;
+  maxHeight?: StyleLength;
+
+  // Flexbox
   flexGrow?: number;
   flexShrink?: number;
-  flexBasis?: number | string;
+  flexBasis?: StyleLength;
   flexDirection?: 'row' | 'row-reverse' | 'column' | 'column-reverse';
   flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse';
   alignItems?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
@@ -20,43 +56,65 @@ export interface ViewStyle {
   alignContent?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
   justifyContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around';
 
+  // Positioning
   position?: 'relative' | 'absolute';
-  top?: number | string;
-  right?: number | string;
-  bottom?: number | string;
-  left?: number | string;
+  top?: StyleLength;
+  right?: StyleLength;
+  bottom?: StyleLength;
+  left?: StyleLength;
 
-  // Margin & Padding
-  margin?: number | string;
-  marginTop?: number | string;
-  marginRight?: number | string;
-  marginBottom?: number | string;
-  marginLeft?: number | string;
+  // Margin & Padding (shorthand applies to all sides)
+  /** Margin for all sides. Examples: 16, "16px", "5%" */
+  margin?: StyleLength;
+  marginTop?: StyleLength;
+  marginRight?: StyleLength;
+  marginBottom?: StyleLength;
+  marginLeft?: StyleLength;
 
-  padding?: number | string;
-  paddingTop?: number | string;
-  paddingRight?: number | string;
-  paddingBottom?: number | string;
-  paddingLeft?: number | string;
+  /** Padding for all sides. Examples: 16, "16px", "5%" */
+  padding?: StyleLength;
+  paddingTop?: StyleLength;
+  paddingRight?: StyleLength;
+  paddingBottom?: StyleLength;
+  paddingLeft?: StyleLength;
 
-  // Appearance
-  backgroundColor?: string;
-  borderColor?: string;
-  borderWidth?: number;
-  borderRadius?: number;
-  borderTopLeftRadius?: number;
-  borderTopRightRadius?: number;
-  borderBottomLeftRadius?: number;
-  borderBottomRightRadius?: number;
+  // Background
+  /** Background color. Examples: "#3498db", "rgba(0,0,0,0.5)", "red" */
+  backgroundColor?: StyleColor;
 
+  // Border
+  /** Border color for all sides. Examples: "#ccc", "rgba(0,0,0,0.1)" */
+  borderColor?: StyleColor;
+  borderTopColor?: StyleColor;
+  borderRightColor?: StyleColor;
+  borderBottomColor?: StyleColor;
+  borderLeftColor?: StyleColor;
+
+  /** Border width for all sides. Examples: 1, "1px" */
+  borderWidth?: StyleLength;
+  borderTopWidth?: StyleLength;
+  borderRightWidth?: StyleLength;
+  borderBottomWidth?: StyleLength;
+  borderLeftWidth?: StyleLength;
+
+  /** Border radius for all corners. Examples: 8, "8px", "50%" */
+  borderRadius?: StyleLength;
+  borderTopLeftRadius?: StyleLength;
+  borderTopRightRadius?: StyleLength;
+  borderBottomLeftRadius?: StyleLength;
+  borderBottomRightRadius?: StyleLength;
+
+  // Display
   opacity?: number;
   overflow?: 'visible' | 'hidden';
   display?: 'flex' | 'none';
   visibility?: 'visible' | 'hidden';
 
   // Text
-  color?: string;
-  fontSize?: number;
+  /** Text color. Examples: "#333", "white" */
+  color?: StyleColor;
+  /** Font size in pixels. Examples: 16, "16px" */
+  fontSize?: StyleLength;
   fontStyle?: 'normal' | 'italic' | 'bold' | 'bold-and-italic';
   unityTextAlign?: 'upper-left' | 'upper-center' | 'upper-right' | 'middle-left' | 'middle-center' | 'middle-right' | 'lower-left' | 'lower-center' | 'lower-right';
   whiteSpace?: 'normal' | 'nowrap';

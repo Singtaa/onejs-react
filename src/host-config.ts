@@ -1,5 +1,6 @@
 import type {HostConfig} from 'react-reconciler';
 import type {BaseProps, ViewStyle} from './types';
+import {parseStyleValue} from './style-parser';
 
 // Global declarations for QuickJS environment
 declare function setTimeout(callback: () => void, ms?: number): number;
@@ -214,12 +215,15 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
         // Handle shorthand properties
         const expanded = STYLE_SHORTHANDS[key];
         if (expanded) {
+            // Parse the value once, apply to all expanded properties
+            const parsed = parseStyleValue(expanded[0], value);
             for (const prop of expanded) {
-                s[prop] = value;
+                s[prop] = parsed;
                 appliedKeys.add(prop);
             }
         } else {
-            s[key] = value;
+            // Parse and apply individual property
+            s[key] = parseStyleValue(key, value);
             appliedKeys.add(key);
         }
     }

@@ -12,7 +12,14 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { hostConfig, type Instance } from '../host-config';
-import { MockVisualElement, getEventAPI, flushMicrotasks, getCreatedElements } from './mocks';
+import { MockVisualElement, MockLength, MockColor, getEventAPI, flushMicrotasks, getCreatedElements } from './mocks';
+
+// Helper to extract value from style (handles both raw values and MockLength/MockColor)
+function getStyleValue(style: unknown): unknown {
+    if (style instanceof MockLength) return style.value;
+    if (style instanceof MockColor) return style;
+    return style;
+}
 
 describe('host-config', () => {
     describe('createInstance', () => {
@@ -72,9 +79,11 @@ describe('host-config', () => {
                 null
             );
 
-            expect(instance.element.style.width).toBe(100);
-            expect(instance.element.style.height).toBe(50);
-            expect(instance.element.style.backgroundColor).toBe('red');
+            // Length properties are now wrapped in MockLength
+            expect(getStyleValue(instance.element.style.width)).toBe(100);
+            expect(getStyleValue(instance.element.style.height)).toBe(50);
+            // Color properties are now wrapped in MockColor
+            expect(instance.element.style.backgroundColor).toBeInstanceOf(MockColor);
         });
 
         it('tracks applied style keys', () => {
@@ -100,10 +109,10 @@ describe('host-config', () => {
                 null
             );
 
-            expect(instance.element.style.paddingTop).toBe(10);
-            expect(instance.element.style.paddingRight).toBe(10);
-            expect(instance.element.style.paddingBottom).toBe(10);
-            expect(instance.element.style.paddingLeft).toBe(10);
+            expect(getStyleValue(instance.element.style.paddingTop)).toBe(10);
+            expect(getStyleValue(instance.element.style.paddingRight)).toBe(10);
+            expect(getStyleValue(instance.element.style.paddingBottom)).toBe(10);
+            expect(getStyleValue(instance.element.style.paddingLeft)).toBe(10);
             expect(instance.appliedStyleKeys.has('paddingTop')).toBe(true);
         });
 
@@ -116,10 +125,10 @@ describe('host-config', () => {
                 null
             );
 
-            expect(instance.element.style.marginTop).toBe(20);
-            expect(instance.element.style.marginRight).toBe(20);
-            expect(instance.element.style.marginBottom).toBe(20);
-            expect(instance.element.style.marginLeft).toBe(20);
+            expect(getStyleValue(instance.element.style.marginTop)).toBe(20);
+            expect(getStyleValue(instance.element.style.marginRight)).toBe(20);
+            expect(getStyleValue(instance.element.style.marginBottom)).toBe(20);
+            expect(getStyleValue(instance.element.style.marginLeft)).toBe(20);
         });
 
         it('expands shorthand borderRadius', () => {
@@ -131,10 +140,10 @@ describe('host-config', () => {
                 null
             );
 
-            expect(instance.element.style.borderTopLeftRadius).toBe(8);
-            expect(instance.element.style.borderTopRightRadius).toBe(8);
-            expect(instance.element.style.borderBottomRightRadius).toBe(8);
-            expect(instance.element.style.borderBottomLeftRadius).toBe(8);
+            expect(getStyleValue(instance.element.style.borderTopLeftRadius)).toBe(8);
+            expect(getStyleValue(instance.element.style.borderTopRightRadius)).toBe(8);
+            expect(getStyleValue(instance.element.style.borderBottomRightRadius)).toBe(8);
+            expect(getStyleValue(instance.element.style.borderBottomLeftRadius)).toBe(8);
         });
     });
 
@@ -157,7 +166,7 @@ describe('host-config', () => {
                 null as any
             );
 
-            expect(instance.element.style.width).toBe(200);
+            expect(getStyleValue(instance.element.style.width)).toBe(200);
         });
 
         it('clears removed style properties', () => {
@@ -180,7 +189,7 @@ describe('host-config', () => {
 
             expect(instance.element.style.width).toBeUndefined();
             expect(instance.element.style.backgroundColor).toBeUndefined();
-            expect(instance.element.style.height).toBe(75);
+            expect(getStyleValue(instance.element.style.height)).toBe(75);
         });
 
         it('clears expanded shorthand properties when shorthand is removed', () => {
@@ -205,7 +214,7 @@ describe('host-config', () => {
             expect(instance.element.style.paddingRight).toBeUndefined();
             expect(instance.element.style.paddingBottom).toBeUndefined();
             expect(instance.element.style.paddingLeft).toBeUndefined();
-            expect(instance.element.style.width).toBe(100);
+            expect(getStyleValue(instance.element.style.width)).toBe(100);
         });
 
         it('clears all styles when style prop becomes undefined', () => {

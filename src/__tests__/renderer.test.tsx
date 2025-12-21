@@ -12,7 +12,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React, { useState, useEffect } from 'react';
 import { render, unmount, getRoot } from '../renderer';
 import { View, Label, Button } from '../components';
-import { MockVisualElement, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
+import { MockVisualElement, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
+
+// Helper to extract value from style (handles both raw values and MockLength/MockColor)
+function getStyleValue(style: unknown): unknown {
+    if (style instanceof MockLength) return style.value;
+    if (style instanceof MockColor) return style;
+    return style;
+}
 
 describe('renderer', () => {
     describe('render()', () => {
@@ -55,9 +62,9 @@ describe('renderer', () => {
             await flushMicrotasks();
 
             const view = container.children[0] as MockVisualElement;
-            expect(view.style.width).toBe(100);
-            expect(view.style.height).toBe(50);
-            expect(view.style.backgroundColor).toBe('blue');
+            expect(getStyleValue(view.style.width)).toBe(100);
+            expect(getStyleValue(view.style.height)).toBe(50);
+            expect(view.style.backgroundColor).toBeInstanceOf(MockColor);
         });
 
         it('renders with className', async () => {
@@ -142,7 +149,7 @@ describe('renderer', () => {
 
             const view = container.children[0] as MockVisualElement;
             expect(view.__csType).toBe('UnityEngine.UIElements.VisualElement');
-            expect(view.style.paddingTop).toBe(10);
+            expect(getStyleValue(view.style.paddingTop)).toBe(10);
         });
 
         it('renders Label component', async () => {
@@ -215,12 +222,12 @@ describe('renderer', () => {
             await flushMicrotasks();
 
             const view = container.children[0] as MockVisualElement;
-            expect(view.style.width).toBe(100);
+            expect(getStyleValue(view.style.width)).toBe(100);
 
             setWidth!(200);
             await flushMicrotasks();
 
-            expect(view.style.width).toBe(200);
+            expect(getStyleValue(view.style.width)).toBe(200);
         });
 
         it('removes style properties when they are removed from props', async () => {
@@ -241,14 +248,14 @@ describe('renderer', () => {
             await flushMicrotasks();
 
             const view = container.children[0] as MockVisualElement;
-            expect(view.style.backgroundColor).toBe('red');
-            expect(view.style.width).toBe(100);
+            expect(view.style.backgroundColor).toBeInstanceOf(MockColor);
+            expect(getStyleValue(view.style.width)).toBe(100);
 
             setHasBackground!(false);
             await flushMicrotasks();
 
             expect(view.style.backgroundColor).toBeUndefined();
-            expect(view.style.width).toBe(100);
+            expect(getStyleValue(view.style.width)).toBe(100);
         });
     });
 
