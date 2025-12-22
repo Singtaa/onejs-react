@@ -183,6 +183,40 @@ const STYLE_SHORTHANDS: Record<string, string[]> = {
     borderRadius: ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'],
 };
 
+// Character escape mapping for Tailwind/USS compatibility
+// USS class names only support [\w-] so special characters must be escaped
+const CLASS_ESCAPE_MAP: [string, string][] = [
+    [':', '_c_'],   // Pseudo-classes and breakpoints (hover:, sm:)
+    ['/', '_s_'],   // Fractions (w-1/2)
+    ['.', '_d_'],   // Decimals (p-2.5)
+    ['[', '_lb_'],  // Arbitrary values ([100px])
+    [']', '_rb_'],
+    ['(', '_lp_'],  // Functions (calc())
+    [')', '_rp_'],
+    ['#', '_n_'],   // Hex colors
+    ['%', '_p_'],   // Percentages
+    [',', '_cm_'],  // Multiple values
+    ['&', '_amp_'],
+    ['>', '_gt_'],
+    ['<', '_lt_'],
+    ['*', '_ast_'],
+    ["'", '_sq_'],
+];
+
+/**
+ * Escape special characters in a class name for USS compatibility
+ * Tailwind class names like "hover:bg-red-500" become "hover_c_bg-red-500"
+ */
+function escapeClassName(name: string): string {
+    let escaped = name;
+    for (const [char, replacement] of CLASS_ESCAPE_MAP) {
+        if (escaped.includes(char)) {
+            escaped = escaped.split(char).join(replacement);
+        }
+    }
+    return escaped;
+}
+
 // Get all expanded property keys for a style object
 function getExpandedStyleKeys(style: ViewStyle | undefined): Set<string> {
     const keys = new Set<string>();
@@ -241,19 +275,23 @@ function clearRemovedStyles(element: CSObject, oldKeys: Set<string>, newKeys: Se
     }
 }
 
-// Parse className string into a Set of class names
+// Parse className string into a Set of escaped class names
 function parseClassNames(className: string | undefined): Set<string> {
     if (!className) return new Set();
-    return new Set(className.split(/\s+/).filter(Boolean));
+    return new Set(
+        className.split(/\s+/)
+            .filter(Boolean)
+            .map(escapeClassName)
+    );
 }
 
-// Apply className(s) to element
+// Apply className(s) to element (with escaping for Tailwind/USS compatibility)
 function applyClassName(element: CSObject, className: string | undefined) {
     if (!className) return;
 
     const classes = className.split(/\s+/).filter(Boolean);
     for (const cls of classes) {
-        element.AddToClassList(cls);
+        element.AddToClassList(escapeClassName(cls));
     }
 }
 

@@ -14,6 +14,22 @@ export {
 // Renderer
 export { render, unmount } from './renderer';
 
+// Responsive Design
+export {
+  ScreenProvider,
+  useBreakpoint,
+  useScreenSize,
+  useResponsive,
+  useMediaQuery,
+  BREAKPOINTS,
+} from './screen';
+
+export type {
+  ScreenContextValue,
+  ScreenProviderProps,
+  BreakpointName,
+} from './screen';
+
 // Types
 export type {
   ViewStyle,
