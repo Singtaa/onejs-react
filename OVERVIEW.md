@@ -9,6 +9,7 @@ React 19 reconciler for Unity's UI Toolkit.
 | `src/host-config.ts` | React reconciler implementation (createInstance, commitUpdate, etc.) |
 | `src/renderer.ts` | Entry point: `render(element, container)` |
 | `src/components.tsx` | Component wrappers: View, Label, Button, TextField, etc. |
+| `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive |
 | `src/types.ts` | TypeScript type definitions |
 | `src/index.ts` | Package exports |
 
