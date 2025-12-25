@@ -1,9 +1,25 @@
 {
   "name": "onejs-react",
   "version": "0.1.0",
-  "description": "React renderer for OneJS (Unity UI Toolkit)",
+  "description": "React 19 renderer for OneJS (Unity UI Toolkit)",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "react",
+    "unity",
+    "ui-toolkit",
+    "onejs",
+    "game-ui",
+    "renderer"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicosini/onejs-react"
+  },
+  "author": "nicosini",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
