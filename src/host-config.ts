@@ -334,125 +334,87 @@ function applyEvents(instance: Instance, props: BaseProps) {
     }
 }
 
-// Apply component-specific props
+// MARK: Component-specific prop handlers
+
+// Apply common props (text, value, label)
+function applyCommonProps(element: CSObject, props: Record<string, unknown>) {
+    if (props.text !== undefined) (element as { text: string }).text = props.text as string;
+    if (props.value !== undefined) (element as { value: unknown }).value = props.value;
+    if (props.label !== undefined) (element as { label: string }).label = props.label as string;
+}
+
+// Helper to set enum prop if defined
+function setEnumProp<T>(target: T, key: keyof T, props: Record<string, unknown>, propKey: string, enumType: CSEnum) {
+    if (props[propKey] !== undefined) {
+        (target as Record<string, unknown>)[key as string] = enumType[props[propKey] as string];
+    }
+}
+
+// Helper to set value prop if defined
+function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>, propKey: string) {
+    if (props[propKey] !== undefined) {
+        (target as Record<string, unknown>)[key as string] = props[propKey];
+    }
+}
+
+// Apply ScrollView-specific properties
+function applyScrollViewProps(element: CSScrollView, props: Record<string, unknown>) {
+    const UIE = CS.UnityEngine.UIElements;
+    setEnumProp(element, 'mode', props, 'mode', UIE.ScrollViewMode);
+    setEnumProp(element, 'horizontalScrollerVisibility', props, 'horizontalScrollerVisibility', UIE.ScrollerVisibility);
+    setEnumProp(element, 'verticalScrollerVisibility', props, 'verticalScrollerVisibility', UIE.ScrollerVisibility);
+    setEnumProp(element, 'touchScrollBehavior', props, 'touchScrollBehavior', UIE.TouchScrollBehavior);
+    setEnumProp(element, 'nestedInteractionKind', props, 'nestedInteractionKind', UIE.NestedInteractionKind);
+    setValueProp(element, 'elasticity', props, 'elasticity');
+    setValueProp(element, 'elasticAnimationIntervalMs', props, 'elasticAnimationIntervalMs');
+    setValueProp(element, 'scrollDecelerationRate', props, 'scrollDecelerationRate');
+    setValueProp(element, 'mouseWheelScrollSize', props, 'mouseWheelScrollSize');
+    setValueProp(element, 'horizontalPageSize', props, 'horizontalPageSize');
+    setValueProp(element, 'verticalPageSize', props, 'verticalPageSize');
+}
+
+// Apply ListView-specific properties
+function applyListViewProps(element: CSListView, props: Record<string, unknown>) {
+    const UIE = CS.UnityEngine.UIElements;
+
+    // Data binding callbacks
+    setValueProp(element, 'itemsSource', props, 'itemsSource');
+    setValueProp(element, 'makeItem', props, 'makeItem');
+    setValueProp(element, 'bindItem', props, 'bindItem');
+    setValueProp(element, 'unbindItem', props, 'unbindItem');
+    setValueProp(element, 'destroyItem', props, 'destroyItem');
+
+    // Virtualization
+    setValueProp(element, 'fixedItemHeight', props, 'fixedItemHeight');
+    setEnumProp(element, 'virtualizationMethod', props, 'virtualizationMethod', UIE.CollectionVirtualizationMethod);
+
+    // Selection
+    setEnumProp(element, 'selectionType', props, 'selectionType', UIE.SelectionType);
+    setValueProp(element, 'selectedIndex', props, 'selectedIndex');
+    setValueProp(element, 'selectedIndices', props, 'selectedIndices');
+
+    // Reordering
+    setValueProp(element, 'reorderable', props, 'reorderable');
+    setEnumProp(element, 'reorderMode', props, 'reorderMode', UIE.ListViewReorderMode);
+
+    // Header/Footer
+    setValueProp(element, 'showFoldoutHeader', props, 'showFoldoutHeader');
+    setValueProp(element, 'headerTitle', props, 'headerTitle');
+    setValueProp(element, 'showAddRemoveFooter', props, 'showAddRemoveFooter');
+
+    // Appearance
+    setValueProp(element, 'showBorder', props, 'showBorder');
+    setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground);
+}
+
+// Apply component-specific props based on element type
 function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>) {
-    // For Label, Button - set text property directly
-    if (props.text !== undefined) {
-        (element as { text: string }).text = props.text as string;
-    }
-    // For TextField, Toggle, Slider - set value property
-    if (props.value !== undefined) {
-        (element as { value: unknown }).value = props.value;
-    }
-    // For input elements that have a label
-    if (props.label !== undefined) {
-        (element as { label: string }).label = props.label as string;
-    }
+    applyCommonProps(element, props);
 
-    // ScrollView-specific properties
     if (type === 'ojs-scrollview') {
-        const sv = element as CSScrollView;
-        if (props.mode !== undefined) {
-            sv.mode = CS.UnityEngine.UIElements.ScrollViewMode[props.mode as string];
-        }
-        if (props.horizontalScrollerVisibility !== undefined) {
-            sv.horizontalScrollerVisibility = CS.UnityEngine.UIElements.ScrollerVisibility[props.horizontalScrollerVisibility as string];
-        }
-        if (props.verticalScrollerVisibility !== undefined) {
-            sv.verticalScrollerVisibility = CS.UnityEngine.UIElements.ScrollerVisibility[props.verticalScrollerVisibility as string];
-        }
-        if (props.elasticity !== undefined) {
-            sv.elasticity = props.elasticity as number;
-        }
-        if (props.elasticAnimationIntervalMs !== undefined) {
-            sv.elasticAnimationIntervalMs = props.elasticAnimationIntervalMs as number;
-        }
-        if (props.scrollDecelerationRate !== undefined) {
-            sv.scrollDecelerationRate = props.scrollDecelerationRate as number;
-        }
-        if (props.mouseWheelScrollSize !== undefined) {
-            sv.mouseWheelScrollSize = props.mouseWheelScrollSize as number;
-        }
-        if (props.horizontalPageSize !== undefined) {
-            sv.horizontalPageSize = props.horizontalPageSize as number;
-        }
-        if (props.verticalPageSize !== undefined) {
-            sv.verticalPageSize = props.verticalPageSize as number;
-        }
-        if (props.touchScrollBehavior !== undefined) {
-            sv.touchScrollBehavior = CS.UnityEngine.UIElements.TouchScrollBehavior[props.touchScrollBehavior as string];
-        }
-        if (props.nestedInteractionKind !== undefined) {
-            sv.nestedInteractionKind = CS.UnityEngine.UIElements.NestedInteractionKind[props.nestedInteractionKind as string];
-        }
-    }
-
-    // ListView-specific properties
-    if (type === 'ojs-listview') {
-        const lv = element as CSListView;
-
-        // Data binding - these are the core callbacks
-        if (props.itemsSource !== undefined) {
-            lv.itemsSource = props.itemsSource as unknown[];
-        }
-        if (props.makeItem !== undefined) {
-            lv.makeItem = props.makeItem as () => CSObject;
-        }
-        if (props.bindItem !== undefined) {
-            lv.bindItem = props.bindItem as (element: CSObject, index: number) => void;
-        }
-        if (props.unbindItem !== undefined) {
-            lv.unbindItem = props.unbindItem as (element: CSObject, index: number) => void;
-        }
-        if (props.destroyItem !== undefined) {
-            lv.destroyItem = props.destroyItem as (element: CSObject) => void;
-        }
-
-        // Virtualization
-        if (props.fixedItemHeight !== undefined) {
-            lv.fixedItemHeight = props.fixedItemHeight as number;
-        }
-        if (props.virtualizationMethod !== undefined) {
-            lv.virtualizationMethod = CS.UnityEngine.UIElements.CollectionVirtualizationMethod[props.virtualizationMethod as string];
-        }
-
-        // Selection
-        if (props.selectionType !== undefined) {
-            lv.selectionType = CS.UnityEngine.UIElements.SelectionType[props.selectionType as string];
-        }
-        if (props.selectedIndex !== undefined) {
-            lv.selectedIndex = props.selectedIndex as number;
-        }
-        if (props.selectedIndices !== undefined) {
-            lv.selectedIndices = props.selectedIndices as number[];
-        }
-
-        // Reordering
-        if (props.reorderable !== undefined) {
-            lv.reorderable = props.reorderable as boolean;
-        }
-        if (props.reorderMode !== undefined) {
-            lv.reorderMode = CS.UnityEngine.UIElements.ListViewReorderMode[props.reorderMode as string];
-        }
-
-        // Header/Footer
-        if (props.showFoldoutHeader !== undefined) {
-            lv.showFoldoutHeader = props.showFoldoutHeader as boolean;
-        }
-        if (props.headerTitle !== undefined) {
-            lv.headerTitle = props.headerTitle as string;
-        }
-        if (props.showAddRemoveFooter !== undefined) {
-            lv.showAddRemoveFooter = props.showAddRemoveFooter as boolean;
-        }
-
-        // Appearance
-        if (props.showBorder !== undefined) {
-            lv.showBorder = props.showBorder as boolean;
-        }
-        if (props.showAlternatingRowBackgrounds !== undefined) {
-            lv.showAlternatingRowBackgrounds = CS.UnityEngine.UIElements.AlternatingRowBackground[props.showAlternatingRowBackgrounds as string];
-        }
+        applyScrollViewProps(element as CSScrollView, props);
+    } else if (type === 'ojs-listview') {
+        applyListViewProps(element as CSListView, props);
     }
 }
 

@@ -130,13 +130,39 @@ export function parseLength(value: number | string): CSLength | number | null {
 }
 
 /**
- * Parse a hex color component (1 or 2 characters)
+ * Clamp a number to [0, 1] range
  */
-function parseHexComponent(hex: string): number {
-    if (hex.length === 1) {
-        hex = hex + hex  // Expand shorthand: "f" -> "ff"
+function clamp01(n: number): number {
+    return n < 0 ? 0 : n > 1 ? 1 : n
+}
+
+/**
+ * Create a Unity Color with clamped values
+ */
+function createColor(r: number, g: number, b: number, a: number): CSColor {
+    return new CS.UnityEngine.Color(clamp01(r), clamp01(g), clamp01(b), clamp01(a))
+}
+
+/**
+ * Parse hex color string into RGBA components
+ * Supports: #rgb, #rgba, #rrggbb, #rrggbbaa
+ */
+function parseHexColor(hex: string): CSColor | null {
+    const len = hex.length
+    const isShort = len === 3 || len === 4
+    const isLong = len === 6 || len === 8
+    if (!isShort && !isLong) return null
+
+    const step = isShort ? 1 : 2
+    const parse = (i: number): number => {
+        const slice = hex.slice(i * step, i * step + step)
+        const expanded = isShort ? slice + slice : slice
+        return parseInt(expanded, 16) / 255
     }
-    return parseInt(hex, 16) / 255
+
+    const r = parse(0), g = parse(1), b = parse(2)
+    const a = (len === 4 || len === 8) ? parse(3) : 1
+    return createColor(r, g, b, a)
 }
 
 /**
@@ -155,75 +181,21 @@ export function parseColor(value: string): CSColor | null {
         return new CS.UnityEngine.Color(r, g, b, a)
     }
 
-    // Hex colors: #rgb, #rgba, #rrggbb, #rrggbbaa
+    // Hex colors
     if (trimmed.startsWith("#")) {
-        const hex = trimmed.slice(1)
-
-        if (hex.length === 3) {
-            // #rgb
-            const r = parseHexComponent(hex[0])
-            const g = parseHexComponent(hex[1])
-            const b = parseHexComponent(hex[2])
-            return new CS.UnityEngine.Color(r, g, b, 1)
-        }
-
-        if (hex.length === 4) {
-            // #rgba
-            const r = parseHexComponent(hex[0])
-            const g = parseHexComponent(hex[1])
-            const b = parseHexComponent(hex[2])
-            const a = parseHexComponent(hex[3])
-            return new CS.UnityEngine.Color(r, g, b, a)
-        }
-
-        if (hex.length === 6) {
-            // #rrggbb
-            const r = parseHexComponent(hex.slice(0, 2))
-            const g = parseHexComponent(hex.slice(2, 4))
-            const b = parseHexComponent(hex.slice(4, 6))
-            return new CS.UnityEngine.Color(r, g, b, 1)
-        }
-
-        if (hex.length === 8) {
-            // #rrggbbaa
-            const r = parseHexComponent(hex.slice(0, 2))
-            const g = parseHexComponent(hex.slice(2, 4))
-            const b = parseHexComponent(hex.slice(4, 6))
-            const a = parseHexComponent(hex.slice(6, 8))
-            return new CS.UnityEngine.Color(r, g, b, a)
-        }
-
-        return null
+        return parseHexColor(trimmed.slice(1))
     }
 
-    // rgb(r, g, b) or rgba(r, g, b, a)
-    const rgbMatch = trimmed.match(/^rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/)
+    // rgb(r, g, b) or rgba(r, g, b, a) - supports both integer and percentage values
+    const rgbMatch = trimmed.match(/^rgba?\s*\(\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*(?:,\s*([\d.]+))?\s*\)$/)
     if (rgbMatch) {
-        const r = parseInt(rgbMatch[1]) / 255
-        const g = parseInt(rgbMatch[2]) / 255
-        const b = parseInt(rgbMatch[3]) / 255
-        const a = rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : 1
-        return new CS.UnityEngine.Color(
-            Math.min(1, Math.max(0, r)),
-            Math.min(1, Math.max(0, g)),
-            Math.min(1, Math.max(0, b)),
-            Math.min(1, Math.max(0, a))
-        )
-    }
-
-    // rgb with percentages: rgb(100%, 0%, 0%)
-    const rgbPercentMatch = trimmed.match(/^rgba?\s*\(\s*([\d.]+)%\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*(?:,\s*([\d.]+))?\s*\)$/)
-    if (rgbPercentMatch) {
-        const r = parseFloat(rgbPercentMatch[1]) / 100
-        const g = parseFloat(rgbPercentMatch[2]) / 100
-        const b = parseFloat(rgbPercentMatch[3]) / 100
-        const a = rgbPercentMatch[4] !== undefined ? parseFloat(rgbPercentMatch[4]) : 1
-        return new CS.UnityEngine.Color(
-            Math.min(1, Math.max(0, r)),
-            Math.min(1, Math.max(0, g)),
-            Math.min(1, Math.max(0, b)),
-            Math.min(1, Math.max(0, a))
-        )
+        const isPercent = rgbMatch[2] === "%"
+        const divisor = isPercent ? 100 : 255
+        const r = parseFloat(rgbMatch[1]) / divisor
+        const g = parseFloat(rgbMatch[3]) / divisor
+        const b = parseFloat(rgbMatch[5]) / divisor
+        const a = rgbMatch[7] !== undefined ? parseFloat(rgbMatch[7]) : 1
+        return createColor(r, g, b, a)
     }
 
     return null
