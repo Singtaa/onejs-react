@@ -18,11 +18,9 @@ reconciler.injectIntoDevTools({
 const roots = new Map<Container, ReturnType<typeof reconciler.createContainer>>();
 
 export function render(element: ReactNode, container: Container): void {
-  console.log('[onejs-react] render() called');
   let root = roots.get(container);
 
   if (!root) {
-    console.log('[onejs-react] creating new container');
     root = reconciler.createContainer(
       container,
       0, // LegacyRoot (0) vs ConcurrentRoot (1)
@@ -36,26 +34,17 @@ export function render(element: ReactNode, container: Container): void {
     roots.set(container, root);
   }
 
-  console.log('[onejs-react] calling updateContainer');
-  reconciler.updateContainer(element, root, null, () => {
-    console.log('[onejs-react] updateContainer callback fired');
-  });
+  reconciler.updateContainer(element, root, null, () => {});
 
   // Try to flush synchronous work
-  console.log('[onejs-react] attempting to flush sync work');
   try {
-    // flushSync may be exported differently - try flushSyncWork first
     if (typeof (reconciler as any).flushSyncWork === 'function') {
       (reconciler as any).flushSyncWork();
-      console.log('[onejs-react] flushSyncWork completed');
     } else if (typeof (reconciler as any).flushSync === 'function') {
       (reconciler as any).flushSync(() => {});
-      console.log('[onejs-react] flushSync completed');
-    } else {
-      console.log('[onejs-react] no sync flush method available, relying on microtasks');
     }
   } catch (e) {
-    console.log('[onejs-react] sync flush failed, relying on microtasks:', e);
+    // Sync flush failed, rely on microtasks
   }
 }
 

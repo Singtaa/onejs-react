@@ -603,10 +603,11 @@ describe('host-config', () => {
     });
 
     describe('text instances', () => {
-        it('createTextInstance creates a Label with text', () => {
+        it('createTextInstance creates a TextElement with text', () => {
             const textInstance = hostConfig.createTextInstance('Hello World', null as any, null, null);
 
             expect(textInstance.type).toBe('text');
+            expect(textInstance.element.__csType).toBe('UnityEngine.UIElements.TextElement');
             expect(textInstance.element.text).toBe('Hello World');
             expect(textInstance.appliedStyleKeys).toBeInstanceOf(Set);
         });

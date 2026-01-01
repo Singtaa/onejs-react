@@ -177,6 +177,10 @@ export interface BaseProps {
 // Component-specific props
 export interface ViewProps extends BaseProps {}
 
+export interface TextProps extends BaseProps {
+  text?: string;
+}
+
 export interface LabelProps extends BaseProps {
   text?: string;
 }

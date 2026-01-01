@@ -149,6 +149,15 @@ export class MockVisualElement {
 }
 
 /**
+ * Mock TextElement - base text element for implicit text content
+ */
+export class MockTextElement extends MockVisualElement {
+    constructor() {
+        super('UnityEngine.UIElements.TextElement');
+    }
+}
+
+/**
  * Mock Label element
  */
 export class MockLabel extends MockVisualElement {
@@ -225,6 +234,7 @@ export function createMockCS() {
             // UI Elements
             UIElements: {
                 VisualElement: MockVisualElement,
+                TextElement: MockTextElement,
                 Label: MockLabel,
                 Button: MockButton,
                 TextField: MockTextField,

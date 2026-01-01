@@ -12,6 +12,7 @@ import React from 'react';
 import { render } from '../renderer';
 import {
     View,
+    Text,
     Label,
     Button,
     TextField,
@@ -105,6 +106,41 @@ describe('components', () => {
 
             const view = container.children[0] as MockVisualElement;
             expect(view.childCount).toBe(2);
+        });
+    });
+
+    describe('Text', () => {
+        it('renders as TextElement', async () => {
+            const container = createMockContainer();
+            render(<Text text="Hello" />, container as any);
+            await flushMicrotasks();
+
+            expect(container.children[0].__csType).toBe('UnityEngine.UIElements.TextElement');
+        });
+
+        it('sets text property', async () => {
+            const container = createMockContainer();
+            render(<Text text="Hello World" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as MockVisualElement;
+            expect(el.text).toBe('Hello World');
+        });
+
+        it('applies styles', async () => {
+            const container = createMockContainer();
+            render(
+                <Text
+                    text="Styled"
+                    style={{ fontSize: 24, color: 'white' }}
+                />,
+                container as any
+            );
+            await flushMicrotasks();
+
+            const el = container.children[0] as MockVisualElement;
+            expect(getStyleValue(el.style.fontSize)).toBe(24);
+            expect(el.style.color).toBeInstanceOf(MockColor);
         });
     });
 

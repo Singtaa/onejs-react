@@ -32,6 +32,7 @@ declare const CS: {
     UnityEngine: {
         UIElements: {
             VisualElement: new () => CSObject;
+            TextElement: new () => CSObject;
             Label: new () => CSObject;
             Button: new () => CSObject;
             TextField: new () => CSObject;
@@ -149,6 +150,7 @@ export type ChildSet = never; // Not using persistent mode
 // Element types use 'ojs-' prefix to avoid conflicts with HTML/SVG in @types/react
 const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-view': () => new CS.UnityEngine.UIElements.VisualElement(),
+    'ojs-text': () => new CS.UnityEngine.UIElements.TextElement(),
     'ojs-label': () => new CS.UnityEngine.UIElements.Label(),
     'ojs-button': () => new CS.UnityEngine.UIElements.Button(),
     'ojs-textfield': () => new CS.UnityEngine.UIElements.TextField(),
@@ -495,8 +497,11 @@ export const hostConfig: HostConfig<
     },
 
     createTextInstance(text) {
-        // Create a Label for text content
-        const element = new CS.UnityEngine.UIElements.Label();
+        // Create a TextElement for implicit text content
+        // Using TextElement (not Label) for semantic clarity:
+        // - TextElement = raw text content in JSX
+        // - Label = explicit <Label> component
+        const element = new CS.UnityEngine.UIElements.TextElement();
         element.text = text;
         return {
             element,

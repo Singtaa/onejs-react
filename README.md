@@ -8,20 +8,39 @@ React 19 reconciler for Unity's UI Toolkit.
 |------|---------|
 | `src/host-config.ts` | React reconciler implementation (createInstance, commitUpdate, etc.) |
 | `src/renderer.ts` | Entry point: `render(element, container)` |
-| `src/components.tsx` | Component wrappers: View, Label, Button, TextField, etc. |
+| `src/components.tsx` | Component wrappers: View, Text, Label, Button, TextField, etc. |
 | `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive |
 | `src/types.ts` | TypeScript type definitions |
 | `src/index.ts` | Package exports |
 
+## Components
+
+| Component | UI Toolkit Element | Description |
+|-----------|-------------------|-------------|
+| `View` | VisualElement | Container element |
+| `Text` | TextElement | Primary text display |
+| `Label` | Label | Form labels, semantic labeling |
+| `Button` | Button | Interactive button |
+| `TextField` | TextField | Text input |
+| `Toggle` | Toggle | Checkbox/toggle |
+| `Slider` | Slider | Numeric slider |
+| `ScrollView` | ScrollView | Scrollable container |
+| `Image` | Image | Image display |
+| `ListView` | ListView | Virtualized list |
+
+**Raw text in JSX** (e.g., `<View>Hello</View>`) creates a `TextElement`, providing semantic distinction from explicit `<Label>` components.
+
 ## Usage
 
 ```tsx
-import { render, View, Label, Button } from 'onejs-react';
+import { render, View, Text, Label, Button } from 'onejs-react';
 
 function App() {
     return (
         <View style={{ padding: 20 }}>
+            <Text text="Welcome!" style={{ fontSize: 24 }} />
             <Button text="Click me" onClick={() => console.log('clicked')} />
+            <View>Raw text also works</View>
         </View>
     );
 }

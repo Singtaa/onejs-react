@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type {
   ViewProps,
+  TextProps,
   LabelProps,
   ButtonProps,
   TextFieldProps,
@@ -18,6 +19,7 @@ declare module 'react/jsx-runtime' {
   namespace JSX {
     interface IntrinsicElements {
       'ojs-view': ViewProps;
+      'ojs-text': TextProps;
       'ojs-label': LabelProps;
       'ojs-button': ButtonProps;
       'ojs-textfield': TextFieldProps;
@@ -35,6 +37,7 @@ declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
       'ojs-view': ViewProps;
+      'ojs-text': TextProps;
       'ojs-label': LabelProps;
       'ojs-button': ButtonProps;
       'ojs-textfield': TextFieldProps;
@@ -52,6 +55,10 @@ declare module 'react' {
 
 export function View(props: ViewProps): ReactElement {
   return <ojs-view {...props} />;
+}
+
+export function Text(props: TextProps): ReactElement {
+  return <ojs-text {...props} />;
 }
 
 export function Label(props: LabelProps): ReactElement {

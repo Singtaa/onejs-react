@@ -1,6 +1,7 @@
 // Components
 export {
   View,
+  Text,
   Label,
   Button,
   TextField,
@@ -42,6 +43,7 @@ export type {
   FocusEventHandler,
   BaseProps,
   ViewProps,
+  TextProps,
   LabelProps,
   ButtonProps,
   TextFieldProps,
