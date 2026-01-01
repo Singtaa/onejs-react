@@ -81,6 +81,15 @@ export interface ViewStyle {
   // Background
   /** Background color. Examples: "#3498db", "rgba(0,0,0,0.5)", "red" */
   backgroundColor?: StyleColor;
+  /**
+   * Background image - accepts a Texture2D, RenderTexture, or RenderTexture object from GPU compute.
+   *
+   * For GPU compute RenderTextures, you can pass the RenderTexture object directly:
+   * @example
+   * const rt = compute.renderTexture({ width: 100, height: 100 })
+   * <View style={{ backgroundImage: rt }} />
+   */
+  backgroundImage?: object | null;
 
   // Border
   /** Border color for all sides. Examples: "#ccc", "rgba(0,0,0,0.1)" */

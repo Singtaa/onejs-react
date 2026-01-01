@@ -52,6 +52,14 @@ declare const CS: {
             CollectionVirtualizationMethod: CSEnum;
         };
     };
+    OneJS: {
+        GPU: {
+            GPUBridge: {
+                SetElementBackgroundImage: (element: CSObject, rtHandle: number) => void;
+                ClearElementBackgroundImage: (element: CSObject) => void;
+            };
+        };
+    };
 };
 
 declare const __eventAPI: {
@@ -239,6 +247,35 @@ function getExpandedStyleKeys(style: ViewStyle | undefined): Set<string> {
     return keys;
 }
 
+/**
+ * RenderTexture-like object for backgroundImage style property.
+ * Can be either:
+ * - A marker object with __rtHandle (from rt.getUnityObject())
+ * - A RenderTexture object directly (has __handle property)
+ */
+interface RenderTextureRef {
+    __rtHandle?: number;
+    __handle?: number;
+}
+
+/**
+ * Check if a value is a RenderTexture or RenderTexture handle marker.
+ * Supports both:
+ * - Direct RenderTexture objects (have __handle)
+ * - Marker objects from getUnityObject() (have __rtHandle)
+ */
+function isRenderTextureHandle(value: unknown): value is RenderTextureRef {
+    if (typeof value !== "object" || value === null) return false;
+    return "__rtHandle" in value || "__handle" in value;
+}
+
+/**
+ * Get the RT handle from a RenderTexture-like object.
+ */
+function getRenderTextureHandle(value: RenderTextureRef): number {
+    return value.__rtHandle ?? value.__handle ?? -1;
+}
+
 // Apply style properties to element, returns the set of applied keys
 function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string> {
     const appliedKeys = new Set<string>();
@@ -257,6 +294,14 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
                 s[prop] = parsed;
                 appliedKeys.add(prop);
             }
+        } else if (key === "backgroundImage" && isRenderTextureHandle(value)) {
+            // Special handling for RenderTexture background images
+            // Supports both direct RenderTexture objects and marker objects
+            const handle = getRenderTextureHandle(value);
+            if (handle >= 0) {
+                CS.OneJS.GPU.GPUBridge.SetElementBackgroundImage(element, handle);
+            }
+            appliedKeys.add(key);
         } else {
             // Parse and apply individual property
             s[key] = parseStyleValue(key, value);
@@ -271,8 +316,13 @@ function clearRemovedStyles(element: CSObject, oldKeys: Set<string>, newKeys: Se
     const s = element.style;
     for (const key of oldKeys) {
         if (!newKeys.has(key)) {
-            // Setting to undefined clears the inline style, falling back to USS
-            s[key] = undefined;
+            if (key === "backgroundImage") {
+                // Special handling for backgroundImage - use GPUBridge to clear
+                CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
+            } else {
+                // Setting to undefined clears the inline style, falling back to USS
+                s[key] = undefined;
+            }
         }
     }
 }
