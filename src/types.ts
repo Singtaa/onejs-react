@@ -136,6 +136,23 @@ export interface PointerEventData {
   y: number;
   button: number;
   pointerId: number;
+  modifiers?: number;
+}
+
+export interface MouseEventData {
+  type: string;
+  x: number;
+  y: number;
+  button: number;
+  modifiers?: number;
+}
+
+export interface WheelEventData {
+  type: string;
+  x: number;
+  y: number;
+  delta: { x: number; y: number };
+  modifiers?: number;
 }
 
 export interface KeyEventData {
@@ -154,10 +171,47 @@ export interface ChangeEventData<T = unknown> {
   value: T;
 }
 
+export interface FocusEventData {
+  type: string;
+  relatedTarget?: unknown;
+}
+
+export interface DragEventData {
+  type: string;
+  x: number;
+  y: number;
+  // Drag-specific properties
+  getData?: (type: string) => unknown;
+}
+
+export interface GeometryEventData {
+  type: string;
+  oldRect: { x: number; y: number; width: number; height: number };
+  newRect: { x: number; y: number; width: number; height: number };
+}
+
+export interface NavigationEventData {
+  type: string;
+  direction?: string;
+  modifiers?: number;
+}
+
+export interface TransitionEventData {
+  type: string;
+  styleProperty: string;
+  elapsedTime: number;
+}
+
 export type PointerEventHandler = (event: PointerEventData) => void;
+export type MouseEventHandler = (event: MouseEventData) => void;
+export type WheelEventHandler = (event: WheelEventData) => void;
 export type KeyEventHandler = (event: KeyEventData) => void;
 export type ChangeEventHandler<T = unknown> = (event: ChangeEventData<T>) => void;
-export type FocusEventHandler = () => void;
+export type FocusEventHandler = (event?: FocusEventData) => void;
+export type DragEventHandler = (event: DragEventData) => void;
+export type GeometryEventHandler = (event: GeometryEventData) => void;
+export type NavigationEventHandler = (event: NavigationEventData) => void;
+export type TransitionEventHandler = (event: TransitionEventData) => void;
 
 // Base props for all components
 export interface BaseProps {
@@ -166,21 +220,67 @@ export interface BaseProps {
   style?: ViewStyle;
   className?: string;
 
-  // Pointer events
+  // Click
   onClick?: PointerEventHandler;
+
+  // Pointer events
   onPointerDown?: PointerEventHandler;
   onPointerUp?: PointerEventHandler;
   onPointerMove?: PointerEventHandler;
   onPointerEnter?: PointerEventHandler;
   onPointerLeave?: PointerEventHandler;
+  onPointerCancel?: PointerEventHandler;
+  onPointerCapture?: PointerEventHandler;
+  onPointerCaptureOut?: PointerEventHandler;
+  onPointerStationary?: PointerEventHandler;
+
+  // Mouse events
+  onMouseDown?: MouseEventHandler;
+  onMouseUp?: MouseEventHandler;
+  onMouseMove?: MouseEventHandler;
+  onMouseEnter?: MouseEventHandler;
+  onMouseLeave?: MouseEventHandler;
+  onMouseOver?: MouseEventHandler;
+  onMouseOut?: MouseEventHandler;
+  onWheel?: WheelEventHandler;
+  onContextClick?: MouseEventHandler;
 
   // Focus events
   onFocus?: FocusEventHandler;
   onBlur?: FocusEventHandler;
+  onFocusIn?: FocusEventHandler;
+  onFocusOut?: FocusEventHandler;
 
   // Keyboard events
   onKeyDown?: KeyEventHandler;
   onKeyUp?: KeyEventHandler;
+
+  // Input events
+  onInput?: ChangeEventHandler;
+
+  // Drag events
+  onDragEnter?: DragEventHandler;
+  onDragLeave?: DragEventHandler;
+  onDragUpdated?: DragEventHandler;
+  onDragPerform?: DragEventHandler;
+  onDragExited?: DragEventHandler;
+
+  // Geometry events
+  onGeometryChanged?: GeometryEventHandler;
+
+  // Navigation events
+  onNavigationMove?: NavigationEventHandler;
+  onNavigationSubmit?: NavigationEventHandler;
+  onNavigationCancel?: NavigationEventHandler;
+
+  // Tooltip
+  onTooltip?: () => void;
+
+  // Transition events
+  onTransitionRun?: TransitionEventHandler;
+  onTransitionStart?: TransitionEventHandler;
+  onTransitionEnd?: TransitionEventHandler;
+  onTransitionCancel?: TransitionEventHandler;
 }
 
 // Component-specific props
@@ -248,18 +348,84 @@ export interface ImageProps extends BaseProps {
   scaleMode?: 'stretch-to-fill' | 'scale-and-crop' | 'scale-to-fit';
 }
 
-// VisualElement type for ListView callbacks
-// This is the C# VisualElement exposed to JS
+// VisualElement - base type for all UI Toolkit elements
+// This is the C# VisualElement exposed to JS via refs
 export interface VisualElement {
   __csHandle: number;
   __csType: string;
   style: Record<string, unknown>;
+  name: string;
+  visible: boolean;
+  enabledSelf: boolean;
+  enabledInHierarchy: boolean;
+
+  // Text content (for TextElement-derived types)
   text?: string;
+
+  // Value (for input controls)
   value?: unknown;
+
+  // Hierarchy
   Add: (child: VisualElement) => void;
+  Insert: (index: number, child: VisualElement) => void;
   Remove: (child: VisualElement) => void;
+  RemoveAt: (index: number) => void;
+  Clear: () => void;
+  IndexOf: (child: VisualElement) => number;
+  childCount: number;
+  parent: VisualElement | null;
+
+  // Classes
   AddToClassList: (className: string) => void;
   RemoveFromClassList: (className: string) => void;
+  ClearClassList: () => void;
+  ClassListContains: (className: string) => boolean;
+
+  // Focus
+  Focus: () => void;
+  Blur: () => void;
+  focusable: boolean;
+
+  // Layout
+  MarkDirtyRepaint: () => void;
+}
+
+// Specific element types for better ref typing
+export interface TextElement extends VisualElement {
+  text: string;
+}
+
+export interface LabelElement extends TextElement {}
+
+export interface ButtonElement extends TextElement {}
+
+export interface TextFieldElement extends VisualElement {
+  value: string;
+  text: string;
+  isReadOnly: boolean;
+  isPasswordField: boolean;
+  maxLength: number;
+  SelectAll: () => void;
+}
+
+export interface ToggleElement extends VisualElement {
+  value: boolean;
+  text: string;
+}
+
+export interface SliderElement extends VisualElement {
+  value: number;
+  lowValue: number;
+  highValue: number;
+}
+
+export interface ScrollViewElement extends VisualElement {
+  scrollOffset: { x: number; y: number };
+  ScrollTo: (child: VisualElement) => void;
+}
+
+export interface ImageElement extends VisualElement {
+  // Image-specific properties handled via style.backgroundImage
 }
 
 // ListView uses Unity's virtualization callbacks directly

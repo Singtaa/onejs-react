@@ -34,13 +34,29 @@ export type {
 // Types
 export type {
   ViewStyle,
+  // Event data types
   PointerEventData,
+  MouseEventData,
+  WheelEventData,
   KeyEventData,
   ChangeEventData,
+  FocusEventData,
+  DragEventData,
+  GeometryEventData,
+  NavigationEventData,
+  TransitionEventData,
+  // Event handler types
   PointerEventHandler,
+  MouseEventHandler,
+  WheelEventHandler,
   KeyEventHandler,
   ChangeEventHandler,
   FocusEventHandler,
+  DragEventHandler,
+  GeometryEventHandler,
+  NavigationEventHandler,
+  TransitionEventHandler,
+  // Component props
   BaseProps,
   ViewProps,
   TextProps,
@@ -51,6 +67,15 @@ export type {
   SliderProps,
   ScrollViewProps,
   ImageProps,
-  VisualElement,
   ListViewProps,
+  // Element types for refs
+  VisualElement,
+  TextElement,
+  LabelElement,
+  ButtonElement,
+  TextFieldElement,
+  ToggleElement,
+  SliderElement,
+  ScrollViewElement,
+  ImageElement,
 } from './types';

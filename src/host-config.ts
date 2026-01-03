@@ -156,6 +156,8 @@ export interface Instance {
     mergedTextChildren?: Instance[];
     // For merged text children: reference to parent they're merged into
     mergedInto?: Instance;
+    // Set to true when a non-text child is added, disabling further text merging
+    hasMixedContent?: boolean;
 }
 
 export type TextInstance = Instance; // For Label elements with text content
@@ -179,17 +181,68 @@ const TYPE_MAP: Record<string, () => CSObject> = {
 
 // Event prop to event type mapping
 const EVENT_PROPS: Record<string, string> = {
+    // Click
     onClick: 'click',
+
+    // Pointer events
     onPointerDown: 'pointerdown',
     onPointerUp: 'pointerup',
     onPointerMove: 'pointermove',
     onPointerEnter: 'pointerenter',
     onPointerLeave: 'pointerleave',
+    onPointerCancel: 'pointercancel',
+    onPointerCapture: 'pointercapture',
+    onPointerCaptureOut: 'pointercaptureout',
+    onPointerStationary: 'pointerstationary',
+
+    // Mouse events
+    onMouseDown: 'mousedown',
+    onMouseUp: 'mouseup',
+    onMouseMove: 'mousemove',
+    onMouseEnter: 'mouseenter',
+    onMouseLeave: 'mouseleave',
+    onMouseOver: 'mouseover',
+    onMouseOut: 'mouseout',
+    onWheel: 'wheel',
+    onContextClick: 'contextclick',
+
+    // Focus events
     onFocus: 'focus',
     onBlur: 'blur',
+    onFocusIn: 'focusin',
+    onFocusOut: 'focusout',
+
+    // Keyboard events
     onKeyDown: 'keydown',
     onKeyUp: 'keyup',
+
+    // Input events
     onChange: 'change',
+    onInput: 'input',
+
+    // Drag events
+    onDragEnter: 'dragenter',
+    onDragLeave: 'dragleave',
+    onDragUpdated: 'dragupdated',
+    onDragPerform: 'dragperform',
+    onDragExited: 'dragexited',
+
+    // Geometry events
+    onGeometryChanged: 'geometrychanged',
+
+    // Navigation events
+    onNavigationMove: 'navigationmove',
+    onNavigationSubmit: 'navigationsubmit',
+    onNavigationCancel: 'navigationcancel',
+
+    // Tooltip
+    onTooltip: 'tooltip',
+
+    // Transition events
+    onTransitionRun: 'transitionrun',
+    onTransitionStart: 'transitionstart',
+    onTransitionEnd: 'transitionend',
+    onTransitionCancel: 'transitioncancel',
 };
 
 // Shorthand style properties that expand to multiple properties
@@ -409,7 +462,37 @@ function rebuildMergedText(instance: Instance) {
 
 // Check if a child should be merged into parent's text property
 function shouldMergeText(parentInstance: Instance, child: Instance): boolean {
+    // Don't merge if parent has mixed content (non-text children were added)
+    if (parentInstance.hasMixedContent) return false;
     return TEXT_MERGE_TYPES.has(parentInstance.type) && child.type === 'text';
+}
+
+// "Unmerge" all text children - add them as actual visual children
+// Called when a non-text child is added, breaking the pure-text assumption
+function unmergTextChildren(parentInstance: Instance) {
+    const children = parentInstance.mergedTextChildren;
+    if (!children || children.length === 0) return;
+
+    // Clear parent's merged text
+    parentInstance.element.text = '';
+
+    // Add each merged text child as an actual visual child
+    for (const child of children) {
+        child.mergedInto = undefined;
+        parentInstance.element.Add(child.element);
+    }
+
+    // Clear the merged children list
+    parentInstance.mergedTextChildren = undefined;
+    parentInstance.hasMixedContent = true;
+}
+
+// Handle adding a non-text child to a text-merge parent
+// This triggers unmerging of any previously merged text
+function handleNonTextChild(parentInstance: Instance) {
+    if (TEXT_MERGE_TYPES.has(parentInstance.type) && !parentInstance.hasMixedContent) {
+        unmergTextChildren(parentInstance);
+    }
 }
 
 // Append a text child to a text-merging parent
@@ -592,7 +675,7 @@ export const hostConfig: HostConfig<
     TextInstance,     // TextInstance
     never,            // SuspenseInstance
     never,            // HydratableInstance
-    Instance,         // PublicInstance
+    CSObject,         // PublicInstance - refs point to the actual UI Toolkit element
     {},               // HostContext
     true,             // UpdatePayload (true = needs update)
     ChildSet,         // ChildSet
@@ -630,6 +713,8 @@ export const hostConfig: HostConfig<
         if (shouldMergeText(parentInstance, child)) {
             appendMergedTextChild(parentInstance, child);
         } else {
+            // Non-text child - unmerge any previously merged text first
+            handleNonTextChild(parentInstance);
             parentInstance.element.Add(child.element);
         }
     },
@@ -638,6 +723,8 @@ export const hostConfig: HostConfig<
         if (shouldMergeText(parentInstance, child)) {
             appendMergedTextChild(parentInstance, child);
         } else {
+            // Non-text child - unmerge any previously merged text first
+            handleNonTextChild(parentInstance);
             parentInstance.element.Add(child.element);
         }
     },
@@ -650,6 +737,8 @@ export const hostConfig: HostConfig<
         if (shouldMergeText(parentInstance, child)) {
             insertMergedTextChild(parentInstance, child, beforeChild);
         } else {
+            // Non-text child - unmerge any previously merged text first
+            handleNonTextChild(parentInstance);
             const index = parentInstance.element.IndexOf(beforeChild.element);
             if (index >= 0) {
                 parentInstance.element.Insert(index, child.element);
@@ -707,7 +796,8 @@ export const hostConfig: HostConfig<
     },
 
     getPublicInstance(instance) {
-        return instance;
+        // Return the actual UI Toolkit element so refs point to it
+        return instance.element;
     },
 
     prepareForCommit() {
