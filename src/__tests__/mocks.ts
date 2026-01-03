@@ -289,7 +289,13 @@ export async function flushMicrotasks(): Promise<void> {
     for (let i = 0; i < 50; i++) {
         await Promise.resolve();
         // Also allow any setTimeout callbacks to run
-        await new Promise(resolve => setImmediate ? setImmediate(resolve) : setTimeout(resolve, 0));
+        await new Promise<void>(resolve => {
+            if (typeof setImmediate !== "undefined") {
+                setImmediate(resolve);
+            } else {
+                setTimeout(resolve, 0);
+            }
+        });
     }
 }
 

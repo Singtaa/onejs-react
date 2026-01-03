@@ -13,7 +13,11 @@ export {
 } from './components';
 
 // Renderer
-export { render, unmount } from './renderer';
+export { render, unmount, flushSync, batchedUpdates, getDebugInfo } from './renderer';
+
+// Error Handling
+export { ErrorBoundary, formatError } from './error-boundary';
+export type { ErrorBoundaryProps } from './error-boundary';
 
 // Responsive Design
 export {

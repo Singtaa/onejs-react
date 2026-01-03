@@ -10,9 +10,17 @@
  * - Child management (appendChild, insertBefore, removeChild)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { hostConfig, type Instance } from '../host-config';
-import { MockVisualElement, MockLength, MockColor, getEventAPI, flushMicrotasks, getCreatedElements } from './mocks';
+import { describe, it, expect, vi } from "vitest";
+import { hostConfig, type Instance } from "../host-config";
+import { MockVisualElement, MockLength, MockColor, getEventAPI } from "./mocks";
+import type { BaseProps } from "../types";
+
+// Props type that includes component-specific properties for testing
+type TestProps = BaseProps & {
+    text?: string;
+    value?: unknown;
+    label?: string;
+};
 
 // Helper to extract value from style (handles both raw values and MockLength/MockColor)
 function getStyleValue(style: unknown): unknown {
@@ -21,10 +29,43 @@ function getStyleValue(style: unknown): unknown {
     return style;
 }
 
+// Type-safe wrapper for createInstance (accepts extra args for backward compat)
+function createInstance(type: string, props: TestProps, ..._extra: unknown[]): Instance {
+    return hostConfig.createInstance(type, props as BaseProps, {} as any, null as any, null);
+}
+
+// Type-safe wrapper for commitUpdate (accepts extra args for backward compat)
+function commitUpdate(instance: Instance, type: string, oldProps: TestProps, newProps: TestProps, ..._extra: unknown[]): void {
+    (hostConfig.commitUpdate as any)(instance, type, oldProps as BaseProps, newProps as BaseProps, null);
+}
+
+// Type-safe wrapper to get element as MockVisualElement for assertions
+function getMockElement(instance: Instance): MockVisualElement {
+    return instance.element as unknown as MockVisualElement;
+}
+
+// Type-safe wrappers for hostConfig methods that may be undefined
+const appendChild = hostConfig.appendChild!;
+const appendInitialChild = hostConfig.appendInitialChild!;
+const insertBefore = hostConfig.insertBefore!;
+const removeChild = hostConfig.removeChild!;
+const appendChildToContainer = hostConfig.appendChildToContainer!;
+const removeChildFromContainer = hostConfig.removeChildFromContainer!;
+const clearContainer = hostConfig.clearContainer!;
+const hideInstance = hostConfig.hideInstance!;
+const unhideInstance = hostConfig.unhideInstance!;
+const commitTextUpdate = hostConfig.commitTextUpdate!;
+const prepareUpdate = hostConfig.prepareUpdate!;
+
+// Type-safe wrapper for createTextInstance
+function createTextInstance(text: string): Instance {
+    return hostConfig.createTextInstance(text, {} as any, null as any, null as any);
+}
+
 describe('host-config', () => {
     describe('createInstance', () => {
         it('creates a VisualElement for ojs-view', () => {
-            const instance = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
+            const instance = createInstance('ojs-view', {});
 
             expect(instance).toBeDefined();
             expect(instance.type).toBe('ojs-view');
@@ -34,28 +75,28 @@ describe('host-config', () => {
         });
 
         it('creates a Label for ojs-label', () => {
-            const instance = hostConfig.createInstance('ojs-label', { text: 'Hello' }, null as any, null, null);
+            const instance = createInstance('ojs-label', { text: 'Hello' });
 
             expect(instance.type).toBe('ojs-label');
             expect(instance.element.text).toBe('Hello');
         });
 
         it('creates a Button for ojs-button', () => {
-            const instance = hostConfig.createInstance('ojs-button', { text: 'Click me' }, null as any, null, null);
+            const instance = createInstance('ojs-button', { text: 'Click me' });
 
             expect(instance.type).toBe('ojs-button');
             expect(instance.element.text).toBe('Click me');
         });
 
         it('creates a TextField for ojs-textfield', () => {
-            const instance = hostConfig.createInstance('ojs-textfield', { value: 'test' }, null as any, null, null);
+            const instance = createInstance('ojs-textfield', { value: 'test' });
 
             expect(instance.type).toBe('ojs-textfield');
             expect(instance.element.value).toBe('test');
         });
 
         it('creates a Toggle for ojs-toggle', () => {
-            const instance = hostConfig.createInstance('ojs-toggle', { value: true, label: 'Enable' }, null as any, null, null);
+            const instance = createInstance('ojs-toggle', { value: true, label: 'Enable' });
 
             expect(instance.type).toBe('ojs-toggle');
             expect(instance.element.value).toBe(true);
@@ -64,14 +105,14 @@ describe('host-config', () => {
 
         it('throws for unknown element type', () => {
             expect(() => {
-                hostConfig.createInstance('unknown-type', {}, null as any, null, null);
+                createInstance('unknown-type', {});
             }).toThrow('Unknown element type: unknown-type');
         });
     });
 
     describe('style application', () => {
         it('applies style properties on creation', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100, height: 50, backgroundColor: 'red' } },
                 null as any,
@@ -87,7 +128,7 @@ describe('host-config', () => {
         });
 
         it('tracks applied style keys', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100, height: 50 } },
                 null as any,
@@ -101,7 +142,7 @@ describe('host-config', () => {
         });
 
         it('expands shorthand padding to individual properties', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { padding: 10 } },
                 null as any,
@@ -117,7 +158,7 @@ describe('host-config', () => {
         });
 
         it('expands shorthand margin to individual properties', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { margin: 20 } },
                 null as any,
@@ -132,7 +173,7 @@ describe('host-config', () => {
         });
 
         it('expands shorthand borderRadius', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { borderRadius: 8 } },
                 null as any,
@@ -149,7 +190,7 @@ describe('host-config', () => {
 
     describe('style updates (commitUpdate)', () => {
         it('updates style properties', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100 } },
                 null as any,
@@ -158,7 +199,7 @@ describe('host-config', () => {
             );
 
             // Simulate React calling commitUpdate
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { style: { width: 100 } },
@@ -170,7 +211,7 @@ describe('host-config', () => {
         });
 
         it('clears removed style properties', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100, height: 50, backgroundColor: 'red' } },
                 null as any,
@@ -179,7 +220,7 @@ describe('host-config', () => {
             );
 
             // Update: remove width and backgroundColor, keep height
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { style: { width: 100, height: 50, backgroundColor: 'red' } },
@@ -193,7 +234,7 @@ describe('host-config', () => {
         });
 
         it('clears expanded shorthand properties when shorthand is removed', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { padding: 10, width: 100 } },
                 null as any,
@@ -202,7 +243,7 @@ describe('host-config', () => {
             );
 
             // Remove padding shorthand
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { style: { padding: 10, width: 100 } },
@@ -218,7 +259,7 @@ describe('host-config', () => {
         });
 
         it('clears all styles when style prop becomes undefined', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100, height: 50 } },
                 null as any,
@@ -226,7 +267,7 @@ describe('host-config', () => {
                 null
             );
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { style: { width: 100, height: 50 } },
@@ -239,7 +280,7 @@ describe('host-config', () => {
         });
 
         it('updates appliedStyleKeys after style change', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100 } },
                 null as any,
@@ -250,7 +291,7 @@ describe('host-config', () => {
             expect(instance.appliedStyleKeys.has('width')).toBe(true);
             expect(instance.appliedStyleKeys.has('height')).toBe(false);
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { style: { width: 100 } },
@@ -265,7 +306,7 @@ describe('host-config', () => {
 
     describe('className management', () => {
         it('applies className on creation', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { className: 'foo bar' },
                 null as any,
@@ -273,13 +314,13 @@ describe('host-config', () => {
                 null
             );
 
-            const el = instance.element as MockVisualElement;
+            const el = getMockElement(instance);
             expect(el.hasClass('foo')).toBe(true);
             expect(el.hasClass('bar')).toBe(true);
         });
 
         it('handles multiple spaces in className', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { className: 'foo   bar  baz' },
                 null as any,
@@ -287,14 +328,14 @@ describe('host-config', () => {
                 null
             );
 
-            const el = instance.element as MockVisualElement;
+            const el = getMockElement(instance);
             expect(el.hasClass('foo')).toBe(true);
             expect(el.hasClass('bar')).toBe(true);
             expect(el.hasClass('baz')).toBe(true);
         });
 
         it('selectively adds new classes on update', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { className: 'foo bar' },
                 null as any,
@@ -302,7 +343,7 @@ describe('host-config', () => {
                 null
             );
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { className: 'foo bar' },
@@ -310,14 +351,14 @@ describe('host-config', () => {
                 null as any
             );
 
-            const el = instance.element as MockVisualElement;
+            const el = getMockElement(instance);
             expect(el.hasClass('foo')).toBe(true);
             expect(el.hasClass('bar')).toBe(true);
             expect(el.hasClass('baz')).toBe(true);
         });
 
         it('selectively removes old classes on update', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { className: 'foo bar baz' },
                 null as any,
@@ -325,7 +366,7 @@ describe('host-config', () => {
                 null
             );
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { className: 'foo bar baz' },
@@ -333,14 +374,14 @@ describe('host-config', () => {
                 null as any
             );
 
-            const el = instance.element as MockVisualElement;
+            const el = getMockElement(instance);
             expect(el.hasClass('foo')).toBe(true);
             expect(el.hasClass('bar')).toBe(false);
             expect(el.hasClass('baz')).toBe(false);
         });
 
         it('handles complete className replacement', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { className: 'old-class' },
                 null as any,
@@ -348,7 +389,7 @@ describe('host-config', () => {
                 null
             );
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { className: 'old-class' },
@@ -356,13 +397,13 @@ describe('host-config', () => {
                 null as any
             );
 
-            const el = instance.element as MockVisualElement;
+            const el = getMockElement(instance);
             expect(el.hasClass('old-class')).toBe(false);
             expect(el.hasClass('new-class')).toBe(true);
         });
 
         it('removes all classes when className becomes undefined', () => {
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { className: 'foo bar' },
                 null as any,
@@ -370,7 +411,7 @@ describe('host-config', () => {
                 null
             );
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-view',
                 { className: 'foo bar' },
@@ -378,7 +419,7 @@ describe('host-config', () => {
                 null as any
             );
 
-            const el = instance.element as MockVisualElement;
+            const el = getMockElement(instance);
             expect(el.hasClass('foo')).toBe(false);
             expect(el.hasClass('bar')).toBe(false);
         });
@@ -387,7 +428,7 @@ describe('host-config', () => {
     describe('event handlers', () => {
         it('registers onClick handler on creation', () => {
             const handler = vi.fn();
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-button',
                 { onClick: handler },
                 null as any,
@@ -407,7 +448,7 @@ describe('host-config', () => {
         it('registers multiple event handlers', () => {
             const onClick = vi.fn();
             const onPointerDown = vi.fn();
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-view',
                 { onClick, onPointerDown },
                 null as any,
@@ -430,7 +471,7 @@ describe('host-config', () => {
 
         it('removes event handler on update', () => {
             const handler = vi.fn();
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-button',
                 { onClick: handler },
                 null as any,
@@ -443,7 +484,7 @@ describe('host-config', () => {
             eventAPI.addEventListener.mockClear();
             eventAPI.removeEventListener.mockClear();
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-button',
                 { onClick: handler },
@@ -462,7 +503,7 @@ describe('host-config', () => {
         it('replaces event handler on update', () => {
             const oldHandler = vi.fn();
             const newHandler = vi.fn();
-            const instance = hostConfig.createInstance(
+            const instance = createInstance(
                 'ojs-button',
                 { onClick: oldHandler },
                 null as any,
@@ -474,7 +515,7 @@ describe('host-config', () => {
             eventAPI.addEventListener.mockClear();
             eventAPI.removeEventListener.mockClear();
 
-            hostConfig.commitUpdate(
+            commitUpdate(
                 instance,
                 'ojs-button',
                 { onClick: oldHandler },
@@ -498,63 +539,63 @@ describe('host-config', () => {
 
     describe('child management', () => {
         it('appendChild adds child to parent', () => {
-            const parent = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
-            const child = hostConfig.createInstance('ojs-label', { text: 'Hello' }, null as any, null, null);
+            const parent = createInstance('ojs-view', {});
+            const child = createInstance('ojs-label', { text: 'Hello' });
 
-            hostConfig.appendChild(parent, child);
+            appendChild(parent, child);
 
-            const parentEl = parent.element as MockVisualElement;
+            const parentEl = getMockElement(parent);
             expect(parentEl.children).toContain(child.element);
         });
 
         it('appendInitialChild adds child during initial render', () => {
-            const parent = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
-            const child = hostConfig.createInstance('ojs-label', {}, null as any, null, null);
+            const parent = createInstance('ojs-view', {});
+            const child = createInstance('ojs-label', {});
 
-            hostConfig.appendInitialChild(parent, child);
+            appendInitialChild(parent, child);
 
-            const parentEl = parent.element as MockVisualElement;
+            const parentEl = getMockElement(parent);
             expect(parentEl.children).toContain(child.element);
         });
 
         it('insertBefore inserts child at correct position', () => {
-            const parent = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
-            const child1 = hostConfig.createInstance('ojs-label', { text: '1' }, null as any, null, null);
-            const child2 = hostConfig.createInstance('ojs-label', { text: '2' }, null as any, null, null);
-            const child3 = hostConfig.createInstance('ojs-label', { text: '3' }, null as any, null, null);
+            const parent = createInstance('ojs-view', {});
+            const child1 = createInstance('ojs-label', { text: '1' });
+            const child2 = createInstance('ojs-label', { text: '2' });
+            const child3 = createInstance('ojs-label', { text: '3' });
 
-            hostConfig.appendChild(parent, child1);
-            hostConfig.appendChild(parent, child3);
-            hostConfig.insertBefore(parent, child2, child3);
+            appendChild(parent, child1);
+            appendChild(parent, child3);
+            insertBefore(parent, child2, child3);
 
-            const parentEl = parent.element as MockVisualElement;
+            const parentEl = getMockElement(parent);
             expect(parentEl.children[0]).toBe(child1.element);
             expect(parentEl.children[1]).toBe(child2.element);
             expect(parentEl.children[2]).toBe(child3.element);
         });
 
         it('removeChild removes child from parent', () => {
-            const parent = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
-            const child = hostConfig.createInstance('ojs-label', {}, null as any, null, null);
+            const parent = createInstance('ojs-view', {});
+            const child = createInstance('ojs-label', {});
 
-            hostConfig.appendChild(parent, child);
-            hostConfig.removeChild(parent, child);
+            appendChild(parent, child);
+            removeChild(parent, child);
 
-            const parentEl = parent.element as MockVisualElement;
+            const parentEl = getMockElement(parent);
             expect(parentEl.children).not.toContain(child.element);
         });
 
         it('removeChild cleans up event listeners', () => {
             const handler = vi.fn();
-            const parent = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
-            const child = hostConfig.createInstance('ojs-button', { onClick: handler }, null as any, null, null);
+            const parent = createInstance('ojs-view', {});
+            const child = createInstance('ojs-button', { onClick: handler });
 
-            hostConfig.appendChild(parent, child);
+            appendChild(parent, child);
 
             const eventAPI = getEventAPI();
             eventAPI.removeAllEventListeners.mockClear();
 
-            hostConfig.removeChild(parent, child);
+            removeChild(parent, child);
 
             expect(eventAPI.removeAllEventListeners).toHaveBeenCalledWith(child.element);
         });
@@ -563,9 +604,9 @@ describe('host-config', () => {
     describe('container operations', () => {
         it('appendChildToContainer adds child to container', () => {
             const container = new MockVisualElement('Container');
-            const child = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
+            const child = createInstance('ojs-view', {});
 
-            hostConfig.appendChildToContainer(container as any, child);
+            appendChildToContainer(container as any, child);
 
             expect(container.children).toContain(child.element);
         });
@@ -573,14 +614,14 @@ describe('host-config', () => {
         it('removeChildFromContainer removes child and cleans up events', () => {
             const container = new MockVisualElement('Container');
             const handler = vi.fn();
-            const child = hostConfig.createInstance('ojs-button', { onClick: handler }, null as any, null, null);
+            const child = createInstance('ojs-button', { onClick: handler });
 
-            hostConfig.appendChildToContainer(container as any, child);
+            appendChildToContainer(container as any, child);
 
             const eventAPI = getEventAPI();
             eventAPI.removeAllEventListeners.mockClear();
 
-            hostConfig.removeChildFromContainer(container as any, child);
+            removeChildFromContainer(container as any, child);
 
             expect(container.children).not.toContain(child.element);
             expect(eventAPI.removeAllEventListeners).toHaveBeenCalledWith(child.element);
@@ -588,15 +629,15 @@ describe('host-config', () => {
 
         it('clearContainer removes all children', () => {
             const container = new MockVisualElement('Container');
-            const child1 = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
-            const child2 = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
+            const child1 = createInstance('ojs-view', {});
+            const child2 = createInstance('ojs-view', {});
 
-            hostConfig.appendChildToContainer(container as any, child1);
-            hostConfig.appendChildToContainer(container as any, child2);
+            appendChildToContainer(container as any, child1);
+            appendChildToContainer(container as any, child2);
 
             expect(container.childCount).toBe(2);
 
-            hostConfig.clearContainer(container as any);
+            clearContainer(container as any);
 
             expect(container.childCount).toBe(0);
         });
@@ -604,7 +645,7 @@ describe('host-config', () => {
 
     describe('text instances', () => {
         it('createTextInstance creates a TextElement with text', () => {
-            const textInstance = hostConfig.createTextInstance('Hello World', null as any, null, null);
+            const textInstance = createTextInstance('Hello World');
 
             expect(textInstance.type).toBe('text');
             expect(textInstance.element.__csType).toBe('UnityEngine.UIElements.TextElement');
@@ -613,9 +654,9 @@ describe('host-config', () => {
         });
 
         it('commitTextUpdate updates the text', () => {
-            const textInstance = hostConfig.createTextInstance('Old text', null as any, null, null);
+            const textInstance = createTextInstance('Old text');
 
-            hostConfig.commitTextUpdate(textInstance, 'Old text', 'New text');
+            commitTextUpdate(textInstance, 'Old text', 'New text');
 
             expect(textInstance.element.text).toBe('New text');
         });
@@ -623,18 +664,18 @@ describe('host-config', () => {
 
     describe('visibility', () => {
         it('hideInstance sets display to none', () => {
-            const instance = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
+            const instance = createInstance('ojs-view', {});
 
-            hostConfig.hideInstance(instance);
+            hideInstance(instance);
 
             expect(instance.element.style.display).toBe('none');
         });
 
         it('unhideInstance clears display', () => {
-            const instance = hostConfig.createInstance('ojs-view', {}, null as any, null, null);
+            const instance = createInstance('ojs-view', {});
             instance.element.style.display = 'none';
 
-            hostConfig.unhideInstance(instance, {});
+            unhideInstance(instance, {});
 
             expect(instance.element.style.display).toBe('');
         });
@@ -642,15 +683,15 @@ describe('host-config', () => {
 
     describe('prepareUpdate', () => {
         it('returns true when props differ', () => {
-            const instance = hostConfig.createInstance('ojs-view', { style: { width: 100 } }, null as any, null, null);
+            const instance = createInstance('ojs-view', { style: { width: 100 } });
 
-            const result = hostConfig.prepareUpdate(
+            const result = prepareUpdate(
                 instance,
                 'ojs-view',
-                { style: { width: 100 } },
-                { style: { width: 200 } },
+                { style: { width: 100 } } as BaseProps,
+                { style: { width: 200 } } as BaseProps,
                 null as any,
-                null
+                null as any
             );
 
             expect(result).toBe(true);
@@ -658,15 +699,15 @@ describe('host-config', () => {
 
         it('returns null when props are same reference', () => {
             const props = { style: { width: 100 } };
-            const instance = hostConfig.createInstance('ojs-view', props, null as any, null, null);
+            const instance = createInstance('ojs-view', props);
 
-            const result = hostConfig.prepareUpdate(
+            const result = prepareUpdate(
                 instance,
                 'ojs-view',
-                props,
-                props,
+                props as BaseProps,
+                props as BaseProps,
                 null as any,
-                null
+                null as any
             );
 
             expect(result).toBeNull();

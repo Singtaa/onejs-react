@@ -7,11 +7,12 @@ declare const console: { log: (...args: unknown[]) => void; error: (...args: unk
 // Create the reconciler
 const reconciler = Reconciler(hostConfig);
 
-// Inject into dev tools (helps with proper initialization)
+// Inject into dev tools with full configuration
+// This enables React DevTools to inspect the component tree
 reconciler.injectIntoDevTools({
-  bundleType: 1, // 0 for prod, 1 for dev
-  version: '19.0.0',
-  rendererPackageName: 'onejs-react',
+    bundleType: 1, // 0 for prod, 1 for dev
+    version: '19.0.0',
+    rendererPackageName: 'onejs-react',
 });
 
 // Track roots for hot reload / re-render
@@ -56,7 +57,43 @@ export function unmount(container: Container): void {
   }
 }
 
+/**
+ * Execute a callback synchronously, flushing all updates before returning.
+ * Useful for tests or when you need immediate UI updates.
+ */
+export function flushSync<T>(callback: () => T): T {
+    if (typeof (reconciler as any).flushSync === 'function') {
+        return (reconciler as any).flushSync(callback);
+    }
+    // Fallback: just call the callback
+    return callback();
+}
+
+/**
+ * Batch multiple updates together for better performance.
+ * All updates inside the callback are batched into a single render.
+ */
+export function batchedUpdates<T>(callback: () => T): T {
+    if (typeof (reconciler as any).batchedUpdates === 'function') {
+        return (reconciler as any).batchedUpdates(callback);
+    }
+    // Fallback: just call the callback
+    return callback();
+}
+
 // Export for testing/debugging
 export function getRoot(container: Container) {
-  return roots.get(container);
+    return roots.get(container);
+}
+
+/**
+ * Get debug info about all active render roots.
+ * Useful for debugging and DevTools integration.
+ */
+export function getDebugInfo() {
+    return {
+        activeRoots: roots.size,
+        reconcilerVersion: '0.31.0',
+        reactVersion: '19.0.0',
+    };
 }

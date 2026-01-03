@@ -8,23 +8,35 @@
  * - console: QuickJS built-in
  */
 
-import { vi } from 'vitest';
-import { createMockCS, resetAllMocks } from './mocks';
+import { vi, beforeEach, afterEach } from "vitest";
+import { createMockCS, resetAllMocks } from "./mocks";
+
+// Extend globalThis type for our mocks
+declare global {
+    // eslint-disable-next-line no-var
+    var CS: ReturnType<typeof createMockCS>;
+    // eslint-disable-next-line no-var
+    var __eventAPI: {
+        addEventListener: ReturnType<typeof vi.fn>;
+        removeEventListener: ReturnType<typeof vi.fn>;
+        removeAllEventListeners: ReturnType<typeof vi.fn>;
+    };
+}
 
 // Store original globals (Node.js provides these)
-const originalSetTimeout = globalThis.setTimeout;
-const originalClearTimeout = globalThis.clearTimeout;
-const originalQueueMicrotask = globalThis.queueMicrotask;
+const originalSetTimeout = global.setTimeout;
+const originalClearTimeout = global.clearTimeout;
+const originalQueueMicrotask = global.queueMicrotask;
 
 // Set up globals before each test
 beforeEach(() => {
     resetAllMocks();
 
     // Create fresh mock CS global
-    (globalThis as any).CS = createMockCS();
+    global.CS = createMockCS();
 
     // Mock event API with spies
-    (globalThis as any).__eventAPI = {
+    global.__eventAPI = {
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
         removeAllEventListeners: vi.fn(),
@@ -32,18 +44,18 @@ beforeEach(() => {
 
     // Use real console but spy on it for test assertions
     // (React reconciler logs things we want to see during debugging)
-    (globalThis as any).console = {
+    (global as any).console = {
         log: vi.fn(),
         error: vi.fn(),
         warn: vi.fn(),
     };
 
     // Use real queueMicrotask - React scheduler depends on it
-    (globalThis as any).queueMicrotask = originalQueueMicrotask || ((cb: () => void) => Promise.resolve().then(cb));
+    (global as any).queueMicrotask = originalQueueMicrotask || ((cb: () => void) => Promise.resolve().then(cb));
 
     // Use real setTimeout/clearTimeout - React scheduler depends on them
-    (globalThis as any).setTimeout = originalSetTimeout;
-    (globalThis as any).clearTimeout = originalClearTimeout;
+    (global as any).setTimeout = originalSetTimeout;
+    (global as any).clearTimeout = originalClearTimeout;
 });
 
 // Clean up after each test

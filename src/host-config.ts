@@ -666,8 +666,11 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
     instance.props = newProps;
 }
 
-// The host config for react-reconciler
-export const hostConfig: HostConfig<
+// NOTE: We use a type assertion because @types/react-reconciler (0.28.x) is outdated
+// and doesn't match react-reconciler 0.31.x (React 19). The HostConfig interface
+// has changed significantly - notably commitUpdate no longer receives updatePayload.
+// Once @types/react-reconciler is updated for React 19, we can use proper typing.
+type OurHostConfig = HostConfig<
     string,           // Type
     BaseProps,        // Props
     Container,        // Container
@@ -681,7 +684,10 @@ export const hostConfig: HostConfig<
     ChildSet,         // ChildSet
     number,           // TimeoutHandle
     number            // NoTimeout
-> = {
+>;
+
+// The host config for react-reconciler
+export const hostConfig = {
     supportsMutation: true,
     supportsPersistence: false,
     supportsHydration: false,
@@ -689,11 +695,11 @@ export const hostConfig: HostConfig<
     isPrimaryRenderer: true,
     noTimeout: -1,
 
-    createInstance(type, props) {
+    createInstance(type: string, props: BaseProps) {
         return createInstance(type, props);
     },
 
-    createTextInstance(text) {
+    createTextInstance(text: string) {
         // Create a TextElement for implicit text content
         // Using TextElement (not Label) for semantic clarity:
         // - TextElement = raw text content in JSX
@@ -709,7 +715,7 @@ export const hostConfig: HostConfig<
         };
     },
 
-    appendInitialChild(parentInstance, child) {
+    appendInitialChild(parentInstance: Instance, child: Instance) {
         if (shouldMergeText(parentInstance, child)) {
             appendMergedTextChild(parentInstance, child);
         } else {
@@ -719,7 +725,7 @@ export const hostConfig: HostConfig<
         }
     },
 
-    appendChild(parentInstance, child) {
+    appendChild(parentInstance: Instance, child: Instance) {
         if (shouldMergeText(parentInstance, child)) {
             appendMergedTextChild(parentInstance, child);
         } else {
@@ -729,11 +735,11 @@ export const hostConfig: HostConfig<
         }
     },
 
-    appendChildToContainer(container, child) {
+    appendChildToContainer(container: Container, child: Instance) {
         container.Add(child.element);
     },
 
-    insertBefore(parentInstance, child, beforeChild) {
+    insertBefore(parentInstance: Instance, child: Instance, beforeChild: Instance) {
         if (shouldMergeText(parentInstance, child)) {
             insertMergedTextChild(parentInstance, child, beforeChild);
         } else {
@@ -748,7 +754,7 @@ export const hostConfig: HostConfig<
         }
     },
 
-    insertInContainerBefore(container, child, beforeChild) {
+    insertInContainerBefore(container: Container, child: Instance, beforeChild: Instance) {
         const index = container.IndexOf(beforeChild.element);
         if (index >= 0) {
             container.Insert(index, child.element);
@@ -757,7 +763,7 @@ export const hostConfig: HostConfig<
         }
     },
 
-    removeChild(parentInstance, child) {
+    removeChild(parentInstance: Instance, child: Instance) {
         if (child.mergedInto === parentInstance) {
             // Child was merged into parent's text - remove from merged children
             removeMergedTextChild(parentInstance, child);
@@ -767,23 +773,23 @@ export const hostConfig: HostConfig<
         }
     },
 
-    removeChildFromContainer(container, child) {
+    removeChildFromContainer(container: Container, child: Instance) {
         __eventAPI.removeAllEventListeners(child.element);
         container.Remove(child.element);
     },
 
-    prepareUpdate(_instance, _type, oldProps, newProps) {
+    prepareUpdate(_instance: Instance, _type: string, oldProps: BaseProps, newProps: BaseProps) {
         // Return true if we need to update, null if no update needed
         return oldProps !== newProps ? true : null;
     },
 
     // React 19 changed the signature: (instance, type, oldProps, newProps, fiber)
     // The updatePayload parameter was removed!
-    commitUpdate(instance, _type, oldProps, newProps, _fiber) {
+    commitUpdate(instance: Instance, _type: string, oldProps: BaseProps, newProps: BaseProps, _fiber: unknown) {
         updateInstance(instance, oldProps, newProps);
     },
 
-    commitTextUpdate(textInstance, _oldText, newText) {
+    commitTextUpdate(textInstance: Instance, _oldText: string, newText: string) {
         textInstance.element.text = newText;
         // If this text is merged into a parent, rebuild the parent's concatenated text
         if (textInstance.mergedInto) {
@@ -795,7 +801,7 @@ export const hostConfig: HostConfig<
         return false;
     },
 
-    getPublicInstance(instance) {
+    getPublicInstance(instance: Instance) {
         // Return the actual UI Toolkit element so refs point to it
         return instance.element;
     },
@@ -816,7 +822,7 @@ export const hostConfig: HostConfig<
         return {};
     },
 
-    getChildHostContext(parentHostContext) {
+    getChildHostContext(parentHostContext: {}) {
         return parentHostContext;
     },
 
@@ -824,7 +830,7 @@ export const hostConfig: HostConfig<
         return false;
     },
 
-    clearContainer(container) {
+    clearContainer(container: Container) {
         container.Clear();
     },
 
@@ -938,4 +944,4 @@ export const hostConfig: HostConfig<
     bindToConsole(methodName: string, args: unknown[], _badgeName: string) {
         return (console as Record<string, Function>)[methodName]?.bind(console, ...args);
     },
-};
+} as unknown as OurHostConfig;

@@ -77,14 +77,64 @@ Added 40+ event handlers:
 
 ## Developer Experience
 
-### 4. Fix Test Type Errors
-The test suite has many TypeScript errors that should be cleaned up.
+### 4. Fix Test Type Errors ✅
+Test type errors fixed by:
+- Adding proper type annotations to hostConfig functions
+- Using type assertions for react-reconciler compatibility (outdated @types)
+- Creating wrapper functions for test helpers
 
-### 5. Error Boundaries
-Better error messages when things go wrong in the reconciler.
+### 5. Error Boundaries ✅
+Added `ErrorBoundary` component with:
+- Default fallback UI
+- Custom fallback (ReactNode or function with error details)
+- `onError` callback for logging
+- `reset()` method to recover
+- `formatError()` helper function
 
-### 6. DevTools Integration
-React DevTools support for debugging component trees.
+```tsx
+import { ErrorBoundary } from "onejs-react"
+
+// Basic usage
+<ErrorBoundary>
+  <MyComponent />
+</ErrorBoundary>
+
+// With custom fallback
+<ErrorBoundary fallback={<Label>Error!</Label>}>
+  <MyComponent />
+</ErrorBoundary>
+
+// With error details
+<ErrorBoundary fallback={(error, info) => (
+  <Label>Error: {error.message}</Label>
+)}>
+  <MyComponent />
+</ErrorBoundary>
+```
+
+### 6. DevTools Integration (Future Work)
+
+**Current state:** Basic `injectIntoDevTools` call exists but doesn't enable actual DevTools inspection since QuickJS lacks WebSocket support.
+
+**Added utilities:**
+- `flushSync(callback)` - Execute synchronously, flush all updates
+- `batchedUpdates(callback)` - Batch multiple updates together
+- `getDebugInfo()` - Get renderer version and active root count
+
+**Full DevTools would require:**
+
+1. **WebSocket bridge** - C# `ClientWebSocket` exposed to JS
+2. **react-devtools-core backend** - Bundle and load before React
+3. **Bootstrap integration** - Initialize DevTools before user code
+
+Architecture (React Native approach):
+```
+QuickJS ──WebSocket polyfill──► C# WebSocket ──► DevTools Standalone (port 8097)
+```
+
+Alternative: `connectWithCustomMessagingProtocol` for non-WebSocket transport.
+
+See: [react-devtools-core](https://www.npmjs.com/package/react-devtools-core)
 
 ---
 
