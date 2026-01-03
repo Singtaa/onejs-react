@@ -1,104 +1,77 @@
 # onejs-react Reconciler TODO
 
-## High Impact
+## High Impact - COMPLETED
 
-### 1. `ref` Support
-Allow React refs to access underlying UI Toolkit elements:
+### 1. `ref` Support ✅
+Refs now point to the actual UI Toolkit element (CSObject).
+
 ```tsx
-const labelRef = useRef<Label>(null)
+import { useRef } from "react"
+import { LabelElement } from "onejs-react"
+
+const labelRef = useRef<LabelElement>(null)
 <Label ref={labelRef}>Hello</Label>
 
-// Later:
+// Access the element:
 labelRef.current.style.color = "red"
+labelRef.current.Focus()
+labelRef.current.AddToClassList("highlight")
 ```
 
-**Implementation:**
-- Update `getPublicInstance()` to return the CSObject element
-- Handle `ref` prop in `createInstance` and `commitUpdate`
-- Support both callback refs and RefObject
-- Consider what to expose: raw element vs wrapped instance
+Element types exported: `VisualElement`, `TextElement`, `LabelElement`, `ButtonElement`, `TextFieldElement`, `ToggleElement`, `SliderElement`, `ScrollViewElement`, `ImageElement`
 
 ---
 
-### 2. Mixed Content Ordering
-Currently `<Label>A <Icon/> B</Label>` merges text but loses ordering with non-text children.
+### 2. Mixed Content Ordering ✅
+When non-text children are added to a text-merge parent (Label/Text/Button), all text children are "unmerged" and added as separate TextElement children to preserve order.
 
-**Current behavior:**
-- Text children ("A", "B") merge into label.text = "AB"
-- Icon added as visual child
-- Result: "AB" displayed, then Icon below
+```tsx
+// This now renders correctly: A, then View, then B
+<Label>A <View /> B</Label>
+```
 
-**Expected behavior:**
-- Render as: A, Icon, B (inline or in order)
-
-**Options:**
-a) Don't merge when non-text siblings exist (fallback to separate TextElements)
-b) Use nested VisualElements to maintain order
-c) Document as limitation - use explicit `<Text>` components for mixed content
-
-**Recommendation:** Option (a) - detect mixed content and skip merging
+Implementation: `hasMixedContent` flag + `unmergTextChildren()` function
 
 ---
 
-### 3. More Events
-Add comprehensive event support matching UI Toolkit capabilities:
+### 3. More Events ✅
+Added 40+ event handlers:
 
 **Pointer Events:**
 - [x] onClick
-- [x] onPointerDown
-- [x] onPointerUp
-- [x] onPointerMove
-- [x] onPointerEnter
-- [x] onPointerLeave
-- [ ] onPointerCancel
-- [ ] onPointerCapture
-- [ ] onPointerCaptureOut
+- [x] onPointerDown/Up/Move/Enter/Leave
+- [x] onPointerCancel/Capture/CaptureOut/Stationary
 
 **Mouse Events:**
-- [ ] onMouseDown
-- [ ] onMouseUp
-- [ ] onMouseMove
-- [ ] onMouseEnter
-- [ ] onMouseLeave
-- [ ] onMouseOver
-- [ ] onMouseOut
-- [ ] onWheel
-- [ ] onContextMenu (right-click)
-
-**Drag Events:**
-- [ ] onDragStart (DragEnterEvent)
-- [ ] onDrag (DragUpdatedEvent)
-- [ ] onDragEnd (DragExitedEvent)
-- [ ] onDrop (DragPerformEvent)
-
-**Scroll Events:**
-- [ ] onScroll
-
-**Keyboard Events:**
-- [x] onKeyDown
-- [x] onKeyUp
-- [ ] onKeyPress (deprecated but useful)
+- [x] onMouseDown/Up/Move/Enter/Leave/Over/Out
+- [x] onWheel
+- [x] onContextClick
 
 **Focus Events:**
-- [x] onFocus
-- [x] onBlur
-- [ ] onFocusIn (bubbles)
-- [ ] onFocusOut (bubbles)
+- [x] onFocus/Blur
+- [x] onFocusIn/FocusOut (bubbling)
+
+**Keyboard Events:**
+- [x] onKeyDown/KeyUp
 
 **Input Events:**
 - [x] onChange
-- [ ] onInput
-- [ ] onSubmit
+- [x] onInput
 
-**Touch Events (mobile):**
-- [ ] onTouchStart
-- [ ] onTouchMove
-- [ ] onTouchEnd
-- [ ] onTouchCancel
+**Drag Events:**
+- [x] onDragEnter/Leave/Updated/Perform/Exited
 
 **Geometry Events:**
-- [ ] onGeometryChanged
-- [ ] onLayout (alias for geometry)
+- [x] onGeometryChanged
+
+**Navigation Events:**
+- [x] onNavigationMove/Submit/Cancel
+
+**Transition Events:**
+- [x] onTransitionRun/Start/End/Cancel
+
+**Other:**
+- [x] onTooltip
 
 ---
 
