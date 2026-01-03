@@ -141,6 +141,10 @@ interface CSListView extends CSObject {
     Rebuild: () => void;
 }
 
+// Elements that merge text children into their text property instead of adding as visual children
+// This enables <Label>Hello {"World"}</Label> to render as single line, matching React Native behavior
+const TEXT_MERGE_TYPES = new Set(['ojs-label', 'ojs-text', 'ojs-button']);
+
 // Instance type used by the reconciler
 export interface Instance {
     element: CSObject;
@@ -148,6 +152,10 @@ export interface Instance {
     props: BaseProps;
     eventHandlers: Map<string, Function>;
     appliedStyleKeys: Set<string>; // Track which style properties are currently applied
+    // For text-merging parents: ordered list of merged text children
+    mergedTextChildren?: Instance[];
+    // For merged text children: reference to parent they're merged into
+    mergedInto?: Instance;
 }
 
 export type TextInstance = Instance; // For Label elements with text content
@@ -386,6 +394,62 @@ function applyEvents(instance: Instance, props: BaseProps) {
     }
 }
 
+// MARK: Text Merging
+// Rebuild concatenated text from merged text children
+function rebuildMergedText(instance: Instance) {
+    const children = instance.mergedTextChildren;
+    if (!children || children.length === 0) {
+        // No merged children - clear text (or keep prop-based text?)
+        // For now, set to empty - if user wants text, they should use children
+        instance.element.text = '';
+        return;
+    }
+    instance.element.text = children.map(c => c.element.text || '').join('');
+}
+
+// Check if a child should be merged into parent's text property
+function shouldMergeText(parentInstance: Instance, child: Instance): boolean {
+    return TEXT_MERGE_TYPES.has(parentInstance.type) && child.type === 'text';
+}
+
+// Append a text child to a text-merging parent
+function appendMergedTextChild(parentInstance: Instance, child: Instance) {
+    if (!parentInstance.mergedTextChildren) {
+        parentInstance.mergedTextChildren = [];
+    }
+    parentInstance.mergedTextChildren.push(child);
+    child.mergedInto = parentInstance;
+    rebuildMergedText(parentInstance);
+}
+
+// Insert a text child before another in a text-merging parent
+function insertMergedTextChild(parentInstance: Instance, child: Instance, beforeChild: Instance) {
+    if (!parentInstance.mergedTextChildren) {
+        parentInstance.mergedTextChildren = [];
+    }
+    const index = parentInstance.mergedTextChildren.indexOf(beforeChild);
+    if (index >= 0) {
+        parentInstance.mergedTextChildren.splice(index, 0, child);
+    } else {
+        parentInstance.mergedTextChildren.push(child);
+    }
+    child.mergedInto = parentInstance;
+    rebuildMergedText(parentInstance);
+}
+
+// Remove a text child from a text-merging parent
+function removeMergedTextChild(parentInstance: Instance, child: Instance) {
+    const children = parentInstance.mergedTextChildren;
+    if (children) {
+        const index = children.indexOf(child);
+        if (index >= 0) {
+            children.splice(index, 1);
+        }
+    }
+    child.mergedInto = undefined;
+    rebuildMergedText(parentInstance);
+}
+
 // MARK: Component-specific prop handlers
 
 // Apply common props (text, value, label)
@@ -563,11 +627,19 @@ export const hostConfig: HostConfig<
     },
 
     appendInitialChild(parentInstance, child) {
-        parentInstance.element.Add(child.element);
+        if (shouldMergeText(parentInstance, child)) {
+            appendMergedTextChild(parentInstance, child);
+        } else {
+            parentInstance.element.Add(child.element);
+        }
     },
 
     appendChild(parentInstance, child) {
-        parentInstance.element.Add(child.element);
+        if (shouldMergeText(parentInstance, child)) {
+            appendMergedTextChild(parentInstance, child);
+        } else {
+            parentInstance.element.Add(child.element);
+        }
     },
 
     appendChildToContainer(container, child) {
@@ -575,11 +647,15 @@ export const hostConfig: HostConfig<
     },
 
     insertBefore(parentInstance, child, beforeChild) {
-        const index = parentInstance.element.IndexOf(beforeChild.element);
-        if (index >= 0) {
-            parentInstance.element.Insert(index, child.element);
+        if (shouldMergeText(parentInstance, child)) {
+            insertMergedTextChild(parentInstance, child, beforeChild);
         } else {
-            parentInstance.element.Add(child.element);
+            const index = parentInstance.element.IndexOf(beforeChild.element);
+            if (index >= 0) {
+                parentInstance.element.Insert(index, child.element);
+            } else {
+                parentInstance.element.Add(child.element);
+            }
         }
     },
 
@@ -593,8 +669,13 @@ export const hostConfig: HostConfig<
     },
 
     removeChild(parentInstance, child) {
-        __eventAPI.removeAllEventListeners(child.element);
-        parentInstance.element.Remove(child.element);
+        if (child.mergedInto === parentInstance) {
+            // Child was merged into parent's text - remove from merged children
+            removeMergedTextChild(parentInstance, child);
+        } else {
+            __eventAPI.removeAllEventListeners(child.element);
+            parentInstance.element.Remove(child.element);
+        }
     },
 
     removeChildFromContainer(container, child) {
@@ -615,6 +696,10 @@ export const hostConfig: HostConfig<
 
     commitTextUpdate(textInstance, _oldText, newText) {
         textInstance.element.text = newText;
+        // If this text is merged into a parent, rebuild the parent's concatenated text
+        if (textInstance.mergedInto) {
+            rebuildMergedText(textInstance.mergedInto);
+        }
     },
 
     finalizeInitialChildren() {
