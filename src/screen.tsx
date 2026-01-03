@@ -7,7 +7,7 @@
  * Mobile-first: At 1400px width, sm/md/lg/xl are all active (not just xl).
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
 // Globals from QuickJS environment
 declare const __root: {

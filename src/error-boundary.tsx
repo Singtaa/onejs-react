@@ -1,4 +1,4 @@
-import { Component, ReactNode, ErrorInfo } from "react"
+import { Component, type ReactNode, type ErrorInfo } from "react"
 import { View, Label } from "./components"
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void }

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { forwardRef, type ReactElement, type Ref } from 'react';
 import type {
   ViewProps,
   TextProps,
@@ -9,8 +9,20 @@ import type {
   SliderProps,
   ScrollViewProps,
   ImageProps,
-  ListViewProps
+  ListViewProps,
+  VisualElement,
+  TextElement,
+  LabelElement,
+  ButtonElement,
+  TextFieldElement,
+  ToggleElement,
+  SliderElement,
+  ScrollViewElement,
+  ImageElement,
 } from './types';
+
+// Props with ref support for intrinsic elements
+type WithRef<Props, Element> = Props & { ref?: Ref<Element> };
 
 // Declare the intrinsic element types for JSX
 // Using 'ojs-' prefix to avoid conflicts with HTML/SVG element names in @types/react
@@ -18,16 +30,16 @@ import type {
 declare module 'react/jsx-runtime' {
   namespace JSX {
     interface IntrinsicElements {
-      'ojs-view': ViewProps;
-      'ojs-text': TextProps;
-      'ojs-label': LabelProps;
-      'ojs-button': ButtonProps;
-      'ojs-textfield': TextFieldProps;
-      'ojs-toggle': ToggleProps;
-      'ojs-slider': SliderProps;
-      'ojs-scrollview': ScrollViewProps;
-      'ojs-image': ImageProps;
-      'ojs-listview': ListViewProps;
+      'ojs-view': WithRef<ViewProps, VisualElement>;
+      'ojs-text': WithRef<TextProps, TextElement>;
+      'ojs-label': WithRef<LabelProps, LabelElement>;
+      'ojs-button': WithRef<ButtonProps, ButtonElement>;
+      'ojs-textfield': WithRef<TextFieldProps, TextFieldElement>;
+      'ojs-toggle': WithRef<ToggleProps, ToggleElement>;
+      'ojs-slider': WithRef<SliderProps, SliderElement>;
+      'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
+      'ojs-image': WithRef<ImageProps, ImageElement>;
+      'ojs-listview': WithRef<ListViewProps, VisualElement>;
     }
   }
 }
@@ -36,59 +48,69 @@ declare module 'react/jsx-runtime' {
 declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
-      'ojs-view': ViewProps;
-      'ojs-text': TextProps;
-      'ojs-label': LabelProps;
-      'ojs-button': ButtonProps;
-      'ojs-textfield': TextFieldProps;
-      'ojs-toggle': ToggleProps;
-      'ojs-slider': SliderProps;
-      'ojs-scrollview': ScrollViewProps;
-      'ojs-image': ImageProps;
-      'ojs-listview': ListViewProps;
+      'ojs-view': WithRef<ViewProps, VisualElement>;
+      'ojs-text': WithRef<TextProps, TextElement>;
+      'ojs-label': WithRef<LabelProps, LabelElement>;
+      'ojs-button': WithRef<ButtonProps, ButtonElement>;
+      'ojs-textfield': WithRef<TextFieldProps, TextFieldElement>;
+      'ojs-toggle': WithRef<ToggleProps, ToggleElement>;
+      'ojs-slider': WithRef<SliderProps, SliderElement>;
+      'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
+      'ojs-image': WithRef<ImageProps, ImageElement>;
+      'ojs-listview': WithRef<ListViewProps, VisualElement>;
     }
   }
 }
 
 // Component wrappers that provide nice capitalized names
-// These return JSX elements with 'ojs-' prefixed type strings
+// These use forwardRef to pass refs through to the intrinsic elements
 
-export function View(props: ViewProps): ReactElement {
-  return <ojs-view {...props} />;
-}
+export const View = forwardRef<VisualElement, ViewProps>((props, ref) => {
+  return <ojs-view ref={ref} {...props} />;
+});
+View.displayName = 'View';
 
-export function Text(props: TextProps): ReactElement {
-  return <ojs-text {...props} />;
-}
+export const Text = forwardRef<TextElement, TextProps>((props, ref) => {
+  return <ojs-text ref={ref} {...props} />;
+});
+Text.displayName = 'Text';
 
-export function Label(props: LabelProps): ReactElement {
-  return <ojs-label {...props} />;
-}
+export const Label = forwardRef<LabelElement, LabelProps>((props, ref) => {
+  return <ojs-label ref={ref} {...props} />;
+});
+Label.displayName = 'Label';
 
-export function Button(props: ButtonProps): ReactElement {
-  return <ojs-button {...props} />;
-}
+export const Button = forwardRef<ButtonElement, ButtonProps>((props, ref) => {
+  return <ojs-button ref={ref} {...props} />;
+});
+Button.displayName = 'Button';
 
-export function TextField(props: TextFieldProps): ReactElement {
-  return <ojs-textfield {...props} />;
-}
+export const TextField = forwardRef<TextFieldElement, TextFieldProps>((props, ref) => {
+  return <ojs-textfield ref={ref} {...props} />;
+});
+TextField.displayName = 'TextField';
 
-export function Toggle(props: ToggleProps): ReactElement {
-  return <ojs-toggle {...props} />;
-}
+export const Toggle = forwardRef<ToggleElement, ToggleProps>((props, ref) => {
+  return <ojs-toggle ref={ref} {...props} />;
+});
+Toggle.displayName = 'Toggle';
 
-export function Slider(props: SliderProps): ReactElement {
-  return <ojs-slider {...props} />;
-}
+export const Slider = forwardRef<SliderElement, SliderProps>((props, ref) => {
+  return <ojs-slider ref={ref} {...props} />;
+});
+Slider.displayName = 'Slider';
 
-export function ScrollView(props: ScrollViewProps): ReactElement {
-  return <ojs-scrollview {...props} />;
-}
+export const ScrollView = forwardRef<ScrollViewElement, ScrollViewProps>((props, ref) => {
+  return <ojs-scrollview ref={ref} {...props} />;
+});
+ScrollView.displayName = 'ScrollView';
 
-export function Image(props: ImageProps): ReactElement {
-  return <ojs-image {...props} />;
-}
+export const Image = forwardRef<ImageElement, ImageProps>((props, ref) => {
+  return <ojs-image ref={ref} {...props} />;
+});
+Image.displayName = 'Image';
 
-export function ListView(props: ListViewProps): ReactElement {
-  return <ojs-listview {...props} />;
-}
+export const ListView = forwardRef<VisualElement, ListViewProps>((props, ref) => {
+  return <ojs-listview ref={ref} {...props} />;
+});
+ListView.displayName = 'ListView';
