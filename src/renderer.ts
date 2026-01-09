@@ -1,6 +1,7 @@
 import Reconciler from 'react-reconciler';
 import type { ReactNode } from 'react';
 import { hostConfig, type Container } from './host-config';
+import type { RenderContainer, VisualElement } from './types';
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
@@ -16,14 +17,14 @@ reconciler.injectIntoDevTools({
 });
 
 // Track roots for hot reload / re-render
-const roots = new Map<Container, ReturnType<typeof reconciler.createContainer>>();
+const roots = new Map<RenderContainer, ReturnType<typeof reconciler.createContainer>>();
 
-export function render(element: ReactNode, container: Container): void {
+export function render(element: ReactNode, container: RenderContainer): void {
   let root = roots.get(container);
 
   if (!root) {
     root = reconciler.createContainer(
-      container,
+      container as Container,
       0, // LegacyRoot (0) vs ConcurrentRoot (1)
       null, // hydrationCallbacks
       false, // isStrictMode
@@ -49,7 +50,7 @@ export function render(element: ReactNode, container: Container): void {
   }
 }
 
-export function unmount(container: Container): void {
+export function unmount(container: RenderContainer): void {
   const root = roots.get(container);
   if (root) {
     reconciler.updateContainer(null, root, null, () => {});
@@ -82,7 +83,7 @@ export function batchedUpdates<T>(callback: () => T): T {
 }
 
 // Export for testing/debugging
-export function getRoot(container: Container) {
+export function getRoot(container: RenderContainer) {
     return roots.get(container);
 }
 

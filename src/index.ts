@@ -72,6 +72,8 @@ export type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  // Container type for render()
+  RenderContainer,
   // Element types for refs
   VisualElement,
   TextElement,

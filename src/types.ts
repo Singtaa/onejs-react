@@ -348,11 +348,20 @@ export interface ImageProps extends BaseProps {
   scaleMode?: 'stretch-to-fill' | 'scale-and-crop' | 'scale-to-fit';
 }
 
-// VisualElement - base type for all UI Toolkit elements
-// This is the C# VisualElement exposed to JS via refs
-export interface VisualElement {
+/**
+ * Minimal container type for render() function.
+ * Accepts any Unity VisualElement (CS.UnityEngine.UIElements.VisualElement)
+ * or the detailed VisualElement interface below.
+ */
+export interface RenderContainer {
   __csHandle: number;
   __csType: string;
+}
+
+// VisualElement - base type for all UI Toolkit elements
+// This is the C# VisualElement exposed to JS via refs
+// Note: This interface represents the JS-side view of Unity's VisualElement
+export interface VisualElement extends RenderContainer {
   style: Record<string, unknown>;
   name: string;
   visible: boolean;
@@ -361,6 +370,9 @@ export interface VisualElement {
 
   // Text content (for TextElement-derived types)
   text?: string;
+
+  // Label (for labeled controls like Toggle)
+  label?: string;
 
   // Value (for input controls)
   value?: unknown;
