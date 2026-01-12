@@ -10,7 +10,7 @@ React 19 reconciler for Unity's UI Toolkit.
 | `src/renderer.ts` | Entry point: `render(element, container)` |
 | `src/components.tsx` | Component wrappers: View, Text, Label, Button, TextField, etc. |
 | `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive |
-| `src/types.ts` | TypeScript type definitions |
+| `src/types.ts` | TypeScript type definitions (includes Vector Drawing types) |
 | `src/index.ts` | Package exports |
 
 ## Components
@@ -48,6 +48,70 @@ function App() {
 render(<App />, __root);
 ```
 
+## Type Usage Guide
+
+OneJS has multiple type sources. Here's when to use each:
+
+### React Components (Most Common)
+
+Import types from `onejs-react` for refs and component props:
+
+```tsx
+import { View, Button, VisualElement, ButtonElement } from "onejs-react"
+
+function MyComponent() {
+    const viewRef = useRef<VisualElement>(null)
+    const buttonRef = useRef<ButtonElement>(null)
+
+    useEffect(() => {
+        buttonRef.current?.Focus()
+    }, [])
+
+    return (
+        <View ref={viewRef}>
+            <Button ref={buttonRef} text="Click me" />
+        </View>
+    )
+}
+```
+
+### Imperative Element Creation
+
+For creating elements outside React, use `unity-types`:
+
+```tsx
+import { Button } from "UnityEngine.UIElements"
+
+const btn = new Button()
+btn.text = "Dynamic Button"
+__root.Add(btn)
+```
+
+### render() Container
+
+The `render()` function accepts any `RenderContainer`:
+
+```tsx
+import { render, RenderContainer } from "onejs-react"
+
+// __root is provided by the runtime
+render(<App />, __root)
+```
+
+### Type Hierarchy
+
+```
+RenderContainer         (minimal: __csHandle, __csType)
+    └── VisualElement   (full API: style, hierarchy, events)
+        ├── TextElement (+ text property)
+        │   ├── LabelElement
+        │   └── ButtonElement
+        ├── TextFieldElement (+ value, isPasswordField, etc.)
+        ├── ToggleElement    (+ value: boolean)
+        ├── SliderElement    (+ value, lowValue, highValue)
+        └── ScrollViewElement (+ scrollOffset, ScrollTo)
+```
+
 ## Key Concepts
 
 - **Element types**: Use `ojs-` prefix internally (e.g., `ojs-view`, `ojs-button`) to avoid conflicts with HTML types
@@ -76,6 +140,123 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
 | `mocks.ts` | Mock implementations of Unity UI Toolkit classes |
 | `setup.ts` | Global test setup for CS, __eventAPI |
+
+## Vector Drawing
+
+OneJS exposes Unity's `Painter2D` API for GPU-accelerated vector graphics. Any element can render custom vector content via `onGenerateVisualContent`.
+
+### Basic Usage
+
+```tsx
+import { View, render } from "onejs-react"
+
+function Circle() {
+    return (
+        <View
+            style={{ width: 200, height: 200, backgroundColor: "#333" }}
+            onGenerateVisualContent={(mgc) => {
+                const p = mgc.painter2D
+
+                // Draw a filled circle
+                p.fillColor = new CS.UnityEngine.Color(1, 0, 0, 1) // Red
+                p.BeginPath()
+                p.Arc(
+                    new CS.UnityEngine.Vector2(100, 100), // center
+                    80,                                   // radius
+                    CS.UnityEngine.UIElements.Angle.Degrees(0),
+                    CS.UnityEngine.UIElements.Angle.Degrees(360),
+                    CS.UnityEngine.UIElements.ArcDirection.Clockwise
+                )
+                p.Fill(CS.UnityEngine.UIElements.FillRule.NonZero)
+            }}
+        />
+    )
+}
+```
+
+### Painter2D Methods
+
+Path operations:
+- `BeginPath()` - Start a new path
+- `ClosePath()` - Close the current subpath
+- `MoveTo(point)` - Move to point without drawing
+- `LineTo(point)` - Draw line to point
+- `Arc(center, radius, startAngle, endAngle, direction)` - Draw arc
+- `ArcTo(p1, p2, radius)` - Draw arc tangent to two lines
+- `BezierCurveTo(cp1, cp2, end)` - Cubic bezier curve
+- `QuadraticCurveTo(cp, end)` - Quadratic bezier curve
+
+Rendering:
+- `Fill(fillRule)` - Fill the current path
+- `Stroke()` - Stroke the current path
+
+Properties:
+- `fillColor` - Fill color (Unity Color)
+- `strokeColor` - Stroke color (Unity Color)
+- `lineWidth` - Stroke width in pixels
+- `lineCap` - Line cap style (Butt, Round, Square)
+- `lineJoin` - Line join style (Miter, Round, Bevel)
+
+### Triggering Repaints
+
+Use `MarkDirtyRepaint()` to trigger a repaint when drawing state changes:
+
+```tsx
+function AnimatedCircle() {
+    const ref = useRef<VisualElement>(null)
+    const [radius, setRadius] = useState(50)
+
+    useEffect(() => {
+        // Trigger repaint when radius changes
+        ref.current?.MarkDirtyRepaint()
+    }, [radius])
+
+    return (
+        <View
+            ref={ref}
+            style={{ width: 200, height: 200 }}
+            onGenerateVisualContent={(mgc) => {
+                const p = mgc.painter2D
+                p.fillColor = new CS.UnityEngine.Color(0, 0.5, 1, 1)
+                p.BeginPath()
+                p.Arc(
+                    new CS.UnityEngine.Vector2(100, 100),
+                    radius,
+                    CS.UnityEngine.UIElements.Angle.Degrees(0),
+                    CS.UnityEngine.UIElements.Angle.Degrees(360),
+                    CS.UnityEngine.UIElements.ArcDirection.Clockwise
+                )
+                p.Fill(CS.UnityEngine.UIElements.FillRule.NonZero)
+            }}
+        />
+    )
+}
+```
+
+### Differences from HTML5 Canvas
+
+| Feature | Unity Painter2D | HTML5 Canvas |
+|---------|-----------------|--------------|
+| Transforms | Manual point calculation | Built-in translate/rotate/scale |
+| Gradients | Limited (strokeGradient) | Full linear/radial/conic |
+| State Stack | Not built-in | save()/restore() |
+| Text | Via MeshGenerationContext.DrawText() | fillText/strokeText |
+| Shadows | Not available | shadowBlur, shadowColor |
+| Clipping | Via nested VisualElements | clip() path-based |
+
+### Types
+
+The following types are re-exported from `unity-types`:
+
+```typescript
+type Vector2 = CS.UnityEngine.Vector2
+type Color = CS.UnityEngine.Color
+type Angle = CS.UnityEngine.UIElements.Angle
+type ArcDirection = CS.UnityEngine.UIElements.ArcDirection
+type Painter2D = CS.UnityEngine.UIElements.Painter2D
+type MeshGenerationContext = CS.UnityEngine.UIElements.MeshGenerationContext
+type GenerateVisualContentCallback = (context: MeshGenerationContext) => void
+```
 
 ## Dependencies
 
