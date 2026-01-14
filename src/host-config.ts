@@ -1,6 +1,6 @@
 import type {HostConfig} from 'react-reconciler';
 import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback} from './types';
-import {parseStyleValue} from './style-parser';
+import {parseStyleValue, parseColor} from './style-parser';
 
 // CSObject is an alias for VisualElement - they represent the same C# objects
 type CSObject = VisualElement;
@@ -582,18 +582,35 @@ function applyTextFieldProps(element: CSObject, props: Record<string, unknown>) 
     if (props.readOnly !== undefined) {
         (element as { isReadOnly: boolean }).isReadOnly = props.readOnly as boolean;
     }
-    // Map multiline prop
     if (props.multiline !== undefined) {
         (element as { multiline: boolean }).multiline = props.multiline as boolean;
     }
-    // Map maxLength prop
     if (props.maxLength !== undefined) {
         (element as { maxLength: number }).maxLength = props.maxLength as number;
     }
-    // Map isPasswordField prop
     if (props.isPasswordField !== undefined) {
         (element as { isPasswordField: boolean }).isPasswordField = props.isPasswordField as boolean;
     }
+    if (props.maskChar !== undefined) {
+        (element as { maskChar: string }).maskChar = (props.maskChar as string).charAt(0);
+    }
+    if (props.isDelayed !== undefined) {
+        (element as { isDelayed: boolean }).isDelayed = props.isDelayed as boolean;
+    }
+    if (props.selectAllOnFocus !== undefined) {
+        (element as { selectAllOnFocus: boolean }).selectAllOnFocus = props.selectAllOnFocus as boolean;
+    }
+    if (props.selectAllOnMouseUp !== undefined) {
+        (element as { selectAllOnMouseUp: boolean }).selectAllOnMouseUp = props.selectAllOnMouseUp as boolean;
+    }
+    if (props.hideMobileInput !== undefined) {
+        (element as { hideMobileInput: boolean }).hideMobileInput = props.hideMobileInput as boolean;
+    }
+    if (props.autoCorrection !== undefined) {
+        (element as { autoCorrection: boolean }).autoCorrection = props.autoCorrection as boolean;
+    }
+    // Note: placeholder is handled differently in Unity - it's set via the textEdition interface
+    // For now we skip it as it requires more complex handling
 }
 
 // Apply Slider-specific properties
@@ -609,6 +626,58 @@ function applySliderProps(element: CSObject, props: Record<string, unknown>) {
     }
     if (props.inverted !== undefined) {
         (element as { inverted: boolean }).inverted = props.inverted as boolean;
+    }
+    if (props.pageSize !== undefined) {
+        (element as { pageSize: number }).pageSize = props.pageSize as number;
+    }
+    if (props.fill !== undefined) {
+        (element as { fill: boolean }).fill = props.fill as boolean;
+    }
+    if (props.direction !== undefined) {
+        const UIE = CS.UnityEngine.UIElements;
+        (element as { direction: unknown }).direction = UIE.SliderDirection[props.direction as string];
+    }
+}
+
+// Apply Toggle-specific properties
+function applyToggleProps(element: CSObject, props: Record<string, unknown>) {
+    if (props.text !== undefined) {
+        (element as { text: string }).text = props.text as string;
+    }
+    if (props.toggleOnLabelClick !== undefined) {
+        (element as { toggleOnLabelClick: boolean }).toggleOnLabelClick = props.toggleOnLabelClick as boolean;
+    }
+}
+
+// Apply Image-specific properties
+function applyImageProps(element: CSObject, props: Record<string, unknown>) {
+    if (props.image !== undefined) {
+        (element as { image: unknown }).image = props.image;
+    }
+    if (props.sprite !== undefined) {
+        (element as { sprite: unknown }).sprite = props.sprite;
+    }
+    if (props.vectorImage !== undefined) {
+        (element as { vectorImage: unknown }).vectorImage = props.vectorImage;
+    }
+    if (props.scaleMode !== undefined) {
+        const scaleMode = CS.UnityEngine.ScaleMode[props.scaleMode as string];
+        (element as { scaleMode: unknown }).scaleMode = scaleMode;
+    }
+    if (props.tintColor !== undefined) {
+        // Parse color string to Unity Color
+        const color = parseColor(props.tintColor as string);
+        if (color) {
+            (element as { tintColor: unknown }).tintColor = color;
+        }
+    }
+    if (props.sourceRect !== undefined) {
+        const rect = props.sourceRect as { x: number; y: number; width: number; height: number };
+        (element as { sourceRect: unknown }).sourceRect = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
+    }
+    if (props.uv !== undefined) {
+        const rect = props.uv as { x: number; y: number; width: number; height: number };
+        (element as { uv: unknown }).uv = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
     }
 }
 
@@ -668,8 +737,12 @@ function applyComponentProps(element: CSObject, type: string, props: Record<stri
 
     if (type === 'ojs-textfield') {
         applyTextFieldProps(element, props);
+    } else if (type === 'ojs-toggle') {
+        applyToggleProps(element, props);
     } else if (type === 'ojs-slider') {
         applySliderProps(element, props);
+    } else if (type === 'ojs-image') {
+        applyImageProps(element, props);
     } else if (type === 'ojs-scrollview') {
         applyScrollViewProps(element as CSScrollView, props);
     } else if (type === 'ojs-listview') {

@@ -378,23 +378,39 @@ export interface ButtonProps extends BaseProps {
 
 export interface TextFieldProps extends BaseProps {
   value?: string;
+  label?: string;
   placeholder?: string;
   multiline?: boolean;
   readOnly?: boolean;
   maxLength?: number;
+  isPasswordField?: boolean;
+  maskChar?: string;
+  isDelayed?: boolean;
+  selectAllOnFocus?: boolean;
+  selectAllOnMouseUp?: boolean;
+  hideMobileInput?: boolean;
+  autoCorrection?: boolean;
   onChange?: ChangeEventHandler<string>;
 }
 
 export interface ToggleProps extends BaseProps {
   value?: boolean;
   label?: string;
+  text?: string;
+  toggleOnLabelClick?: boolean;
   onChange?: ChangeEventHandler<boolean>;
 }
 
 export interface SliderProps extends BaseProps {
   value?: number;
+  label?: string;
   lowValue?: number;
   highValue?: number;
+  direction?: 'Horizontal' | 'Vertical';
+  pageSize?: number;
+  showInputField?: boolean;
+  inverted?: boolean;
+  fill?: boolean;
   onChange?: ChangeEventHandler<number>;
 }
 
@@ -422,8 +438,20 @@ export interface ScrollViewProps extends BaseProps {
 }
 
 export interface ImageProps extends BaseProps {
-  src?: string;
-  scaleMode?: 'stretch-to-fill' | 'scale-and-crop' | 'scale-to-fit';
+  /** Image source - can be a Texture2D, Sprite, or path string */
+  image?: object;
+  /** Sprite to display (alternative to image) */
+  sprite?: object;
+  /** Vector image to display */
+  vectorImage?: object;
+  /** How the image scales to fit the element */
+  scaleMode?: 'StretchToFill' | 'ScaleAndCrop' | 'ScaleToFit';
+  /** Tint color applied to the image */
+  tintColor?: string;
+  /** Source rectangle within the texture (normalized 0-1 coordinates) */
+  sourceRect?: { x: number; y: number; width: number; height: number };
+  /** UV coordinates for the image */
+  uv?: { x: number; y: number; width: number; height: number };
 }
 
 /**
