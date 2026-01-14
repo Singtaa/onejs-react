@@ -596,6 +596,22 @@ function applyTextFieldProps(element: CSObject, props: Record<string, unknown>) 
     }
 }
 
+// Apply Slider-specific properties
+function applySliderProps(element: CSObject, props: Record<string, unknown>) {
+    if (props.lowValue !== undefined) {
+        (element as { lowValue: number }).lowValue = props.lowValue as number;
+    }
+    if (props.highValue !== undefined) {
+        (element as { highValue: number }).highValue = props.highValue as number;
+    }
+    if (props.showInputField !== undefined) {
+        (element as { showInputField: boolean }).showInputField = props.showInputField as boolean;
+    }
+    if (props.inverted !== undefined) {
+        (element as { inverted: boolean }).inverted = props.inverted as boolean;
+    }
+}
+
 // Apply ScrollView-specific properties
 function applyScrollViewProps(element: CSScrollView, props: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
@@ -652,6 +668,8 @@ function applyComponentProps(element: CSObject, type: string, props: Record<stri
 
     if (type === 'ojs-textfield') {
         applyTextFieldProps(element, props);
+    } else if (type === 'ojs-slider') {
+        applySliderProps(element, props);
     } else if (type === 'ojs-scrollview') {
         applyScrollViewProps(element as CSScrollView, props);
     } else if (type === 'ojs-listview') {
