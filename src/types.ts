@@ -124,7 +124,7 @@ export interface ViewStyle {
   color?: StyleColor;
   /** Font size in pixels. Examples: 16, "16px" */
   fontSize?: StyleLength;
-  fontStyle?: 'normal' | 'italic' | 'bold' | 'bold-and-italic';
+  /** Text alignment. Note: Use USS class or stylesheet for -unity-font-style (italic/bold) */
   unityTextAlign?: 'upper-left' | 'upper-center' | 'upper-right' | 'middle-left' | 'middle-center' | 'middle-right' | 'lower-left' | 'lower-center' | 'lower-right';
   whiteSpace?: 'normal' | 'nowrap';
 }
@@ -213,6 +213,55 @@ export type GeometryEventHandler = (event: GeometryEventData) => void;
 export type NavigationEventHandler = (event: NavigationEventData) => void;
 export type TransitionEventHandler = (event: TransitionEventData) => void;
 
+// Vector Drawing Types - Re-export from unity-types (CS.* namespace)
+// These types are provided by the unity-types package and represent Unity's actual API
+
+/** Unity Vector2 - 2D point/vector. Use CS.UnityEngine.Vector2 at runtime. */
+export type Vector2 = CS.UnityEngine.Vector2;
+
+/** Unity Color - RGBA color. Use CS.UnityEngine.Color at runtime. */
+export type Color = CS.UnityEngine.Color;
+
+/** Unity Angle - Represents an angle with unit. Use CS.UnityEngine.UIElements.Angle at runtime. */
+export type Angle = CS.UnityEngine.UIElements.Angle;
+
+/** Unity ArcDirection - Direction for arc drawing. Use CS.UnityEngine.UIElements.ArcDirection at runtime. */
+export type ArcDirection = CS.UnityEngine.UIElements.ArcDirection;
+
+/** Unity Painter2D - Vector drawing API. Accessed via mgc.painter2D in generateVisualContent. */
+export type Painter2D = CS.UnityEngine.UIElements.Painter2D;
+
+/**
+ * Unity MeshGenerationContext - Provides rendering context within generateVisualContent callback.
+ *
+ * Access painter2D for vector drawing, or use DrawText/DrawVectorImage for other content.
+ *
+ * @example
+ * <View
+ *     style={{ width: 200, height: 200 }}
+ *     onGenerateVisualContent={(mgc) => {
+ *         const p = mgc.painter2D
+ *
+ *         p.fillColor = new CS.UnityEngine.Color(0, 0.5, 1, 1)
+ *         p.BeginPath()
+ *         p.Arc(
+ *             new CS.UnityEngine.Vector2(100, 100),
+ *             80,
+ *             CS.UnityEngine.UIElements.Angle.Degrees(0),
+ *             CS.UnityEngine.UIElements.Angle.Degrees(360),
+ *             CS.UnityEngine.UIElements.ArcDirection.Clockwise
+ *         )
+ *         p.Fill()
+ *     }}
+ * />
+ */
+export type MeshGenerationContext = CS.UnityEngine.UIElements.MeshGenerationContext;
+
+/**
+ * Callback type for generateVisualContent
+ */
+export type GenerateVisualContentCallback = (context: MeshGenerationContext) => void;
+
 // Base props for all components
 export interface BaseProps {
   key?: string | number;
@@ -281,6 +330,35 @@ export interface BaseProps {
   onTransitionStart?: TransitionEventHandler;
   onTransitionEnd?: TransitionEventHandler;
   onTransitionCancel?: TransitionEventHandler;
+
+  // Vector drawing
+  /**
+   * Callback for custom vector drawing via Unity's generateVisualContent.
+   * Called when the element needs to repaint its visual content.
+   *
+   * Use element.MarkDirtyRepaint() to trigger a repaint when your drawing state changes.
+   *
+   * @example
+   * <View
+   *     style={{ width: 200, height: 200 }}
+   *     onGenerateVisualContent={(mgc) => {
+   *         const p = mgc.painter2D
+   *         const Angle = CS.UnityEngine.UIElements.Angle
+   *
+   *         p.fillColor = new CS.UnityEngine.Color(0, 0.5, 1, 1)
+   *         p.BeginPath()
+   *         p.Arc(
+   *             new CS.UnityEngine.Vector2(100, 100),
+   *             80,
+   *             Angle.Degrees(0),
+   *             Angle.Degrees(360),
+   *             CS.UnityEngine.UIElements.ArcDirection.Clockwise
+   *         )
+   *         p.Fill()
+   *     }}
+   * />
+   */
+  onGenerateVisualContent?: GenerateVisualContentCallback;
 }
 
 // Component-specific props
@@ -400,6 +478,27 @@ export interface VisualElement extends RenderContainer {
 
   // Layout
   MarkDirtyRepaint: () => void;
+
+  // Vector drawing
+  /**
+   * Callback delegate for custom visual content generation.
+   * Can be used via ref for raw access to Unity's generateVisualContent.
+   *
+   * @example
+   * useEffect(() => {
+   *     const ve = ref.current
+   *     const draw = (mgc) => { ... }
+   *     ve.generateVisualContent += draw
+   *     return () => { ve.generateVisualContent -= draw }
+   * }, [])
+   */
+  generateVisualContent: {
+    (callback: GenerateVisualContentCallback): void;
+  } & {
+    // Delegate operators (C# interop)
+    '+='?: (callback: GenerateVisualContentCallback) => void;
+    '-='?: (callback: GenerateVisualContentCallback) => void;
+  };
 }
 
 // Specific element types for better ref typing

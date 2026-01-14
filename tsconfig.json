@@ -4,7 +4,7 @@
     "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["vitest/globals", "node"],
+    "types": ["vitest/globals", "node", "unity-types"],
 
     "declaration": true,
     "declarationMap": true,

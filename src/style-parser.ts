@@ -13,6 +13,17 @@ declare const CS: {
             Length: new (value: number, unit?: number) => CSLength;
             LengthUnit: { Pixel: number; Percent: number };
             StyleKeyword: { Auto: number; None: number; Initial: number };
+            // Enums for style properties
+            FlexDirection: Record<string, number>;
+            Wrap: Record<string, number>;
+            Align: Record<string, number>;
+            Justify: Record<string, number>;
+            Position: Record<string, number>;
+            Overflow: Record<string, number>;
+            DisplayStyle: Record<string, number>;
+            Visibility: Record<string, number>;
+            WhiteSpace: Record<string, number>;
+            TextAnchor: Record<string, number>;
         };
     };
 };
@@ -80,12 +91,119 @@ const NUMBER_PROPERTIES = new Set([
     "flexGrow", "flexShrink", "opacity",
 ])
 
-// Enum properties - these get passed through as-is (C# handles conversion)
-const ENUM_PROPERTIES = new Set([
-    "flexDirection", "flexWrap", "alignItems", "alignSelf", "alignContent", "justifyContent",
-    "position", "overflow", "display", "visibility", "whiteSpace",
-    "unityTextAlign", "fontStyle",
-])
+// Enum property mappings: React style value -> Unity enum value
+// Keys are camelCase (React/CSS style), values map to Unity enum member names
+const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values: Record<string, string> }> = {
+    flexDirection: {
+        enum: () => CS.UnityEngine.UIElements.FlexDirection,
+        values: {
+            "row": "Row",
+            "row-reverse": "RowReverse",
+            "column": "Column",
+            "column-reverse": "ColumnReverse",
+        }
+    },
+    flexWrap: {
+        enum: () => CS.UnityEngine.UIElements.Wrap,
+        values: {
+            "nowrap": "NoWrap",
+            "wrap": "Wrap",
+            "wrap-reverse": "WrapReverse",
+        }
+    },
+    alignItems: {
+        enum: () => CS.UnityEngine.UIElements.Align,
+        values: {
+            "auto": "Auto",
+            "flex-start": "FlexStart",
+            "flex-end": "FlexEnd",
+            "center": "Center",
+            "stretch": "Stretch",
+        }
+    },
+    alignSelf: {
+        enum: () => CS.UnityEngine.UIElements.Align,
+        values: {
+            "auto": "Auto",
+            "flex-start": "FlexStart",
+            "flex-end": "FlexEnd",
+            "center": "Center",
+            "stretch": "Stretch",
+        }
+    },
+    alignContent: {
+        enum: () => CS.UnityEngine.UIElements.Align,
+        values: {
+            "auto": "Auto",
+            "flex-start": "FlexStart",
+            "flex-end": "FlexEnd",
+            "center": "Center",
+            "stretch": "Stretch",
+        }
+    },
+    justifyContent: {
+        enum: () => CS.UnityEngine.UIElements.Justify,
+        values: {
+            "flex-start": "FlexStart",
+            "flex-end": "FlexEnd",
+            "center": "Center",
+            "space-between": "SpaceBetween",
+            "space-around": "SpaceAround",
+        }
+    },
+    position: {
+        enum: () => CS.UnityEngine.UIElements.Position,
+        values: {
+            "relative": "Relative",
+            "absolute": "Absolute",
+        }
+    },
+    overflow: {
+        enum: () => CS.UnityEngine.UIElements.Overflow,
+        values: {
+            "visible": "Visible",
+            "hidden": "Hidden",
+        }
+    },
+    display: {
+        enum: () => CS.UnityEngine.UIElements.DisplayStyle,
+        values: {
+            "flex": "Flex",
+            "none": "None",
+        }
+    },
+    visibility: {
+        enum: () => CS.UnityEngine.UIElements.Visibility,
+        values: {
+            "visible": "Visible",
+            "hidden": "Hidden",
+        }
+    },
+    whiteSpace: {
+        enum: () => CS.UnityEngine.UIElements.WhiteSpace,
+        values: {
+            "normal": "Normal",
+            "nowrap": "NoWrap",
+        }
+    },
+}
+
+/**
+ * Parse an enum style value
+ * @param key - Style property name
+ * @param value - String value from React style (e.g., "row", "flex-start")
+ * @returns Unity enum value or null if not found
+ */
+function parseEnumValue(key: string, value: string): number | null {
+    const mapping = ENUM_MAPPINGS[key]
+    if (!mapping) return null
+
+    const unityEnumName = mapping.values[value]
+    if (!unityEnumName) return null
+
+    const enumType = mapping.enum()
+    return enumType[unityEnumName] ?? null
+}
 
 /**
  * Parse a length value from various formats
@@ -236,9 +354,11 @@ export function parseStyleValue(key: string, value: unknown): unknown {
         return value
     }
 
-    // Enum properties - pass through as-is (C# handles string -> enum)
-    if (ENUM_PROPERTIES.has(key)) {
-        return value
+    // Enum properties - convert string to Unity enum value
+    if (key in ENUM_MAPPINGS && typeof value === "string") {
+        const parsed = parseEnumValue(key, value)
+        if (parsed !== null) return parsed
+        // Fall through if parsing failed
     }
 
     // Unknown property - pass through unchanged

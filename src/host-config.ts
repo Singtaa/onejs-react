@@ -1,6 +1,9 @@
 import type {HostConfig} from 'react-reconciler';
-import type {BaseProps, ViewStyle} from './types';
+import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback} from './types';
 import {parseStyleValue} from './style-parser';
+
+// CSObject is an alias for VisualElement - they represent the same C# objects
+type CSObject = VisualElement;
 
 // Global declarations for QuickJS environment
 declare function setTimeout(callback: () => void, ms?: number): number;
@@ -50,6 +53,7 @@ declare const CS: {
             ListViewReorderMode: CSEnum;
             AlternatingRowBackground: CSEnum;
             CollectionVirtualizationMethod: CSEnum;
+            DisplayStyle: CSEnum;
         };
     };
     OneJS: {
@@ -67,24 +71,6 @@ declare const __eventAPI: {
     removeEventListener: (element: CSObject, eventType: string, callback: Function) => void;
     removeAllEventListeners: (element: CSObject) => void;
 };
-
-interface CSObject {
-    __csHandle: number;
-    __csType: string;
-    Add: (child: CSObject) => void;
-    Insert: (index: number, child: CSObject) => void;
-    Remove: (child: CSObject) => void;
-    RemoveAt: (index: number) => void;
-    IndexOf: (child: CSObject) => number;
-    Clear: () => void;
-    style: CSStyle;
-    text?: string;
-    value?: unknown;
-    label?: string;
-    AddToClassList: (className: string) => void;
-    RemoveFromClassList: (className: string) => void;
-    ClearClassList: () => void;
-}
 
 interface CSStyle {
     [key: string]: unknown;
@@ -158,6 +144,8 @@ export interface Instance {
     mergedInto?: Instance;
     // Set to true when a non-text child is added, disabling further text merging
     hasMixedContent?: boolean;
+    // For vector drawing: track the current generateVisualContent callback
+    visualContentCallback?: GenerateVisualContentCallback;
 }
 
 export type TextInstance = Instance; // For Label elements with text content
@@ -447,6 +435,38 @@ function applyEvents(instance: Instance, props: BaseProps) {
     }
 }
 
+/**
+ * Apply generateVisualContent callback for vector drawing.
+ * Uses Unity's generateVisualContent delegate on VisualElement.
+ *
+ * This follows the same pattern as ListView's makeItem/bindItem callbacks -
+ * we assign JS functions directly to C# delegate properties via the interop layer.
+ */
+function applyVisualContentCallback(instance: Instance, props: BaseProps) {
+    const callback = props.onGenerateVisualContent;
+    const existingCallback = instance.visualContentCallback;
+
+    if (callback !== existingCallback) {
+        const element = instance.element as unknown as { generateVisualContent: GenerateVisualContentCallback | null };
+
+        // Remove old callback if exists
+        if (existingCallback) {
+            // Clear the delegate via C# interop
+            element.generateVisualContent = null;
+        }
+
+        // Add new callback if provided
+        if (callback) {
+            // Assign callback to generateVisualContent property
+            // The C# interop layer handles the delegate conversion
+            element.generateVisualContent = callback;
+            instance.visualContentCallback = callback;
+        } else {
+            instance.visualContentCallback = undefined;
+        }
+    }
+}
+
 // MARK: Text Merging
 // Rebuild concatenated text from merged text children
 function rebuildMergedText(instance: Instance) {
@@ -556,6 +576,26 @@ function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>
     }
 }
 
+// Apply TextField-specific properties
+function applyTextFieldProps(element: CSObject, props: Record<string, unknown>) {
+    // Map readOnly prop to isReadOnly property
+    if (props.readOnly !== undefined) {
+        (element as { isReadOnly: boolean }).isReadOnly = props.readOnly as boolean;
+    }
+    // Map multiline prop
+    if (props.multiline !== undefined) {
+        (element as { multiline: boolean }).multiline = props.multiline as boolean;
+    }
+    // Map maxLength prop
+    if (props.maxLength !== undefined) {
+        (element as { maxLength: number }).maxLength = props.maxLength as number;
+    }
+    // Map isPasswordField prop
+    if (props.isPasswordField !== undefined) {
+        (element as { isPasswordField: boolean }).isPasswordField = props.isPasswordField as boolean;
+    }
+}
+
 // Apply ScrollView-specific properties
 function applyScrollViewProps(element: CSScrollView, props: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
@@ -610,7 +650,9 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>)
 function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>) {
     applyCommonProps(element, props);
 
-    if (type === 'ojs-scrollview') {
+    if (type === 'ojs-textfield') {
+        applyTextFieldProps(element, props);
+    } else if (type === 'ojs-scrollview') {
         applyScrollViewProps(element as CSScrollView, props);
     } else if (type === 'ojs-listview') {
         applyListViewProps(element as CSListView, props);
@@ -636,6 +678,7 @@ function createInstance(type: string, props: BaseProps): Instance {
 
     applyClassName(element, props.className);
     applyEvents(instance, props);
+    applyVisualContentCallback(instance, props);
     applyComponentProps(element, type, props as Record<string, unknown>);
 
     return instance;
@@ -659,6 +702,9 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
 
     // Update events
     applyEvents(instance, newProps);
+
+    // Update vector drawing callback
+    applyVisualContentCallback(instance, newProps);
 
     // Update component-specific props
     applyComponentProps(element, instance.type, newProps as Record<string, unknown>);
@@ -902,16 +948,16 @@ export const hostConfig = {
 
     // Visibility support
     hideInstance(instance: Instance) {
-        instance.element.style.display = 'none';
+        instance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
     },
     hideTextInstance(textInstance: TextInstance) {
-        textInstance.element.style.display = 'none';
+        textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
     },
     unhideInstance(instance: Instance, _props: BaseProps) {
-        instance.element.style.display = '';
+        instance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.Flex;
     },
     unhideTextInstance(textInstance: TextInstance, _text: string) {
-        textInstance.element.style.display = '';
+        textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.Flex;
     },
 
     // Text content

@@ -35,6 +35,9 @@ export type {
   BreakpointName,
 } from './screen';
 
+// Vector Drawing
+export { Transform2D, useVectorContent } from './vector';
+
 // Types
 export type {
   ViewStyle,
@@ -84,4 +87,12 @@ export type {
   SliderElement,
   ScrollViewElement,
   ImageElement,
+  // Vector drawing types
+  Vector2,
+  Color,
+  Angle,
+  ArcDirection,
+  Painter2D,
+  MeshGenerationContext,
+  GenerateVisualContentCallback,
 } from './types';
