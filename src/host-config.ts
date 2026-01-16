@@ -733,14 +733,20 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>)
 
 // Apply component-specific props based on element type
 function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>) {
+    // For Slider, apply range props (lowValue/highValue) BEFORE value
+    // Unity's Slider clamps value to [lowValue, highValue], so range must be set first
+    if (type === 'ojs-slider') {
+        applySliderProps(element, props);
+        applyCommonProps(element, props);
+        return;
+    }
+
     applyCommonProps(element, props);
 
     if (type === 'ojs-textfield') {
         applyTextFieldProps(element, props);
     } else if (type === 'ojs-toggle') {
         applyToggleProps(element, props);
-    } else if (type === 'ojs-slider') {
-        applySliderProps(element, props);
     } else if (type === 'ojs-image') {
         applyImageProps(element, props);
     } else if (type === 'ojs-scrollview') {
