@@ -38,6 +38,9 @@ export type {
 // Vector Drawing
 export { Transform2D, useVectorContent } from './vector';
 
+// Sync Hooks (C# interop)
+export { useFrameSync, useFrameSyncWith, useThrottledSync } from './hooks';
+
 // Types
 export type {
   ViewStyle,
