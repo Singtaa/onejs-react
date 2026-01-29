@@ -331,6 +331,14 @@ export interface BaseProps {
   onTransitionEnd?: TransitionEventHandler;
   onTransitionCancel?: TransitionEventHandler;
 
+  // Picking mode - controls whether the element receives pointer events
+  /**
+   * Controls whether this element is pickable by pointer events.
+   * - "Position" (default): Element receives pointer events based on its rectangle
+   * - "Ignore": Element is transparent to pointer events (clicks pass through)
+   */
+  pickingMode?: 'Position' | 'Ignore';
+
   // Vector drawing
   /**
    * Callback for custom vector drawing via Unity's generateVisualContent.

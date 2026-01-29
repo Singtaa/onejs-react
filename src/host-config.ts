@@ -3,7 +3,7 @@ import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback}
 import {parseStyleValue, parseColor} from './style-parser';
 
 // CSObject is an alias for VisualElement - they represent the same C# objects
-type CSObject = VisualElement;
+type CSObject = VisualElement & { pickingMode?: number };
 
 // Global declarations for QuickJS environment
 declare function setTimeout(callback: () => void, ms?: number): number;
@@ -54,6 +54,7 @@ declare const CS: {
             AlternatingRowBackground: CSEnum;
             CollectionVirtualizationMethod: CSEnum;
             DisplayStyle: CSEnum;
+            PickingMode: CSEnum;
         };
     };
     OneJS: {
@@ -70,6 +71,8 @@ declare const __eventAPI: {
     addEventListener: (element: CSObject, eventType: string, callback: Function) => void;
     removeEventListener: (element: CSObject, eventType: string, callback: Function) => void;
     removeAllEventListeners: (element: CSObject) => void;
+    setParent: (childHandle: number, parentHandle: number) => void;
+    removeParent: (childHandle: number) => void;
 };
 
 interface CSStyle {
@@ -413,6 +416,22 @@ function updateClassNames(element: CSObject, oldClassName: string | undefined, n
         if (!oldClasses.has(cls)) {
             element.AddToClassList(cls);
         }
+    }
+}
+
+// Track parent-child relationships for event bubbling
+function trackParent(child: CSObject, parent: CSObject) {
+    const childHandle = (child as unknown as { __csHandle: number }).__csHandle;
+    const parentHandle = (parent as unknown as { __csHandle: number }).__csHandle;
+    if (childHandle > 0 && parentHandle > 0) {
+        __eventAPI.setParent(childHandle, parentHandle);
+    }
+}
+
+function untrackParent(child: CSObject) {
+    const childHandle = (child as unknown as { __csHandle: number }).__csHandle;
+    if (childHandle > 0) {
+        __eventAPI.removeParent(childHandle);
     }
 }
 
@@ -778,6 +797,11 @@ function createInstance(type: string, props: BaseProps): Instance {
     applyVisualContentCallback(instance, props);
     applyComponentProps(element, type, props as Record<string, unknown>);
 
+    // Apply pickingMode
+    if (props.pickingMode !== undefined) {
+        element.pickingMode = CS.UnityEngine.UIElements.PickingMode[props.pickingMode];
+    }
+
     return instance;
 }
 
@@ -805,6 +829,16 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
 
     // Update component-specific props
     applyComponentProps(element, instance.type, newProps as Record<string, unknown>);
+
+    // Update pickingMode
+    if (oldProps.pickingMode !== newProps.pickingMode) {
+        if (newProps.pickingMode !== undefined) {
+            element.pickingMode = CS.UnityEngine.UIElements.PickingMode[newProps.pickingMode];
+        } else {
+            // Reset to default (Position)
+            element.pickingMode = CS.UnityEngine.UIElements.PickingMode.Position;
+        }
+    }
 
     instance.props = newProps;
 }
@@ -862,31 +896,31 @@ export const hostConfig = {
         if (shouldMergeText(parentInstance, child)) {
             appendMergedTextChild(parentInstance, child);
         } else {
-            // Non-text child - unmerge any previously merged text first
             handleNonTextChild(parentInstance);
             parentInstance.element.Add(child.element);
         }
+        trackParent(child.element, parentInstance.element);
     },
 
     appendChild(parentInstance: Instance, child: Instance) {
         if (shouldMergeText(parentInstance, child)) {
             appendMergedTextChild(parentInstance, child);
         } else {
-            // Non-text child - unmerge any previously merged text first
             handleNonTextChild(parentInstance);
             parentInstance.element.Add(child.element);
         }
+        trackParent(child.element, parentInstance.element);
     },
 
     appendChildToContainer(container: Container, child: Instance) {
         container.Add(child.element);
+        // Container is the root - no parent to track
     },
 
     insertBefore(parentInstance: Instance, child: Instance, beforeChild: Instance) {
         if (shouldMergeText(parentInstance, child)) {
             insertMergedTextChild(parentInstance, child, beforeChild);
         } else {
-            // Non-text child - unmerge any previously merged text first
             handleNonTextChild(parentInstance);
             const index = parentInstance.element.IndexOf(beforeChild.element);
             if (index >= 0) {
@@ -895,6 +929,7 @@ export const hostConfig = {
                 parentInstance.element.Add(child.element);
             }
         }
+        trackParent(child.element, parentInstance.element);
     },
 
     insertInContainerBefore(container: Container, child: Instance, beforeChild: Instance) {
@@ -904,21 +939,23 @@ export const hostConfig = {
         } else {
             container.Add(child.element);
         }
+        // Container is the root - no parent to track
     },
 
     removeChild(parentInstance: Instance, child: Instance) {
         if (child.mergedInto === parentInstance) {
-            // Child was merged into parent's text - remove from merged children
             removeMergedTextChild(parentInstance, child);
         } else {
             __eventAPI.removeAllEventListeners(child.element);
             parentInstance.element.Remove(child.element);
         }
+        untrackParent(child.element);
     },
 
     removeChildFromContainer(container: Container, child: Instance) {
         __eventAPI.removeAllEventListeners(child.element);
         container.Remove(child.element);
+        untrackParent(child.element);
     },
 
     prepareUpdate(_instance: Instance, _type: string, oldProps: BaseProps, newProps: BaseProps) {
