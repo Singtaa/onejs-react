@@ -127,6 +127,70 @@ export interface ViewStyle {
   /** Text alignment. Note: Use USS class or stylesheet for -unity-font-style (italic/bold) */
   unityTextAlign?: 'upper-left' | 'upper-center' | 'upper-right' | 'middle-left' | 'middle-center' | 'middle-right' | 'lower-left' | 'lower-center' | 'lower-right';
   whiteSpace?: 'normal' | 'nowrap';
+
+  // Typography
+  /** C# Font object */
+  unityFont?: any;
+  /** C# FontDefinition object */
+  unityFontDefinition?: any;
+  /** Font style and weight */
+  unityFontStyleAndWeight?: 'normal' | 'bold' | 'italic' | 'bold-and-italic';
+  /** Spacing between characters */
+  letterSpacing?: StyleLength;
+  /** Spacing between words */
+  wordSpacing?: StyleLength;
+  /** Spacing between paragraphs */
+  unityParagraphSpacing?: StyleLength;
+  /** Text outline color */
+  unityTextOutlineColor?: StyleColor;
+  /** Text outline width */
+  unityTextOutlineWidth?: StyleLength;
+  /** How overflowing text is handled */
+  textOverflow?: 'clip' | 'ellipsis';
+  /** Position of text overflow indicator */
+  unityTextOverflowPosition?: 'end' | 'start' | 'middle';
+
+  // Background (additional)
+  /** Tint color applied to the background image */
+  unityBackgroundImageTintColor?: StyleColor;
+
+  // Slicing
+  /** 9-slice top inset */
+  unitySliceTop?: number;
+  /** 9-slice right inset */
+  unitySliceRight?: number;
+  /** 9-slice bottom inset */
+  unitySliceBottom?: number;
+  /** 9-slice left inset */
+  unitySliceLeft?: number;
+  /** Scale applied to 9-slice borders */
+  unitySliceScale?: number;
+
+  // Transform
+  /** Rotation transform. Pass a C# Rotate struct. */
+  rotate?: any;
+  /** Scale transform. Pass a C# Scale struct. */
+  scale?: any;
+  /** Translation transform. Pass a C# Translate struct. */
+  translate?: any;
+  /** Transform origin point. Pass a C# TransformOrigin struct. */
+  transformOrigin?: any;
+
+  // Transition
+  /** Delay before transitions start. Pass a C# StyleList. */
+  transitionDelay?: any;
+  /** Duration of transitions. Pass a C# StyleList. */
+  transitionDuration?: any;
+  /** Properties to transition. Pass a C# StyleList. */
+  transitionProperty?: any;
+  /** Timing functions for transitions. Pass a C# StyleList. */
+  transitionTimingFunction?: any;
+
+  // Other
+  /** Overflow clipping box */
+  unityOverflowClipBox?: 'padding-box' | 'content-box';
+  /** Cursor style. Pass a C# Cursor struct. */
+  cursor?: any;
 }
 
 // Event types

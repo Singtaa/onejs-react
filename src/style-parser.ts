@@ -9,6 +9,7 @@
 declare const CS: {
     UnityEngine: {
         Color: new (r: number, g: number, b: number, a: number) => CSColor;
+        FontStyle: Record<string, number>;
         UIElements: {
             Length: new (value: number, unit?: number) => CSLength;
             LengthUnit: { Pixel: number; Percent: number };
@@ -24,6 +25,9 @@ declare const CS: {
             Visibility: Record<string, number>;
             WhiteSpace: Record<string, number>;
             TextAnchor: Record<string, number>;
+            TextOverflow: Record<string, number>;
+            TextOverflowPosition: Record<string, number>;
+            OverflowClipBox: Record<string, number>;
         };
     };
 };
@@ -78,17 +82,20 @@ const LENGTH_PROPERTIES = new Set([
     "borderWidth", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
     "borderRadius", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius",
     "fontSize",
+    "letterSpacing", "wordSpacing", "unityTextOutlineWidth", "unityParagraphSpacing",
 ])
 
 // Style properties that expect color values
 const COLOR_PROPERTIES = new Set([
     "color", "backgroundColor",
     "borderColor", "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor",
+    "unityTextOutlineColor", "unityBackgroundImageTintColor",
 ])
 
 // Style properties that are plain numbers (no Length wrapper needed)
 const NUMBER_PROPERTIES = new Set([
     "flexGrow", "flexShrink", "opacity",
+    "unitySliceTop", "unitySliceRight", "unitySliceBottom", "unitySliceLeft", "unitySliceScale",
 ])
 
 // Enum property mappings: React style value -> Unity enum value
@@ -184,6 +191,37 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         values: {
             "normal": "Normal",
             "nowrap": "NoWrap",
+        }
+    },
+    unityFontStyleAndWeight: {
+        enum: () => CS.UnityEngine.FontStyle,
+        values: {
+            "normal": "Normal",
+            "bold": "Bold",
+            "italic": "Italic",
+            "bold-and-italic": "BoldAndItalic",
+        }
+    },
+    textOverflow: {
+        enum: () => CS.UnityEngine.UIElements.TextOverflow,
+        values: {
+            "clip": "Clip",
+            "ellipsis": "Ellipsis",
+        }
+    },
+    unityTextOverflowPosition: {
+        enum: () => CS.UnityEngine.UIElements.TextOverflowPosition,
+        values: {
+            "end": "End",
+            "start": "Start",
+            "middle": "Middle",
+        }
+    },
+    unityOverflowClipBox: {
+        enum: () => CS.UnityEngine.UIElements.OverflowClipBox,
+        values: {
+            "padding-box": "PaddingBox",
+            "content-box": "ContentBox",
         }
     },
 }
