@@ -12,6 +12,13 @@ declare function clearTimeout(id: number): void;
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
+// Native delegate callback helpers (from QuickJSBootstrap __csHelpers)
+declare const __csHelpers: {
+    createDelegateCallback(fn: Function): number;
+    freeDelegateCallback(handle: number): void;
+    [key: string]: unknown;
+};
+
 // Priority constants from react-reconciler/constants
 // These match React's internal lane priorities
 const DiscreteEventPriority = 2;
@@ -149,6 +156,8 @@ export interface Instance {
     hasMixedContent?: boolean;
     // For vector drawing: track the current generateVisualContent callback
     visualContentCallback?: GenerateVisualContentCallback;
+    // Native callback handle for the above (used to free slot on replacement)
+    visualContentCallbackHandle?: number;
 }
 
 export type TextInstance = Instance; // For Label elements with text content
@@ -435,6 +444,15 @@ function untrackParent(child: CSObject) {
     }
 }
 
+// Free native callback handles tracked on an instance (prevents callback table leak)
+function cleanupCallbackHandles(instance: Instance) {
+    if (instance.visualContentCallbackHandle !== undefined) {
+        __csHelpers.freeDelegateCallback(instance.visualContentCallbackHandle);
+        instance.visualContentCallbackHandle = undefined;
+        instance.visualContentCallback = undefined;
+    }
+}
+
 // Apply event handlers
 function applyEvents(instance: Instance, props: BaseProps) {
     for (const [propName, eventType] of Object.entries(EVENT_PROPS)) {
@@ -468,17 +486,27 @@ function applyVisualContentCallback(instance: Instance, props: BaseProps) {
     if (callback !== existingCallback) {
         const element = instance.element as unknown as { generateVisualContent: GenerateVisualContentCallback | null };
 
-        // Remove old callback if exists
+        // Free old native callback handle to prevent callback table leak
         if (existingCallback) {
-            // Clear the delegate via C# interop
             element.generateVisualContent = null;
+            if (instance.visualContentCallbackHandle !== undefined) {
+                __csHelpers.freeDelegateCallback(instance.visualContentCallbackHandle);
+            }
+            instance.visualContentCallbackHandle = undefined;
         }
 
         // Add new callback if provided
         if (callback) {
-            // Assign callback to generateVisualContent property
-            // The C# interop layer handles the delegate conversion
-            element.generateVisualContent = callback;
+            // Register with argument wrapping and track the handle for cleanup
+            const handle = __csHelpers.createDelegateCallback(callback);
+            if (handle >= 0) {
+                instance.visualContentCallbackHandle = handle;
+                // Pass pre-resolved handle directly — bypasses __resolveValue's auto-registration
+                element.generateVisualContent = { __csCallbackHandle: handle } as any;
+            } else {
+                // WebGL path: no native callback table
+                element.generateVisualContent = callback;
+            }
             instance.visualContentCallback = callback;
         } else {
             instance.visualContentCallback = undefined;
@@ -947,6 +975,7 @@ export const hostConfig = {
             removeMergedTextChild(parentInstance, child);
         } else {
             __eventAPI.removeAllEventListeners(child.element);
+            cleanupCallbackHandles(child);
             parentInstance.element.Remove(child.element);
         }
         untrackParent(child.element);
@@ -954,6 +983,7 @@ export const hostConfig = {
 
     removeChildFromContainer(container: Container, child: Instance) {
         __eventAPI.removeAllEventListeners(child.element);
+        cleanupCallbackHandles(child);
         container.Remove(child.element);
         untrackParent(child.element);
     },
