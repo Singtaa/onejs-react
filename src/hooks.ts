@@ -1,30 +1,65 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useReducer } from "react"
 
 /**
  * Syncs a value from C# (or any external source) to React state, checking every frame.
  *
- * This hook eliminates the need for C# events or codegen - just read any property
- * and React will automatically update when it changes.
+ * Has two modes depending on whether a `select` function is provided:
+ *
+ * **Simple mode** (no selector): Compares values with `Object.is`. Best for primitives
+ * (numbers, strings, booleans) and cases where the getter returns a new object each time.
+ *
+ * **Selector mode**: Extracts an array of comparable values to watch. Re-renders only when
+ * any selected value changes. Essential for C# proxy objects where the proxy reference is
+ * cached — without a selector, you'd be comparing the same proxy to itself.
+ * The returned value is always read fresh from the getter during render.
  *
  * @param getter - Function that returns the current value (called every frame)
- * @param deps - Optional dependency array (if getter depends on changing references)
+ * @param selectOrDeps - Either a selector function or a dependency array
+ * @param deps - Optional dependency array (only when using a selector)
  * @returns The current value, updated each frame if changed
  *
  * @example
- * // Sync a C# property to React
- * const health = useFrameSync(() => player.health)
- * const position = useFrameSync(() => transform.position)
+ * // Simple: sync a C# property (primitives)
+ * const health = useFrameSync(() => player.Health)
+ * const score = useFrameSync(() => gameManager.Score)
  *
  * @example
- * // With dependencies (if the object reference can change)
- * const health = useFrameSync(() => currentPlayer.health, [currentPlayer])
+ * // Selector: watch specific properties on a C# proxy object
+ * const place = useFrameSync(
+ *     () => gameState.currentPlace,
+ *     (p) => [p?.Name, p?.NPCs?.Count, p?.Items?.Count]
+ * )
  *
  * @example
- * // Derived values work too
- * const healthPercent = useFrameSync(() => player.health / player.maxHealth * 100)
+ * // Selector: with a version stamp from C#
+ * const quest = useFrameSync(
+ *     () => questManager.activeQuest ?? null,
+ *     (q) => [q?.Version]
+ * )
+ *
+ * @example
+ * // Simple with dependencies (if the source reference can change)
+ * const health = useFrameSync(() => currentPlayer.Health, [currentPlayer])
  */
-export function useFrameSync<T>(getter: () => T, deps: readonly unknown[] = []): T {
-    // Safely get initial value
+export function useFrameSync<T>(
+    getter: () => T,
+    selectOrDeps?: ((value: T) => readonly unknown[]) | readonly unknown[],
+    deps?: readonly unknown[]
+): T {
+    // Determine which mode we're in
+    const hasSelector = typeof selectOrDeps === "function"
+    const select = hasSelector ? selectOrDeps as (value: T) => readonly unknown[] : undefined
+    const effectDeps = hasSelector ? (deps ?? []) : (selectOrDeps as readonly unknown[] ?? [])
+
+    if (select) {
+        return useFrameSyncSelect(getter, select, effectDeps)
+    } else {
+        return useFrameSyncSimple(getter, effectDeps)
+    }
+}
+
+/** Simple mode: compare with Object.is. */
+function useFrameSyncSimple<T>(getter: () => T, deps: readonly unknown[]): T {
     const getInitialValue = (): T => {
         try {
             return getter()
@@ -38,11 +73,9 @@ export function useFrameSync<T>(getter: () => T, deps: readonly unknown[] = []):
     const getterRef = useRef(getter)
     const runningRef = useRef(false)
 
-    // Keep getter ref updated
     getterRef.current = getter
 
     useEffect(() => {
-        // Re-initialize when deps change
         try {
             const initial = getterRef.current()
             lastValueRef.current = initial
@@ -81,20 +114,103 @@ export function useFrameSync<T>(getter: () => T, deps: readonly unknown[] = []):
     return value
 }
 
+/** Selector mode: extract comparable values, always return fresh from getter. */
+function useFrameSyncSelect<T>(
+    getter: () => T,
+    select: (value: T) => readonly unknown[],
+    deps: readonly unknown[]
+): T {
+    const [, forceRender] = useReducer((x: number) => x + 1, 0)
+    const getterRef = useRef(getter)
+    const selectRef = useRef(select)
+    const lastSelectedRef = useRef<readonly unknown[]>([])
+    const runningRef = useRef(false)
+    const initializedRef = useRef(false)
+
+    getterRef.current = getter
+    selectRef.current = select
+
+    // Initialize dependency tracking on first render
+    if (!initializedRef.current) {
+        initializedRef.current = true
+        try {
+            const val = getter()
+            lastSelectedRef.current = select(val)
+        } catch {
+            // Getter or select failed, keep empty deps
+        }
+    }
+
+    useEffect(() => {
+        try {
+            const val = getterRef.current()
+            lastSelectedRef.current = selectRef.current(val)
+        } catch {
+            // Getter or select failed
+        }
+
+        runningRef.current = true
+
+        const check = () => {
+            if (!runningRef.current) return
+
+            try {
+                const current = getterRef.current()
+                const selected = selectRef.current(current)
+                const prev = lastSelectedRef.current
+                const changed = selected.length !== prev.length ||
+                    selected.some((val, i) => !Object.is(val, prev[i]))
+
+                if (changed) {
+                    lastSelectedRef.current = selected
+                    forceRender()
+                }
+            } catch {
+                // Getter or select might fail if object was destroyed
+            }
+
+            if (runningRef.current) {
+                requestAnimationFrame(check)
+            }
+        }
+
+        requestAnimationFrame(check)
+
+        return () => {
+            runningRef.current = false
+        }
+    }, deps)
+
+    // Always read fresh from getter during render.
+    // This ensures we return the latest proxy with current C# state.
+    try {
+        return getterRef.current()
+    } catch {
+        return undefined as T
+    }
+}
+
 /**
- * Similar to useFrameSync but with a custom equality function.
- * Useful for objects/structs where reference equality isn't sufficient.
+ * @deprecated Use `useFrameSync` with a selector instead.
  *
- * @param getter - Function that returns the current value
- * @param isEqual - Custom equality function
- * @param deps - Optional dependency array
+ * `useFrameSyncWith` compares the value returned by the getter using a custom
+ * equality function. However, this does NOT work with C# proxy objects because
+ * the proxy reference is cached — you end up comparing the same object to itself.
  *
- * @example
- * // Sync a Vector3, comparing by value not reference
+ * Instead, use `useFrameSync` with a selector that extracts comparable values:
+ * ```ts
+ * // Before (broken with C# proxies):
  * const pos = useFrameSyncWith(
  *     () => transform.position,
  *     (a, b) => a.x === b.x && a.y === b.y && a.z === b.z
  * )
+ *
+ * // After (works correctly):
+ * const pos = useFrameSync(
+ *     () => transform.position,
+ *     (p) => [p.x, p.y, p.z]
+ * )
+ * ```
  */
 export function useFrameSyncWith<T>(
     getter: () => T,
@@ -213,4 +329,46 @@ export function useThrottledSync<T>(
     }, [...deps, intervalMs])
 
     return value
+}
+
+/**
+ * Converts a C# collection (List<T>, array, etc.) to a JavaScript array.
+ *
+ * C# collections exposed through the OneJS proxy are not JS arrays — they
+ * lack .map(), .filter(), and other array methods. This utility converts
+ * them for use in React rendering.
+ *
+ * Supports objects with a `.Count` property (List<T>, IList) or a `.Length`
+ * property (C# arrays). Returns an empty array for null/undefined input.
+ *
+ * @param collection - A C# collection, or null/undefined
+ * @returns A JavaScript array containing the elements
+ *
+ * @example
+ * // Map over a C# List in JSX
+ * {toArray(inventory.Items).map(item => <ItemView key={item.Id} item={item} />)}
+ *
+ * @example
+ * // Convert a C# array
+ * const renderers = toArray(go.GetComponentsInChildren(CS.UnityEngine.Renderer))
+ *
+ * @example
+ * // Safe with null — returns []
+ * const npcs = toArray(currentPlace?.NPCs)
+ *
+ * @example
+ * // With explicit type parameter
+ * const items = toArray<Item>(questLog.ActiveQuests)
+ */
+export function toArray<T = unknown>(collection: unknown): T[] {
+    if (collection == null) return []
+    const col = collection as Record<string, unknown>
+    const len = typeof col.Count === "number" ? col.Count
+              : typeof col.Length === "number" ? col.Length
+              : 0
+    const result: T[] = []
+    for (let i = 0; i < len; i++) {
+        result.push((col as any)[i])
+    }
+    return result
 }
