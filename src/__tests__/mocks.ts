@@ -225,12 +225,17 @@ export class MockImage extends MockVisualElement {
 
 /**
  * Create the mock CS global object that mirrors QuickJSBootstrap.js proxy
+ *
+ * Enum values match Unity's actual enum definitions so that tests
+ * verify the real mapping behavior (CSS string -> Unity enum number).
  */
 export function createMockCS() {
     return {
         UnityEngine: {
             // Core types
             Color: MockColor,
+            Rect: class { constructor(public x: number, public y: number, public width: number, public height: number) {} },
+            ScaleMode: { StretchToFill: 0, ScaleAndCrop: 1, ScaleToFit: 2 },
             // UI Elements
             UIElements: {
                 VisualElement: MockVisualElement,
@@ -246,6 +251,39 @@ export function createMockCS() {
                 Length: MockLength,
                 LengthUnit: MockLengthUnit,
                 StyleKeyword: MockStyleKeyword,
+                // Enums (values match Unity's actual enum definitions)
+                FlexDirection: { Column: 0, ColumnReverse: 1, Row: 2, RowReverse: 3 },
+                Wrap: { NoWrap: 0, Wrap: 1, WrapReverse: 2 },
+                Align: { Auto: 0, FlexStart: 1, Center: 2, FlexEnd: 3, Stretch: 4 },
+                Justify: { FlexStart: 0, Center: 1, FlexEnd: 2, SpaceBetween: 3, SpaceAround: 4 },
+                Position: { Relative: 0, Absolute: 1 },
+                Overflow: { Visible: 0, Hidden: 1 },
+                DisplayStyle: { Flex: 0, None: 1 },
+                Visibility: { Visible: 0, Hidden: 1 },
+                WhiteSpace: { Normal: 0, NoWrap: 1 },
+                TextOverflow: { Clip: 0, Ellipsis: 1 },
+                TextOverflowPosition: { End: 0, Start: 1, Middle: 2 },
+                OverflowClipBox: { PaddingBox: 0, ContentBox: 1 },
+                PickingMode: { Position: 0, Ignore: 1 },
+                SliderDirection: { Horizontal: 0, Vertical: 1 },
+                // ScrollView enums
+                ScrollViewMode: { Vertical: 0, Horizontal: 1, VerticalAndHorizontal: 2 },
+                ScrollerVisibility: { Auto: 0, AlwaysVisible: 1, Hidden: 2 },
+                TouchScrollBehavior: { Unrestricted: 0, Elastic: 1, Clamped: 2 },
+                NestedInteractionKind: { Default: 0, StopScrolling: 1, ForwardScrolling: 2 },
+                // ListView enums
+                SelectionType: { None: 0, Single: 1, Multiple: 2 },
+                ListViewReorderMode: { Simple: 0, Animated: 1 },
+                AlternatingRowBackground: { None: 0, ContentOnly: 1, All: 2 },
+                CollectionVirtualizationMethod: { FixedHeight: 0, DynamicHeight: 1 },
+            },
+        },
+        OneJS: {
+            GPU: {
+                GPUBridge: {
+                    SetElementBackgroundImage: () => {},
+                    ClearElementBackgroundImage: () => {},
+                },
             },
         },
     };
@@ -323,5 +361,7 @@ export function getEventAPI() {
         addEventListener: ReturnType<typeof import('vitest').vi.fn>;
         removeEventListener: ReturnType<typeof import('vitest').vi.fn>;
         removeAllEventListeners: ReturnType<typeof import('vitest').vi.fn>;
+        setParent: ReturnType<typeof import('vitest').vi.fn>;
+        removeParent: ReturnType<typeof import('vitest').vi.fn>;
     };
 }

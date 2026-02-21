@@ -14,12 +14,12 @@ import { createMockCS, resetAllMocks } from "./mocks";
 // Extend globalThis type for our mocks
 declare global {
     // eslint-disable-next-line no-var
-    var CS: ReturnType<typeof createMockCS>;
-    // eslint-disable-next-line no-var
     var __eventAPI: {
         addEventListener: ReturnType<typeof vi.fn>;
         removeEventListener: ReturnType<typeof vi.fn>;
         removeAllEventListeners: ReturnType<typeof vi.fn>;
+        setParent: ReturnType<typeof vi.fn>;
+        removeParent: ReturnType<typeof vi.fn>;
     };
 }
 
@@ -33,13 +33,15 @@ beforeEach(() => {
     resetAllMocks();
 
     // Create fresh mock CS global
-    global.CS = createMockCS();
+    (globalThis as any).CS = createMockCS();
 
     // Mock event API with spies
     global.__eventAPI = {
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
         removeAllEventListeners: vi.fn(),
+        setParent: vi.fn(),
+        removeParent: vi.fn(),
     };
 
     // Use real console but spy on it for test assertions

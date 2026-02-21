@@ -663,21 +663,23 @@ describe('host-config', () => {
     });
 
     describe('visibility', () => {
-        it('hideInstance sets display to none', () => {
+        it('hideInstance sets display to DisplayStyle.None', () => {
             const instance = createInstance('ojs-view', {});
 
             hideInstance(instance);
 
-            expect(instance.element.style.display).toBe('none');
+            const DisplayStyle = (globalThis as any).CS.UnityEngine.UIElements.DisplayStyle;
+            expect(instance.element.style.display).toBe(DisplayStyle.None);
         });
 
-        it('unhideInstance clears display', () => {
+        it('unhideInstance sets display to DisplayStyle.Flex', () => {
             const instance = createInstance('ojs-view', {});
-            instance.element.style.display = 'none';
+            const DisplayStyle = (globalThis as any).CS.UnityEngine.UIElements.DisplayStyle;
+            instance.element.style.display = DisplayStyle.None;
 
             unhideInstance(instance, {});
 
-            expect(instance.element.style.display).toBe('');
+            expect(instance.element.style.display).toBe(DisplayStyle.Flex);
         });
     });
 

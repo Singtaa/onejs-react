@@ -303,10 +303,12 @@ describe("style-parser", () => {
             expect(parseStyleValue("flexShrink", 0)).toBe(0)
         })
 
-        it("passes through enum properties unchanged", () => {
-            expect(parseStyleValue("flexDirection", "row")).toBe("row")
-            expect(parseStyleValue("display", "none")).toBe("none")
-            expect(parseStyleValue("position", "absolute")).toBe("absolute")
+        it("converts enum properties to Unity enum values", () => {
+            const CS = (globalThis as any).CS
+            const UIE = CS.UnityEngine.UIElements
+            expect(parseStyleValue("flexDirection", "row")).toBe(UIE.FlexDirection.Row)
+            expect(parseStyleValue("display", "none")).toBe(UIE.DisplayStyle.None)
+            expect(parseStyleValue("position", "absolute")).toBe(UIE.Position.Absolute)
         })
 
         it("passes through unknown properties unchanged", () => {

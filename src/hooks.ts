@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef, useReducer } from "react"
 
+// QuickJS environment declarations
+declare function requestAnimationFrame(callback: (time: number) => void): number;
+declare function cancelAnimationFrame(id: number): void;
+
 /**
  * Syncs a value from C# (or any external source) to React state, checking every frame.
  *

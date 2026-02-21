@@ -58,7 +58,9 @@ describe('components', () => {
             const el = container.children[0] as MockVisualElement;
             expect(getStyleValue(el.style.width)).toBe(200);
             expect(getStyleValue(el.style.height)).toBe(100);
-            expect(el.style.flexDirection).toBe('row');
+            // flexDirection 'row' is converted to the Unity enum value FlexDirection.Row
+            const FlexDirection = (globalThis as any).CS.UnityEngine.UIElements.FlexDirection;
+            expect(el.style.flexDirection).toBe(FlexDirection.Row);
             expect(getStyleValue(el.style.paddingTop)).toBe(10);
         });
 

@@ -56,7 +56,10 @@ declare const CS: {
             CollectionVirtualizationMethod: CSEnum;
             DisplayStyle: CSEnum;
             PickingMode: CSEnum;
+            SliderDirection: CSEnum;
         };
+        ScaleMode: CSEnum;
+        Rect: new (...args: any[]) => any;
     };
     OneJS: {
         GPU: {
@@ -578,9 +581,10 @@ function removeMergedTextChild(parentInstance: Instance, child: Instance) {
 
 // Apply common props (text, value, label)
 function applyCommonProps(element: CSObject, props: Record<string, unknown>) {
-    if (props.text !== undefined) (element as { text: string }).text = props.text as string;
-    if (props.value !== undefined) (element as { value: unknown }).value = props.value;
-    if (props.label !== undefined) (element as { label: string }).label = props.label as string;
+    const el = element as any;
+    if (props.text !== undefined) el.text = props.text as string;
+    if (props.value !== undefined) el.value = props.value;
+    if (props.label !== undefined) el.label = props.label as string;
 }
 
 // Helper to set enum prop if defined
@@ -599,106 +603,62 @@ function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>
 
 // Apply TextField-specific properties
 function applyTextFieldProps(element: CSObject, props: Record<string, unknown>) {
-    // Map readOnly prop to isReadOnly property
-    if (props.readOnly !== undefined) {
-        (element as { isReadOnly: boolean }).isReadOnly = props.readOnly as boolean;
-    }
-    if (props.multiline !== undefined) {
-        (element as { multiline: boolean }).multiline = props.multiline as boolean;
-    }
-    if (props.maxLength !== undefined) {
-        (element as { maxLength: number }).maxLength = props.maxLength as number;
-    }
-    if (props.isPasswordField !== undefined) {
-        (element as { isPasswordField: boolean }).isPasswordField = props.isPasswordField as boolean;
-    }
-    if (props.maskChar !== undefined) {
-        (element as { maskChar: string }).maskChar = (props.maskChar as string).charAt(0);
-    }
-    if (props.isDelayed !== undefined) {
-        (element as { isDelayed: boolean }).isDelayed = props.isDelayed as boolean;
-    }
-    if (props.selectAllOnFocus !== undefined) {
-        (element as { selectAllOnFocus: boolean }).selectAllOnFocus = props.selectAllOnFocus as boolean;
-    }
-    if (props.selectAllOnMouseUp !== undefined) {
-        (element as { selectAllOnMouseUp: boolean }).selectAllOnMouseUp = props.selectAllOnMouseUp as boolean;
-    }
-    if (props.hideMobileInput !== undefined) {
-        (element as { hideMobileInput: boolean }).hideMobileInput = props.hideMobileInput as boolean;
-    }
-    if (props.autoCorrection !== undefined) {
-        (element as { autoCorrection: boolean }).autoCorrection = props.autoCorrection as boolean;
-    }
+    const el = element as any;
+    if (props.readOnly !== undefined) el.isReadOnly = props.readOnly;
+    if (props.multiline !== undefined) el.multiline = props.multiline;
+    if (props.maxLength !== undefined) el.maxLength = props.maxLength;
+    if (props.isPasswordField !== undefined) el.isPasswordField = props.isPasswordField;
+    if (props.maskChar !== undefined) el.maskChar = (props.maskChar as string).charAt(0);
+    if (props.isDelayed !== undefined) el.isDelayed = props.isDelayed;
+    if (props.selectAllOnFocus !== undefined) el.selectAllOnFocus = props.selectAllOnFocus;
+    if (props.selectAllOnMouseUp !== undefined) el.selectAllOnMouseUp = props.selectAllOnMouseUp;
+    if (props.hideMobileInput !== undefined) el.hideMobileInput = props.hideMobileInput;
+    if (props.autoCorrection !== undefined) el.autoCorrection = props.autoCorrection;
     // Note: placeholder is handled differently in Unity - it's set via the textEdition interface
     // For now we skip it as it requires more complex handling
 }
 
 // Apply Slider-specific properties
 function applySliderProps(element: CSObject, props: Record<string, unknown>) {
-    if (props.lowValue !== undefined) {
-        (element as { lowValue: number }).lowValue = props.lowValue as number;
-    }
-    if (props.highValue !== undefined) {
-        (element as { highValue: number }).highValue = props.highValue as number;
-    }
-    if (props.showInputField !== undefined) {
-        (element as { showInputField: boolean }).showInputField = props.showInputField as boolean;
-    }
-    if (props.inverted !== undefined) {
-        (element as { inverted: boolean }).inverted = props.inverted as boolean;
-    }
-    if (props.pageSize !== undefined) {
-        (element as { pageSize: number }).pageSize = props.pageSize as number;
-    }
-    if (props.fill !== undefined) {
-        (element as { fill: boolean }).fill = props.fill as boolean;
-    }
+    const el = element as any;
+    if (props.lowValue !== undefined) el.lowValue = props.lowValue;
+    if (props.highValue !== undefined) el.highValue = props.highValue;
+    if (props.showInputField !== undefined) el.showInputField = props.showInputField;
+    if (props.inverted !== undefined) el.inverted = props.inverted;
+    if (props.pageSize !== undefined) el.pageSize = props.pageSize;
+    if (props.fill !== undefined) el.fill = props.fill;
     if (props.direction !== undefined) {
-        const UIE = CS.UnityEngine.UIElements;
-        (element as { direction: unknown }).direction = UIE.SliderDirection[props.direction as string];
+        el.direction = CS.UnityEngine.UIElements.SliderDirection[props.direction as string];
     }
 }
 
 // Apply Toggle-specific properties
 function applyToggleProps(element: CSObject, props: Record<string, unknown>) {
-    if (props.text !== undefined) {
-        (element as { text: string }).text = props.text as string;
-    }
-    if (props.toggleOnLabelClick !== undefined) {
-        (element as { toggleOnLabelClick: boolean }).toggleOnLabelClick = props.toggleOnLabelClick as boolean;
-    }
+    const el = element as any;
+    if (props.text !== undefined) el.text = props.text;
+    if (props.toggleOnLabelClick !== undefined) el.toggleOnLabelClick = props.toggleOnLabelClick;
 }
 
 // Apply Image-specific properties
 function applyImageProps(element: CSObject, props: Record<string, unknown>) {
-    if (props.image !== undefined) {
-        (element as { image: unknown }).image = props.image;
-    }
-    if (props.sprite !== undefined) {
-        (element as { sprite: unknown }).sprite = props.sprite;
-    }
-    if (props.vectorImage !== undefined) {
-        (element as { vectorImage: unknown }).vectorImage = props.vectorImage;
-    }
+    const el = element as any;
+    if (props.image !== undefined) el.image = props.image;
+    if (props.sprite !== undefined) el.sprite = props.sprite;
+    if (props.vectorImage !== undefined) el.vectorImage = props.vectorImage;
     if (props.scaleMode !== undefined) {
-        const scaleMode = CS.UnityEngine.ScaleMode[props.scaleMode as string];
-        (element as { scaleMode: unknown }).scaleMode = scaleMode;
+        el.scaleMode = CS.UnityEngine.ScaleMode[props.scaleMode as string];
     }
     if (props.tintColor !== undefined) {
-        // Parse color string to Unity Color
         const color = parseColor(props.tintColor as string);
-        if (color) {
-            (element as { tintColor: unknown }).tintColor = color;
-        }
+        if (color) el.tintColor = color;
     }
     if (props.sourceRect !== undefined) {
         const rect = props.sourceRect as { x: number; y: number; width: number; height: number };
-        (element as { sourceRect: unknown }).sourceRect = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
+        el.sourceRect = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
     }
     if (props.uv !== undefined) {
         const rect = props.uv as { x: number; y: number; width: number; height: number };
-        (element as { uv: unknown }).uv = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
+        el.uv = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
     }
 }
 
