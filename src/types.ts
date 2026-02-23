@@ -167,13 +167,31 @@ export interface ViewStyle {
   unitySliceScale?: number;
 
   // Transform
-  /** Rotation transform. Pass a C# Rotate struct. */
+  /**
+   * Rotation transform.
+   * - number: degrees (e.g., 45)
+   * - string: with unit (e.g., "0.5turn", "1.57rad", "45deg", "50grad")
+   * - C# Rotate struct: pass-through (auto-wrapped in StyleRotate)
+   */
   rotate?: any;
-  /** Scale transform. Pass a C# Scale struct. */
+  /**
+   * Scale transform.
+   * - number: uniform scale (e.g., 1.5)
+   * - [x, y]: non-uniform scale (e.g., [1.5, 2])
+   * - C# Scale struct: pass-through (auto-wrapped in StyleScale)
+   */
   scale?: any;
-  /** Translation transform. Pass a C# Translate struct. */
+  /**
+   * Translation transform.
+   * - [x, y]: numbers are px, strings parsed (e.g., [10, 20] or ["50%", 10])
+   * - C# Translate struct: pass-through (auto-wrapped in StyleTranslate)
+   */
   translate?: any;
-  /** Transform origin point. Pass a C# TransformOrigin struct. */
+  /**
+   * Transform origin point.
+   * - [x, y]: numbers are px, strings parsed (e.g., ["50%", "50%"])
+   * - C# TransformOrigin struct: pass-through (auto-wrapped in StyleTransformOrigin)
+   */
   transformOrigin?: any;
 
   // Transition
@@ -510,7 +528,9 @@ export interface ScrollViewProps extends BaseProps {
 }
 
 export interface ImageProps extends BaseProps {
-  /** Image source - can be a Texture2D, Sprite, or path string */
+  /** Path to image asset relative to the assets/ folder (convenience prop) */
+  src?: string;
+  /** Pre-loaded Texture2D object (use when you loaded the texture yourself) */
   image?: object;
   /** Sprite to display (alternative to image) */
   sprite?: object;
@@ -636,7 +656,13 @@ export interface ScrollViewElement extends VisualElement {
 }
 
 export interface ImageElement extends VisualElement {
-  // Image-specific properties handled via style.backgroundImage
+  image: any;
+  sprite: any;
+  vectorImage: any;
+  scaleMode: number;
+  tintColor: any;
+  sourceRect: any;
+  uv: any;
 }
 
 // ListView uses Unity's virtualization callbacks directly

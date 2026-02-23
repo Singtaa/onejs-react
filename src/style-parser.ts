@@ -9,11 +9,21 @@
 declare const CS: {
     UnityEngine: {
         Color: new (r: number, g: number, b: number, a: number) => CSColor;
+        Vector3: new (x: number, y: number, z: number) => any;
         FontStyle: Record<string, number>;
         UIElements: {
             Length: new (value: number, unit?: number) => CSLength;
             LengthUnit: { Pixel: number; Percent: number };
             StyleKeyword: { Auto: number; None: number; Initial: number };
+            Angle: { Degrees: (v: number) => any; Radians: (v: number) => any; Turns: (v: number) => any; Gradians: (v: number) => any };
+            Translate: new (x: any, y: any) => any;
+            Rotate: new (angle: any) => any;
+            Scale: new (v: any) => any;
+            TransformOrigin: new (x: any, y: any) => any;
+            StyleTranslate: new (v: any) => any;
+            StyleRotate: new (v: any) => any;
+            StyleScale: new (v: any) => any;
+            StyleTransformOrigin: new (v: any) => any;
             // Enums for style properties
             FlexDirection: Record<string, number>;
             Wrap: Record<string, number>;
@@ -358,6 +368,130 @@ export function parseColor(value: string): CSColor | null {
 }
 
 /**
+ * Parse a length value for transform properties (no keyword support)
+ * number → Length(n, Pixel), "50%" → Length(50, Percent), "10px" → Length(10, Pixel)
+ */
+function parseLengthForTransform(value: number | string): CSLength | null {
+    if (typeof value === "number") {
+        return new CS.UnityEngine.UIElements.Length(value, CS.UnityEngine.UIElements.LengthUnit.Pixel)
+    }
+    if (typeof value === "string") {
+        const match = value.trim().match(/^(-?[\d.]+)(px|%)?$/)
+        if (match) {
+            const num = parseFloat(match[1])
+            if (isNaN(num)) return null
+            const unit = match[2] === "%"
+                ? CS.UnityEngine.UIElements.LengthUnit.Percent
+                : CS.UnityEngine.UIElements.LengthUnit.Pixel
+            return new CS.UnityEngine.UIElements.Length(num, unit)
+        }
+    }
+    return null
+}
+
+/**
+ * Parse an angle value
+ * number → Angle.Degrees(n), string → parse unit suffix (deg|rad|turn|grad)
+ */
+function parseAngle(value: number | string): any | null {
+    const Angle = CS.UnityEngine.UIElements.Angle
+    if (typeof value === "number") {
+        return Angle.Degrees(value)
+    }
+    if (typeof value === "string") {
+        const match = value.trim().match(/^(-?[\d.]+)(deg|rad|turn|grad)?$/)
+        if (match) {
+            const num = parseFloat(match[1])
+            if (isNaN(num)) return null
+            const unit = match[2] || "deg"
+            if (unit === "rad") return Angle.Radians(num)
+            if (unit === "turn") return Angle.Turns(num)
+            if (unit === "grad") return Angle.Gradians(num)
+            return Angle.Degrees(num)
+        }
+    }
+    return null
+}
+
+/**
+ * Parse translate style: [x, y] array or C# Translate pass-through
+ */
+function parseTranslateStyle(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        const x = parseLengthForTransform(value[0])
+        const y = parseLengthForTransform(value[1])
+        if (x !== null && y !== null) {
+            return new CS.UnityEngine.UIElements.StyleTranslate(
+                new CS.UnityEngine.UIElements.Translate(x, y)
+            )
+        }
+    }
+    if (typeof value === "object" && value !== null) {
+        try { return new CS.UnityEngine.UIElements.StyleTranslate(value) } catch { return value }
+    }
+    return value
+}
+
+/**
+ * Parse rotate style: number (degrees), string with unit, or C# Rotate pass-through
+ */
+function parseRotateStyle(value: unknown): unknown {
+    if (typeof value === "number" || typeof value === "string") {
+        const angle = parseAngle(value)
+        if (angle !== null) {
+            return new CS.UnityEngine.UIElements.StyleRotate(
+                new CS.UnityEngine.UIElements.Rotate(angle)
+            )
+        }
+    }
+    if (typeof value === "object" && value !== null) {
+        try { return new CS.UnityEngine.UIElements.StyleRotate(value) } catch { return value }
+    }
+    return value
+}
+
+/**
+ * Parse scale style: number (uniform), [x, y] array, or C# Scale pass-through
+ */
+function parseScaleStyle(value: unknown): unknown {
+    if (typeof value === "number") {
+        return new CS.UnityEngine.UIElements.StyleScale(
+            new CS.UnityEngine.UIElements.Scale(new CS.UnityEngine.Vector3(value, value, 1))
+        )
+    }
+    if (Array.isArray(value)) {
+        const x = typeof value[0] === "number" ? value[0] : 1
+        const y = typeof value[1] === "number" ? value[1] : 1
+        return new CS.UnityEngine.UIElements.StyleScale(
+            new CS.UnityEngine.UIElements.Scale(new CS.UnityEngine.Vector3(x, y, 1))
+        )
+    }
+    if (typeof value === "object" && value !== null) {
+        try { return new CS.UnityEngine.UIElements.StyleScale(value) } catch { return value }
+    }
+    return value
+}
+
+/**
+ * Parse transformOrigin style: [x, y] array or C# TransformOrigin pass-through
+ */
+function parseTransformOriginStyle(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        const x = parseLengthForTransform(value[0])
+        const y = parseLengthForTransform(value[1])
+        if (x !== null && y !== null) {
+            return new CS.UnityEngine.UIElements.StyleTransformOrigin(
+                new CS.UnityEngine.UIElements.TransformOrigin(x, y)
+            )
+        }
+    }
+    if (typeof value === "object" && value !== null) {
+        try { return new CS.UnityEngine.UIElements.StyleTransformOrigin(value) } catch { return value }
+    }
+    return value
+}
+
+/**
  * Parse a style value based on the property name
  * @param key - Style property name (e.g., "width", "backgroundColor")
  * @param value - Raw value from React style object
@@ -398,6 +532,12 @@ export function parseStyleValue(key: string, value: unknown): unknown {
         if (parsed !== null) return parsed
         // Fall through if parsing failed
     }
+
+    // Transform properties
+    if (key === "translate") return parseTranslateStyle(value)
+    if (key === "rotate") return parseRotateStyle(value)
+    if (key === "scale") return parseScaleStyle(value)
+    if (key === "transformOrigin") return parseTransformOriginStyle(value)
 
     // Unknown property - pass through unchanged
     return value
