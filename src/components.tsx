@@ -67,10 +67,6 @@ function _loadImageAsset(src: string): any | null {
     return result
 }
 
-function _isVectorImage(obj: any): boolean {
-    return obj != null && obj.GetType?.().Name === "VectorImage"
-}
-
 /**
  * Clear the Image component's image cache.
  * Call this if you need to force-reload images (e.g., after replacing files on disk).
@@ -168,10 +164,6 @@ export const Image = forwardRef<ImageElement, ImageProps>(({ src, image, ...rest
     if (src) return _loadImageAsset(src)
     return image
   }, [src, image])
-  const isVector = useMemo(() => _isVectorImage(resolved), [resolved])
-  if (isVector) {
-    return <ojs-image ref={ref} vectorImage={resolved} {...rest} />;
-  }
   return <ojs-image ref={ref} image={resolved} {...rest} />;
 });
 Image.displayName = 'Image';
