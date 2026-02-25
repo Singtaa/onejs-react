@@ -528,14 +528,12 @@ export interface ScrollViewProps extends BaseProps {
 }
 
 export interface ImageProps extends BaseProps {
-  /** Path to image asset relative to the assets/ folder (convenience prop) */
+  /** Path to image asset relative to the assets/ folder. Supports PNG, JPG, and SVG files. */
   src?: string;
-  /** Pre-loaded Texture2D object (use when you loaded the texture yourself) */
+  /** Pre-loaded Texture2D or VectorImage object. Type is auto-detected at runtime. */
   image?: object;
   /** Sprite to display (alternative to image) */
   sprite?: object;
-  /** Vector image to display */
-  vectorImage?: object;
   /** How the image scales to fit the element */
   scaleMode?: 'StretchToFill' | 'ScaleAndCrop' | 'ScaleToFit';
   /** Tint color applied to the image */

@@ -10,6 +10,7 @@ export {
   ScrollView,
   Image,
   ListView,
+  clearImageCache,
 } from './components';
 
 // Renderer

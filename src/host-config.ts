@@ -642,7 +642,16 @@ function applyToggleProps(element: CSObject, props: Record<string, unknown>) {
 // Apply Image-specific properties
 function applyImageProps(element: CSObject, props: Record<string, unknown>) {
     const el = element as any;
-    if (props.image !== undefined) el.image = props.image;
+    if (props.image !== undefined) {
+        const img = props.image;
+        if (img != null && (img as any).GetType?.().Name === "VectorImage") {
+            el.image = null;
+            el.vectorImage = img;
+        } else {
+            el.vectorImage = null;
+            el.image = img;
+        }
+    }
     if (props.sprite !== undefined) el.sprite = props.sprite;
     if (props.vectorImage !== undefined) el.vectorImage = props.vectorImage;
     if (props.scaleMode !== undefined) {
