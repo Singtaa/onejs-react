@@ -258,6 +258,27 @@ type MeshGenerationContext = CS.UnityEngine.UIElements.MeshGenerationContext
 type GenerateVisualContentCallback = (context: MeshGenerationContext) => void
 ```
 
+## C# Interop Utilities
+
+### `toArray<T>(collection): T[]`
+
+Converts C# collections (`List<T>`, arrays) to JavaScript arrays. C# collections exposed through the OneJS proxy have `.Count`/`.Length` and indexers but lack `.map()`, `.filter()`, and other array methods.
+
+```tsx
+import { toArray } from "onejs-react"
+
+// Convert a C# List for use in JSX
+{toArray<Item>(inventory.Items).map(item => <ItemView key={item.Id} item={item} />)}
+
+// Convert a C# array
+const resolutions = toArray<Resolution>(Screen.resolutions)
+
+// Safe with null — returns []
+const npcs = toArray(currentPlace?.NPCs)
+```
+
+Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `[]` for null/undefined.
+
 ## Dependencies
 
 - `react-reconciler@0.31.x` (React 19 compatible)
