@@ -10,6 +10,7 @@
 
 import { vi, beforeEach, afterEach } from "vitest";
 import { createMockCS, resetAllMocks } from "./mocks";
+import { clearImageCache } from "../components";
 
 // Extend globalThis type for our mocks
 declare global {
@@ -31,6 +32,7 @@ const originalQueueMicrotask = global.queueMicrotask;
 // Set up globals before each test
 beforeEach(() => {
     resetAllMocks();
+    clearImageCache();
 
     // Create fresh mock CS global
     (globalThis as any).CS = createMockCS();

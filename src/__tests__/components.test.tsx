@@ -20,8 +20,9 @@ import {
     Slider,
     ScrollView,
     Image,
+    clearImageCache,
 } from '../components';
-import { MockVisualElement, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
+import { MockVisualElement, MockTexture2D, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI, mockFileSystem } from './mocks';
 
 // Helper to extract value from style (handles both raw values and MockLength/MockColor)
 function getStyleValue(style: unknown): unknown {
@@ -364,6 +365,83 @@ describe('components', () => {
             const el = container.children[0] as MockVisualElement;
             expect(getStyleValue(el.style.width)).toBe(100);
             expect(getStyleValue(el.style.height)).toBe(100);
+        });
+
+        it('loads texture when src is provided', async () => {
+            mockFileSystem.set("/project/App/assets/images/logo.png", [0x89, 0x50, 0x4e, 0x47]);
+            (globalThis as any).__workingDir = "/project/App";
+
+            const container = createMockContainer();
+            render(<Image src="images/logo.png" style={{ width: 64, height: 64 }} />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeInstanceOf(MockTexture2D);
+            expect((el.image as MockTexture2D)._loaded).toBe(true);
+        });
+
+        it('returns null for missing file with console.error', async () => {
+            (globalThis as any).__workingDir = "/project/App";
+
+            const container = createMockContainer();
+            render(<Image src="images/missing.png" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeNull();
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining("Image src not found: images/missing.png")
+            );
+        });
+
+        it('caches textures across renders', async () => {
+            mockFileSystem.set("/project/App/assets/photos/hero.png", [0x89, 0x50]);
+            (globalThis as any).__workingDir = "/project/App";
+            const cs = (globalThis as any).CS;
+            const readSpy = vi.spyOn(cs.System.IO.File, 'ReadAllBytes');
+
+            const container = createMockContainer();
+            render(<Image src="photos/hero.png" />, container as any);
+            await flushMicrotasks();
+
+            // Re-render with same src
+            render(<Image src="photos/hero.png" />, container as any);
+            await flushMicrotasks();
+
+            expect(readSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('src takes precedence over image prop', async () => {
+            mockFileSystem.set("/project/App/assets/a.png", [0x89]);
+            (globalThis as any).__workingDir = "/project/App";
+            const manualTex = { manual: true };
+
+            const container = createMockContainer();
+            render(<Image src="a.png" image={manualTex} />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeInstanceOf(MockTexture2D);
+        });
+
+        it('clearImageCache resets the cache', async () => {
+            mockFileSystem.set("/project/App/assets/b.png", [0x89]);
+            (globalThis as any).__workingDir = "/project/App";
+            const cs = (globalThis as any).CS;
+            const readSpy = vi.spyOn(cs.System.IO.File, 'ReadAllBytes');
+
+            const container1 = createMockContainer();
+            render(<Image src="b.png" />, container1 as any);
+            await flushMicrotasks();
+
+            clearImageCache();
+
+            // Render in a new container to force a fresh component mount
+            const container2 = createMockContainer();
+            render(<Image src="b.png" />, container2 as any);
+            await flushMicrotasks();
+
+            expect(readSpy).toHaveBeenCalledTimes(2);
         });
     });
 

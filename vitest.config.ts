@@ -4,7 +4,7 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node', // We don't need DOM - we mock Unity's CS globals
-        setupFiles: ['./src/__tests__/setup.ts'],
+        setupFiles: ['./src/__tests__/pre-setup.ts', './src/__tests__/setup.ts'],
         include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
         coverage: {
             provider: 'v8',
