@@ -65,6 +65,7 @@ declare const CS: {
         GPU: {
             GPUBridge: {
                 SetElementBackgroundImage: (element: CSObject, rtHandle: number) => void;
+                SetElementBackgroundFromObject: (element: CSObject, obj: CSObject) => void;
                 ClearElementBackgroundImage: (element: CSObject) => void;
             };
         };
@@ -350,12 +351,18 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
                 s[prop] = parsed;
                 appliedKeys.add(prop);
             }
-        } else if (key === "backgroundImage" && isRenderTextureHandle(value)) {
-            // Special handling for RenderTexture background images
-            // Supports both direct RenderTexture objects and marker objects
-            const handle = getRenderTextureHandle(value);
-            if (handle >= 0) {
-                CS.OneJS.GPU.GPUBridge.SetElementBackgroundImage(element, handle);
+        } else if (key === "backgroundImage") {
+            if (value == null) {
+                CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
+            } else if (isRenderTextureHandle(value)) {
+                // GPU compute RenderTexture handles (via rt.getUnityObject())
+                const handle = getRenderTextureHandle(value);
+                if (handle >= 0) {
+                    CS.OneJS.GPU.GPUBridge.SetElementBackgroundImage(element, handle);
+                }
+            } else if (typeof value === "object" && "__csHandle" in value) {
+                // C# objects: Texture2D, Sprite, VectorImage, RenderTexture
+                CS.OneJS.GPU.GPUBridge.SetElementBackgroundFromObject(element, value);
             }
             appliedKeys.add(key);
         } else {

@@ -224,6 +224,32 @@ export class MockImage extends MockVisualElement {
 }
 
 /**
+ * Mock Texture2D for image loading tests
+ */
+export class MockTexture2D {
+    width: number
+    height: number
+    filterMode: number = 0
+    _loaded = false
+
+    constructor(w: number, h: number) {
+        this.width = w
+        this.height = h
+    }
+
+    LoadImage(_bytes: any): boolean {
+        this._loaded = true
+        return true
+    }
+}
+
+/**
+ * Mock file system for image loading tests.
+ * Tests can add entries to control which files "exist" and what bytes they contain.
+ */
+export const mockFileSystem = new Map<string, number[]>()
+
+/**
  * Create the mock CS global object that mirrors QuickJSBootstrap.js proxy
  *
  * Enum values match Unity's actual enum definitions so that tests
@@ -231,11 +257,30 @@ export class MockImage extends MockVisualElement {
  */
 export function createMockCS() {
     return {
+        System: {
+            IO: {
+                Path: {
+                    Combine: (...parts: string[]) => parts.join("/"),
+                    GetDirectoryName: (p: string) => p.substring(0, p.lastIndexOf("/")),
+                },
+                File: {
+                    Exists: (path: string) => mockFileSystem.has(path),
+                    ReadAllBytes: (path: string) => mockFileSystem.get(path) || [],
+                },
+            },
+        },
         UnityEngine: {
             // Core types
             Color: MockColor,
             Rect: class { constructor(public x: number, public y: number, public width: number, public height: number) {} },
             ScaleMode: { StretchToFill: 0, ScaleAndCrop: 1, ScaleToFit: 2 },
+            Application: {
+                isEditor: true,
+                dataPath: "/project/Assets",
+                streamingAssetsPath: "/project/Assets/StreamingAssets",
+            },
+            Texture2D: MockTexture2D,
+            FilterMode: { Point: 0, Bilinear: 1, Trilinear: 2 },
             // UI Elements
             UIElements: {
                 VisualElement: MockVisualElement,
@@ -282,6 +327,7 @@ export function createMockCS() {
             GPU: {
                 GPUBridge: {
                     SetElementBackgroundImage: () => {},
+                    SetElementBackgroundFromObject: () => {},
                     ClearElementBackgroundImage: () => {},
                 },
             },
@@ -308,6 +354,7 @@ export function findElementByHandle(handle: number): MockVisualElement | undefin
  */
 export function resetAllMocks(): void {
     createdElements = [];
+    mockFileSystem.clear();
 }
 
 /**

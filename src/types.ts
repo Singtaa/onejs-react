@@ -82,10 +82,19 @@ export interface ViewStyle {
   /** Background color. Examples: "#3498db", "rgba(0,0,0,0.5)", "red" */
   backgroundColor?: StyleColor;
   /**
-   * Background image - accepts a Texture2D, RenderTexture, or RenderTexture object from GPU compute.
+   * Background image - accepts Texture2D, Sprite, VectorImage, RenderTexture,
+   * or a GPU compute RenderTexture handle.
    *
-   * For GPU compute RenderTextures, you can pass the RenderTexture object directly:
    * @example
+   * // Texture2D
+   * const tex = loadImage("images/card-bg.png")
+   * <View style={{ backgroundImage: tex }} />
+   *
+   * // Sprite from C#
+   * const sprite = getSpriteFromCSharp()
+   * <View style={{ backgroundImage: sprite }} />
+   *
+   * // GPU compute RenderTexture
    * const rt = compute.renderTexture({ width: 100, height: 100 })
    * <View style={{ backgroundImage: rt }} />
    */
