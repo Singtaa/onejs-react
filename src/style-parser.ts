@@ -89,10 +89,9 @@ const LENGTH_PROPERTIES = new Set([
     "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
     "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
     "flexBasis",
-    "borderWidth", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
     "borderRadius", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius",
     "fontSize",
-    "letterSpacing", "wordSpacing", "unityTextOutlineWidth", "unityParagraphSpacing",
+    "letterSpacing", "wordSpacing", "unityParagraphSpacing",
 ])
 
 // Style properties that expect color values
@@ -106,6 +105,8 @@ const COLOR_PROPERTIES = new Set([
 const NUMBER_PROPERTIES = new Set([
     "flexGrow", "flexShrink", "opacity",
     "unitySliceTop", "unitySliceRight", "unitySliceBottom", "unitySliceLeft", "unitySliceScale",
+    "borderWidth", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+    "unityTextOutlineWidth",
 ])
 
 // Enum property mappings: React style value -> Unity enum value

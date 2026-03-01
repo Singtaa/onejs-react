@@ -108,12 +108,12 @@ export interface ViewStyle {
   borderBottomColor?: StyleColor;
   borderLeftColor?: StyleColor;
 
-  /** Border width for all sides. Examples: 1, "1px" */
-  borderWidth?: StyleLength;
-  borderTopWidth?: StyleLength;
-  borderRightWidth?: StyleLength;
-  borderBottomWidth?: StyleLength;
-  borderLeftWidth?: StyleLength;
+  /** Border width for all sides (StyleFloat). Examples: 1, 2 */
+  borderWidth?: number;
+  borderTopWidth?: number;
+  borderRightWidth?: number;
+  borderBottomWidth?: number;
+  borderLeftWidth?: number;
 
   /** Border radius for all corners. Examples: 8, "8px", "50%" */
   borderRadius?: StyleLength;
@@ -152,8 +152,8 @@ export interface ViewStyle {
   unityParagraphSpacing?: StyleLength;
   /** Text outline color */
   unityTextOutlineColor?: StyleColor;
-  /** Text outline width */
-  unityTextOutlineWidth?: StyleLength;
+  /** Text outline width (StyleFloat) */
+  unityTextOutlineWidth?: number;
   /** How overflowing text is handled */
   textOverflow?: 'clip' | 'ellipsis';
   /** Position of text overflow indicator */

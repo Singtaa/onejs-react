@@ -271,9 +271,9 @@ describe("style-parser", () => {
             expect(result.value).toBe(8)
         })
 
-        it("parses borderWidth", () => {
-            const result = parseStyleValue("borderWidth", 1) as MockLength
-            expect(result.value).toBe(1)
+        it("parses borderWidth as plain number (StyleFloat)", () => {
+            const result = parseStyleValue("borderWidth", 1)
+            expect(result).toBe(1)
         })
 
         it("parses fontSize", () => {
