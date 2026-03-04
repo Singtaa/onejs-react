@@ -11,7 +11,11 @@ export {
   Image,
   ListView,
   clearImageCache,
+  createComponent,
 } from './components';
+
+// Custom Element Registration
+export { registerElement } from './host-config';
 
 // Renderer
 export { render, unmount, flushSync, batchedUpdates, getDebugInfo } from './renderer';

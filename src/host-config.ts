@@ -175,6 +175,35 @@ const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-listview': () => new CS.UnityEngine.UIElements.ListView(),
 };
 
+// Built-in types with specific prop handling in applyComponentProps
+const BUILT_IN_TYPES = new Set(Object.keys(TYPE_MAP));
+
+/**
+ * Register a custom VisualElement type for use in React JSX.
+ *
+ * @param name - Element name (with or without 'ojs-' prefix)
+ * @param constructor - C# constructor reference (e.g., CS.MyNamespace.MyWidget)
+ *
+ * @example
+ * import { registerElement, createComponent } from "onejs-react"
+ *
+ * // Register the custom element
+ * registerElement("radial-progress", CS.MyGame.UI.RadialProgress)
+ *
+ * // Create a typed React component for it
+ * const RadialProgress = createComponent<RadialProgressProps>("radial-progress")
+ *
+ * // Use in JSX
+ * <RadialProgress progress={0.75} />
+ */
+export function registerElement(name: string, constructor: new (...args: any[]) => any): void {
+    const key = name.startsWith('ojs-') ? name : `ojs-${name}`;
+    if (TYPE_MAP[key]) {
+        console.error(`registerElement: "${name}" is already registered. Overwriting.`);
+    }
+    TYPE_MAP[key] = () => new constructor();
+}
+
 // Event prop to event type mapping
 const EVENT_PROPS: Record<string, string> = {
     // Click
@@ -728,8 +757,29 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>)
     setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground);
 }
 
+// Props handled by the reconciler infrastructure - not forwarded to C# elements
+const RESERVED_PROPS = new Set([
+    'children', 'key', 'ref', 'style', 'className', 'pickingMode',
+    'onGenerateVisualContent',
+    ...Object.keys(EVENT_PROPS),
+]);
+
+// Forward non-reserved props directly to C# element (for custom elements)
+function applyCustomProps(element: CSObject, props: Record<string, unknown>) {
+    for (const [key, value] of Object.entries(props)) {
+        if (value === undefined || RESERVED_PROPS.has(key)) continue;
+        (element as any)[key] = value;
+    }
+}
+
 // Apply component-specific props based on element type
 function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>) {
+    // Custom elements: forward all non-reserved props directly to C# element
+    if (!BUILT_IN_TYPES.has(type)) {
+        applyCustomProps(element, props);
+        return;
+    }
+
     // For Slider, apply range props (lowValue/highValue) BEFORE value
     // Unity's Slider clamps value to [lowValue, highValue], so range must be set first
     if (type === 'ojs-slider') {

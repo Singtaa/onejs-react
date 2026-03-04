@@ -1,5 +1,6 @@
-import { forwardRef, useMemo, type ReactElement, type Ref } from 'react';
+import { forwardRef, createElement, useMemo, type ReactElement, type Ref } from 'react';
 import type {
+  BaseProps,
   ViewProps,
   TextProps,
   LabelProps,
@@ -172,3 +173,39 @@ export const ListView = forwardRef<VisualElement, ListViewProps>((props, ref) =>
   return <ojs-listview ref={ref} {...props} />;
 });
 ListView.displayName = 'ListView';
+
+/**
+ * Create a typed React component for a registered custom element.
+ * Use with `registerElement()` to add custom C# VisualElement types to React.
+ *
+ * @param name - Element name matching what was passed to registerElement()
+ * @param displayName - Optional display name for React DevTools
+ *
+ * @example
+ * import { registerElement, createComponent } from "onejs-react"
+ * import { BaseProps, VisualElement } from "onejs-react"
+ *
+ * // Define props for your custom element
+ * interface RadialProgressProps extends BaseProps {
+ *     progress?: number
+ *     trackColor?: string
+ * }
+ *
+ * // Register and create the component
+ * registerElement("radial-progress", CS.MyGame.UI.RadialProgress)
+ * export const RadialProgress = createComponent<RadialProgressProps>("radial-progress")
+ *
+ * // Use in JSX like any React component
+ * <RadialProgress progress={0.75} trackColor="#333" style={{ width: 100, height: 100 }} />
+ */
+export function createComponent<P extends BaseProps = BaseProps>(
+    name: string,
+    displayName?: string
+) {
+    const type = name.startsWith('ojs-') ? name : `ojs-${name}`;
+    const Component = forwardRef<VisualElement, P>((props, ref) => {
+        return createElement(type, { ...props, ref });
+    });
+    Component.displayName = displayName || name;
+    return Component;
+}
