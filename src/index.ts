@@ -10,6 +10,7 @@ export {
   ScrollView,
   Image,
   ListView,
+  FrostedGlass,
   clearImageCache,
   createComponent,
 } from './components';
@@ -83,6 +84,7 @@ export type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  FrostedGlassProps,
   // Container type for render()
   RenderContainer,
   // Element types for refs
@@ -95,6 +97,7 @@ export type {
   SliderElement,
   ScrollViewElement,
   ImageElement,
+  FrostedGlassElement,
   // Vector drawing types
   Vector2,
   Color,

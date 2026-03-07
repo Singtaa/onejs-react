@@ -60,6 +60,7 @@ declare const CS: {
         };
         ScaleMode: CSEnum;
         Rect: new (...args: any[]) => any;
+        Color: new (r: number, g: number, b: number, a: number) => any;
     };
     OneJS: {
         GPU: {
@@ -68,6 +69,7 @@ declare const CS: {
                 SetElementBackgroundFromObject: (element: CSObject, obj: CSObject) => void;
                 ClearElementBackgroundImage: (element: CSObject) => void;
             };
+            FrostedGlassElement: new () => CSObject;
         };
     };
 };
@@ -173,6 +175,7 @@ const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-scrollview': () => new CS.UnityEngine.UIElements.ScrollView(),
     'ojs-image': () => new CS.UnityEngine.UIElements.Image(),
     'ojs-listview': () => new CS.UnityEngine.UIElements.ListView(),
+    'ojs-frostedglass': () => new CS.OneJS.GPU.FrostedGlassElement(),
 };
 
 // Built-in types with specific prop handling in applyComponentProps
@@ -800,6 +803,10 @@ function applyComponentProps(element: CSObject, type: string, props: Record<stri
         applyScrollViewProps(element as CSScrollView, props);
     } else if (type === 'ojs-listview') {
         applyListViewProps(element as CSListView, props);
+    } else if (type === 'ojs-frostedglass') {
+        const el = element as any;
+        if (props.blurRadius !== undefined) el.BlurRadius = props.blurRadius;
+        if (props.tintColor !== undefined) el.TintColor = props.tintColor;
     }
 }
 

@@ -11,6 +11,8 @@ import type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  FrostedGlassProps,
+  FrostedGlassIntrinsicProps,
   VisualElement,
   TextElement,
   LabelElement,
@@ -20,6 +22,7 @@ import type {
   SliderElement,
   ScrollViewElement,
   ImageElement,
+  FrostedGlassElement,
 } from './types';
 
 declare const CS: any
@@ -95,6 +98,7 @@ declare module 'react/jsx-runtime' {
       'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
       'ojs-image': WithRef<ImageProps, ImageElement>;
       'ojs-listview': WithRef<ListViewProps, VisualElement>;
+      'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
     }
   }
 }
@@ -113,6 +117,7 @@ declare module 'react' {
       'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
       'ojs-image': WithRef<ImageProps, ImageElement>;
       'ojs-listview': WithRef<ListViewProps, VisualElement>;
+      'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
     }
   }
 }
@@ -173,6 +178,17 @@ export const ListView = forwardRef<VisualElement, ListViewProps>((props, ref) =>
   return <ojs-listview ref={ref} {...props} />;
 });
 ListView.displayName = 'ListView';
+
+export const FrostedGlass = forwardRef<FrostedGlassElement, FrostedGlassProps>(({ blur, tint, ...rest }, ref) => {
+  const parsedTint = useMemo(() => {
+    if (!tint) return new CS.UnityEngine.Color(1, 1, 1, 0.15)
+    const m = tint.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)/)
+    if (m) return new CS.UnityEngine.Color(+m[1] / 255, +m[2] / 255, +m[3] / 255, m[4] != null ? +m[4] : 1)
+    return new CS.UnityEngine.Color(1, 1, 1, 0.15)
+  }, [tint])
+  return <ojs-frostedglass ref={ref} blurRadius={blur ?? 10} tintColor={parsedTint} {...rest} />;
+});
+FrostedGlass.displayName = 'FrostedGlass';
 
 /**
  * Create a typed React component for a registered custom element.

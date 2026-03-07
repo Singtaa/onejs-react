@@ -674,6 +674,24 @@ export interface ImageElement extends VisualElement {
 
 // ListView uses Unity's virtualization callbacks directly
 // This is intentionally imperative - ListView manages its own element recycling
+export interface FrostedGlassProps extends BaseProps {
+  /** Blur radius in screen pixels. Higher = more blurry. Default: 10. */
+  blur?: number;
+  /** Tint color overlaid on the blurred background (CSS color string). */
+  tint?: string;
+}
+
+/** Internal props for the ojs-frostedglass intrinsic element */
+export interface FrostedGlassIntrinsicProps extends BaseProps {
+  blurRadius?: number;
+  tintColor?: any;
+}
+
+export interface FrostedGlassElement extends VisualElement {
+  blurRadius: number;
+  tintColor: any;
+}
+
 export interface ListViewProps extends BaseProps {
   // Data source - the array of items to display
   itemsSource: unknown[];
