@@ -36,6 +36,10 @@ const _imageCache = new Map<string, any>()
 
 function _resolveAssetPath(src: string): string {
     const Path = CS.System.IO.Path
+    // Absolute paths bypass asset resolution entirely
+    if (Path.IsPathRooted(src)) {
+        return src
+    }
     if (CS.UnityEngine.Application.isEditor) {
         const workingDir = typeof (globalThis as any).__workingDir === "string"
             ? (globalThis as any).__workingDir
