@@ -316,6 +316,21 @@ function escapeClassName(name: string): string {
     return escaped;
 }
 
+// Shallow equality check for plain objects (style, props).
+// Returns true if both have identical own-property values (===).
+function shallowEqual(a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    for (let i = 0; i < keysA.length; i++) {
+        const k = keysA[i];
+        if (a[k] !== b[k]) return false;
+    }
+    return true;
+}
+
 // Get all expanded property keys for a style object
 function getExpandedStyleKeys(style: ViewStyle | undefined): Set<string> {
     const keys = new Set<string>();
@@ -618,70 +633,68 @@ function removeMergedTextChild(parentInstance: Instance, child: Instance) {
 
 // MARK: Component-specific prop handlers
 
-// Apply common props (text, value, label)
-function applyCommonProps(element: CSObject, props: Record<string, unknown>) {
+// Apply common props (text, value, label) - skip unchanged values
+function applyCommonProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
-    if (props.text !== undefined) el.text = props.text as string;
-    if (props.value !== undefined) el.value = props.value;
-    if (props.label !== undefined) el.label = props.label as string;
+    if (props.text !== undefined && props.text !== oldProps?.text) el.text = props.text as string;
+    if (props.value !== undefined && props.value !== oldProps?.value) el.value = props.value;
+    if (props.label !== undefined && props.label !== oldProps?.label) el.label = props.label as string;
 }
 
-// Helper to set enum prop if defined
-function setEnumProp<T>(target: T, key: keyof T, props: Record<string, unknown>, propKey: string, enumType: CSEnum) {
-    if (props[propKey] !== undefined) {
+// Helper to set enum prop if defined and changed
+function setEnumProp<T>(target: T, key: keyof T, props: Record<string, unknown>, propKey: string, enumType: CSEnum, oldProps?: Record<string, unknown>) {
+    if (props[propKey] !== undefined && props[propKey] !== oldProps?.[propKey]) {
         (target as Record<string, unknown>)[key as string] = enumType[props[propKey] as string];
     }
 }
 
-// Helper to set value prop if defined
-function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>, propKey: string) {
-    if (props[propKey] !== undefined) {
+// Helper to set value prop if defined and changed
+function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>, propKey: string, oldProps?: Record<string, unknown>) {
+    if (props[propKey] !== undefined && props[propKey] !== oldProps?.[propKey]) {
         (target as Record<string, unknown>)[key as string] = props[propKey];
     }
 }
 
-// Apply TextField-specific properties
-function applyTextFieldProps(element: CSObject, props: Record<string, unknown>) {
+// Apply TextField-specific properties - skip unchanged values
+function applyTextFieldProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
-    if (props.readOnly !== undefined) el.isReadOnly = props.readOnly;
-    if (props.multiline !== undefined) el.multiline = props.multiline;
-    if (props.maxLength !== undefined) el.maxLength = props.maxLength;
-    if (props.isPasswordField !== undefined) el.isPasswordField = props.isPasswordField;
-    if (props.maskChar !== undefined) el.maskChar = (props.maskChar as string).charAt(0);
-    if (props.isDelayed !== undefined) el.isDelayed = props.isDelayed;
-    if (props.selectAllOnFocus !== undefined) el.selectAllOnFocus = props.selectAllOnFocus;
-    if (props.selectAllOnMouseUp !== undefined) el.selectAllOnMouseUp = props.selectAllOnMouseUp;
-    if (props.hideMobileInput !== undefined) el.hideMobileInput = props.hideMobileInput;
-    if (props.autoCorrection !== undefined) el.autoCorrection = props.autoCorrection;
-    // Note: placeholder is handled differently in Unity - it's set via the textEdition interface
-    // For now we skip it as it requires more complex handling
+    if (props.readOnly !== undefined && props.readOnly !== oldProps?.readOnly) el.isReadOnly = props.readOnly;
+    if (props.multiline !== undefined && props.multiline !== oldProps?.multiline) el.multiline = props.multiline;
+    if (props.maxLength !== undefined && props.maxLength !== oldProps?.maxLength) el.maxLength = props.maxLength;
+    if (props.isPasswordField !== undefined && props.isPasswordField !== oldProps?.isPasswordField) el.isPasswordField = props.isPasswordField;
+    if (props.maskChar !== undefined && props.maskChar !== oldProps?.maskChar) el.maskChar = (props.maskChar as string).charAt(0);
+    if (props.isDelayed !== undefined && props.isDelayed !== oldProps?.isDelayed) el.isDelayed = props.isDelayed;
+    if (props.selectAllOnFocus !== undefined && props.selectAllOnFocus !== oldProps?.selectAllOnFocus) el.selectAllOnFocus = props.selectAllOnFocus;
+    if (props.selectAllOnMouseUp !== undefined && props.selectAllOnMouseUp !== oldProps?.selectAllOnMouseUp) el.selectAllOnMouseUp = props.selectAllOnMouseUp;
+    if (props.hideMobileInput !== undefined && props.hideMobileInput !== oldProps?.hideMobileInput) el.hideMobileInput = props.hideMobileInput;
+    if (props.autoCorrection !== undefined && props.autoCorrection !== oldProps?.autoCorrection) el.autoCorrection = props.autoCorrection;
 }
 
-// Apply Slider-specific properties
-function applySliderProps(element: CSObject, props: Record<string, unknown>) {
+// Apply Slider-specific properties - skip unchanged values
+function applySliderProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
-    if (props.lowValue !== undefined) el.lowValue = props.lowValue;
-    if (props.highValue !== undefined) el.highValue = props.highValue;
-    if (props.showInputField !== undefined) el.showInputField = props.showInputField;
-    if (props.inverted !== undefined) el.inverted = props.inverted;
-    if (props.pageSize !== undefined) el.pageSize = props.pageSize;
-    if (props.fill !== undefined) el.fill = props.fill;
-    if (props.direction !== undefined) {
+    if (props.lowValue !== undefined && props.lowValue !== oldProps?.lowValue) el.lowValue = props.lowValue;
+    if (props.highValue !== undefined && props.highValue !== oldProps?.highValue) el.highValue = props.highValue;
+    if (props.showInputField !== undefined && props.showInputField !== oldProps?.showInputField) el.showInputField = props.showInputField;
+    if (props.inverted !== undefined && props.inverted !== oldProps?.inverted) el.inverted = props.inverted;
+    if (props.pageSize !== undefined && props.pageSize !== oldProps?.pageSize) el.pageSize = props.pageSize;
+    if (props.fill !== undefined && props.fill !== oldProps?.fill) el.fill = props.fill;
+    if (props.direction !== undefined && props.direction !== oldProps?.direction) {
         el.direction = CS.UnityEngine.UIElements.SliderDirection[props.direction as string];
     }
 }
 
-// Apply Toggle-specific properties
-function applyToggleProps(element: CSObject, props: Record<string, unknown>) {
+// Apply Toggle-specific properties - skip unchanged values
+function applyToggleProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
-    if (props.text !== undefined) el.text = props.text;
-    if (props.toggleOnLabelClick !== undefined) el.toggleOnLabelClick = props.toggleOnLabelClick;
+    if (props.text !== undefined && props.text !== oldProps?.text) el.text = props.text;
+    if (props.toggleOnLabelClick !== undefined && props.toggleOnLabelClick !== oldProps?.toggleOnLabelClick) el.toggleOnLabelClick = props.toggleOnLabelClick;
 }
 
-// Apply Image-specific properties
-function applyImageProps(element: CSObject, props: Record<string, unknown>) {
+// Apply Image-specific properties - skip unchanged values
+function applyImageProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
-    if (props.image !== undefined) {
+    if (props.image !== undefined && props.image !== oldProps?.image) {
         const img = props.image;
         if (img != null && (img as any).GetType?.().Name === "VectorImage") {
             el.image = null;
@@ -691,73 +704,73 @@ function applyImageProps(element: CSObject, props: Record<string, unknown>) {
             el.image = img;
         }
     }
-    if (props.sprite !== undefined) el.sprite = props.sprite;
-    if (props.vectorImage !== undefined) el.vectorImage = props.vectorImage;
-    if (props.scaleMode !== undefined) {
+    if (props.sprite !== undefined && props.sprite !== oldProps?.sprite) el.sprite = props.sprite;
+    if (props.vectorImage !== undefined && props.vectorImage !== oldProps?.vectorImage) el.vectorImage = props.vectorImage;
+    if (props.scaleMode !== undefined && props.scaleMode !== oldProps?.scaleMode) {
         el.scaleMode = CS.UnityEngine.ScaleMode[props.scaleMode as string];
     }
-    if (props.tintColor !== undefined) {
+    if (props.tintColor !== undefined && props.tintColor !== oldProps?.tintColor) {
         const color = parseColor(props.tintColor as string);
         if (color) el.tintColor = color;
     }
-    if (props.sourceRect !== undefined) {
+    if (props.sourceRect !== undefined && props.sourceRect !== oldProps?.sourceRect) {
         const rect = props.sourceRect as { x: number; y: number; width: number; height: number };
         el.sourceRect = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
     }
-    if (props.uv !== undefined) {
+    if (props.uv !== undefined && props.uv !== oldProps?.uv) {
         const rect = props.uv as { x: number; y: number; width: number; height: number };
         el.uv = new CS.UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height);
     }
 }
 
-// Apply ScrollView-specific properties
-function applyScrollViewProps(element: CSScrollView, props: Record<string, unknown>) {
+// Apply ScrollView-specific properties - skip unchanged values
+function applyScrollViewProps(element: CSScrollView, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
-    setEnumProp(element, 'mode', props, 'mode', UIE.ScrollViewMode);
-    setEnumProp(element, 'horizontalScrollerVisibility', props, 'horizontalScrollerVisibility', UIE.ScrollerVisibility);
-    setEnumProp(element, 'verticalScrollerVisibility', props, 'verticalScrollerVisibility', UIE.ScrollerVisibility);
-    setEnumProp(element, 'touchScrollBehavior', props, 'touchScrollBehavior', UIE.TouchScrollBehavior);
-    setEnumProp(element, 'nestedInteractionKind', props, 'nestedInteractionKind', UIE.NestedInteractionKind);
-    setValueProp(element, 'elasticity', props, 'elasticity');
-    setValueProp(element, 'elasticAnimationIntervalMs', props, 'elasticAnimationIntervalMs');
-    setValueProp(element, 'scrollDecelerationRate', props, 'scrollDecelerationRate');
-    setValueProp(element, 'mouseWheelScrollSize', props, 'mouseWheelScrollSize');
-    setValueProp(element, 'horizontalPageSize', props, 'horizontalPageSize');
-    setValueProp(element, 'verticalPageSize', props, 'verticalPageSize');
+    setEnumProp(element, 'mode', props, 'mode', UIE.ScrollViewMode, oldProps);
+    setEnumProp(element, 'horizontalScrollerVisibility', props, 'horizontalScrollerVisibility', UIE.ScrollerVisibility, oldProps);
+    setEnumProp(element, 'verticalScrollerVisibility', props, 'verticalScrollerVisibility', UIE.ScrollerVisibility, oldProps);
+    setEnumProp(element, 'touchScrollBehavior', props, 'touchScrollBehavior', UIE.TouchScrollBehavior, oldProps);
+    setEnumProp(element, 'nestedInteractionKind', props, 'nestedInteractionKind', UIE.NestedInteractionKind, oldProps);
+    setValueProp(element, 'elasticity', props, 'elasticity', oldProps);
+    setValueProp(element, 'elasticAnimationIntervalMs', props, 'elasticAnimationIntervalMs', oldProps);
+    setValueProp(element, 'scrollDecelerationRate', props, 'scrollDecelerationRate', oldProps);
+    setValueProp(element, 'mouseWheelScrollSize', props, 'mouseWheelScrollSize', oldProps);
+    setValueProp(element, 'horizontalPageSize', props, 'horizontalPageSize', oldProps);
+    setValueProp(element, 'verticalPageSize', props, 'verticalPageSize', oldProps);
 }
 
-// Apply ListView-specific properties
-function applyListViewProps(element: CSListView, props: Record<string, unknown>) {
+// Apply ListView-specific properties - skip unchanged values
+function applyListViewProps(element: CSListView, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
 
     // Data binding callbacks
-    setValueProp(element, 'itemsSource', props, 'itemsSource');
-    setValueProp(element, 'makeItem', props, 'makeItem');
-    setValueProp(element, 'bindItem', props, 'bindItem');
-    setValueProp(element, 'unbindItem', props, 'unbindItem');
-    setValueProp(element, 'destroyItem', props, 'destroyItem');
+    setValueProp(element, 'itemsSource', props, 'itemsSource', oldProps);
+    setValueProp(element, 'makeItem', props, 'makeItem', oldProps);
+    setValueProp(element, 'bindItem', props, 'bindItem', oldProps);
+    setValueProp(element, 'unbindItem', props, 'unbindItem', oldProps);
+    setValueProp(element, 'destroyItem', props, 'destroyItem', oldProps);
 
     // Virtualization
-    setValueProp(element, 'fixedItemHeight', props, 'fixedItemHeight');
-    setEnumProp(element, 'virtualizationMethod', props, 'virtualizationMethod', UIE.CollectionVirtualizationMethod);
+    setValueProp(element, 'fixedItemHeight', props, 'fixedItemHeight', oldProps);
+    setEnumProp(element, 'virtualizationMethod', props, 'virtualizationMethod', UIE.CollectionVirtualizationMethod, oldProps);
 
     // Selection
-    setEnumProp(element, 'selectionType', props, 'selectionType', UIE.SelectionType);
-    setValueProp(element, 'selectedIndex', props, 'selectedIndex');
-    setValueProp(element, 'selectedIndices', props, 'selectedIndices');
+    setEnumProp(element, 'selectionType', props, 'selectionType', UIE.SelectionType, oldProps);
+    setValueProp(element, 'selectedIndex', props, 'selectedIndex', oldProps);
+    setValueProp(element, 'selectedIndices', props, 'selectedIndices', oldProps);
 
     // Reordering
-    setValueProp(element, 'reorderable', props, 'reorderable');
-    setEnumProp(element, 'reorderMode', props, 'reorderMode', UIE.ListViewReorderMode);
+    setValueProp(element, 'reorderable', props, 'reorderable', oldProps);
+    setEnumProp(element, 'reorderMode', props, 'reorderMode', UIE.ListViewReorderMode, oldProps);
 
     // Header/Footer
-    setValueProp(element, 'showFoldoutHeader', props, 'showFoldoutHeader');
-    setValueProp(element, 'headerTitle', props, 'headerTitle');
-    setValueProp(element, 'showAddRemoveFooter', props, 'showAddRemoveFooter');
+    setValueProp(element, 'showFoldoutHeader', props, 'showFoldoutHeader', oldProps);
+    setValueProp(element, 'headerTitle', props, 'headerTitle', oldProps);
+    setValueProp(element, 'showAddRemoveFooter', props, 'showAddRemoveFooter', oldProps);
 
     // Appearance
-    setValueProp(element, 'showBorder', props, 'showBorder');
-    setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground);
+    setValueProp(element, 'showBorder', props, 'showBorder', oldProps);
+    setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground, oldProps);
 }
 
 // Props handled by the reconciler infrastructure - not forwarded to C# elements
@@ -767,46 +780,47 @@ const RESERVED_PROPS = new Set([
     ...Object.keys(EVENT_PROPS),
 ]);
 
-// Forward non-reserved props directly to C# element (for custom elements)
-function applyCustomProps(element: CSObject, props: Record<string, unknown>) {
+// Forward non-reserved props directly to C# element (for custom elements) - skip unchanged
+function applyCustomProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     for (const [key, value] of Object.entries(props)) {
         if (value === undefined || RESERVED_PROPS.has(key)) continue;
+        if (value === oldProps?.[key]) continue;
         (element as any)[key] = value;
     }
 }
 
 // Apply component-specific props based on element type
-function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>) {
+function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     // Custom elements: forward all non-reserved props directly to C# element
     if (!BUILT_IN_TYPES.has(type)) {
-        applyCustomProps(element, props);
+        applyCustomProps(element, props, oldProps);
         return;
     }
 
     // For Slider, apply range props (lowValue/highValue) BEFORE value
     // Unity's Slider clamps value to [lowValue, highValue], so range must be set first
     if (type === 'ojs-slider') {
-        applySliderProps(element, props);
-        applyCommonProps(element, props);
+        applySliderProps(element, props, oldProps);
+        applyCommonProps(element, props, oldProps);
         return;
     }
 
-    applyCommonProps(element, props);
+    applyCommonProps(element, props, oldProps);
 
     if (type === 'ojs-textfield') {
-        applyTextFieldProps(element, props);
+        applyTextFieldProps(element, props, oldProps);
     } else if (type === 'ojs-toggle') {
-        applyToggleProps(element, props);
+        applyToggleProps(element, props, oldProps);
     } else if (type === 'ojs-image') {
-        applyImageProps(element, props);
+        applyImageProps(element, props, oldProps);
     } else if (type === 'ojs-scrollview') {
-        applyScrollViewProps(element as CSScrollView, props);
+        applyScrollViewProps(element as CSScrollView, props, oldProps);
     } else if (type === 'ojs-listview') {
-        applyListViewProps(element as CSListView, props);
+        applyListViewProps(element as CSListView, props, oldProps);
     } else if (type === 'ojs-frostedglass') {
         const el = element as any;
-        if (props.blurRadius !== undefined) el.BlurRadius = props.blurRadius;
-        if (props.tintColor !== undefined) el.TintColor = props.tintColor;
+        if (props.blurRadius !== undefined && props.blurRadius !== oldProps?.blurRadius) el.BlurRadius = props.blurRadius;
+        if (props.tintColor !== undefined && props.tintColor !== oldProps?.tintColor) el.TintColor = props.tintColor;
     }
 }
 
@@ -844,8 +858,9 @@ function createInstance(type: string, props: BaseProps): Instance {
 function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseProps) {
     const element = instance.element;
 
-    // Update style - clear removed properties, then apply new ones
-    if (oldProps.style !== newProps.style) {
+    // Update style - skip if values are shallowly equal (inline style objects are
+    // new references each render but usually contain the same values)
+    if (oldProps.style !== newProps.style && !shallowEqual(oldProps.style as any, newProps.style as any)) {
         const newStyleKeys = getExpandedStyleKeys(newProps.style);
         clearRemovedStyles(element, instance.appliedStyleKeys, newStyleKeys);
         instance.appliedStyleKeys = applyStyle(element, newProps.style);
@@ -862,8 +877,8 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
     // Update vector drawing callback
     applyVisualContentCallback(instance, newProps);
 
-    // Update component-specific props
-    applyComponentProps(element, instance.type, newProps as Record<string, unknown>);
+    // Update component-specific props - pass oldProps to skip unchanged values
+    applyComponentProps(element, instance.type, newProps as Record<string, unknown>, oldProps as Record<string, unknown>);
 
     // Update pickingMode
     if (oldProps.pickingMode !== newProps.pickingMode) {
