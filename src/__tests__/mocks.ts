@@ -262,6 +262,7 @@ export function createMockCS() {
                 Path: {
                     Combine: (...parts: string[]) => parts.join("/"),
                     GetDirectoryName: (p: string) => p.substring(0, p.lastIndexOf("/")),
+                    IsPathRooted: (p: string) => p.startsWith("/"),
                 },
                 File: {
                     Exists: (path: string) => mockFileSystem.has(path),
