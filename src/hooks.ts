@@ -376,3 +376,113 @@ export function toArray<T = unknown>(collection: unknown): T[] {
     }
     return result
 }
+
+/**
+ * Event source descriptor for useEventSync: [sourceObject, eventName].
+ * The eventName should NOT include the "add_" / "remove_" prefix.
+ */
+export type EventSource = [source: object, eventName: string]
+
+/**
+ * Syncs a value from C# to React state via event subscription instead of polling.
+ * Zero work when nothing changes — the getter is only called when an event fires.
+ *
+ * Use this instead of `useFrameSync` when C# fires events on state change.
+ * `useFrameSync` polls every frame (causing GC pressure); `useEventSync` does
+ * zero work between events.
+ *
+ * **Convention form**: Derives the getter and event name from a property name.
+ * `useEventSync(source, "Health")` subscribes to `source.add_OnHealthChanged`
+ * and reads `source.Health`. The C# side must have an event named `On{Prop}Changed`.
+ *
+ * **Explicit form**: User-provided getter and event descriptors.
+ * Supports multiple event sources, static events, and derived state.
+ *
+ * If the source object can be null or change over time, pass it in deps:
+ * `useEventSync(player, "Health", [player])`
+ *
+ * Events must fire on Unity's main thread (the normal case for MonoBehaviour methods).
+ *
+ * @example
+ * // Convention: subscribes to player.add_OnHealthChanged, reads player.Health
+ * const health = useEventSync(player, "Health")
+ *
+ * @example
+ * // Convention with deps (required if source can change or start null)
+ * const health = useEventSync(currentPlayer, "Health", [currentPlayer])
+ *
+ * @example
+ * // Explicit: custom getter, multiple events
+ * const itemCount = useEventSync(
+ *     () => inventory.Items.Count,
+ *     [[inventory, "OnItemAdded"], [inventory, "OnItemRemoved"]]
+ * )
+ *
+ * @example
+ * // Explicit: static events
+ * const state = useEventSync(
+ *     () => CS.GameManager.Score,
+ *     [[CS.GameManager, "OnScoreChanged"]]
+ * )
+ */
+export function useEventSync<T>(getter: () => T, events: EventSource[], deps?: readonly unknown[]): T
+export function useEventSync(source: object, propertyName: string, deps?: readonly unknown[]): unknown
+export function useEventSync<T>(
+    sourceOrGetter: object | (() => T),
+    propOrEvents: string | EventSource[],
+    depsOrNothing?: readonly unknown[]
+): T {
+    if (typeof sourceOrGetter === "function") {
+        return useEventSyncImpl(
+            sourceOrGetter as () => T,
+            propOrEvents as EventSource[],
+            depsOrNothing ?? []
+        )
+    }
+
+    const source = sourceOrGetter
+    const propName = propOrEvents as string
+    return useEventSyncImpl(
+        () => source ? (source as any)[propName] : undefined,
+        source ? [[source, `On${propName}Changed`]] : [],
+        depsOrNothing ?? []
+    )
+}
+
+function useEventSyncImpl<T>(
+    getter: () => T,
+    events: EventSource[],
+    deps: readonly unknown[]
+): T {
+    const [value, setValue] = useState<T>(() => {
+        try { return getter() } catch { return undefined as T }
+    })
+    const getterRef = useRef(getter)
+    getterRef.current = getter
+
+    useEffect(() => {
+        try { setValue(getterRef.current()) } catch {}
+
+        const handler = () => {
+            try { setValue(getterRef.current()) } catch {}
+        }
+
+        for (const [source, eventName] of events) {
+            try {
+                const addFn = (source as any)[`add_${eventName}`]
+                if (typeof addFn === "function") addFn(handler)
+            } catch {}
+        }
+
+        return () => {
+            for (const [source, eventName] of events) {
+                try {
+                    const removeFn = (source as any)[`remove_${eventName}`]
+                    if (typeof removeFn === "function") removeFn(handler)
+                } catch {}
+            }
+        }
+    }, deps)
+
+    return value
+}

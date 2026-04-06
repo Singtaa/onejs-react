@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import React from "react"
-import { useFrameSync, useFrameSyncWith, toArray } from "../hooks"
+import { useFrameSync, useFrameSyncWith, useEventSync, toArray } from "../hooks"
 import { render, unmount } from "../renderer"
 import { createMockContainer, flushMicrotasks } from "./mocks"
 
@@ -577,5 +577,437 @@ describe("useFrameSyncWith (deprecated)", () => {
         x = 10
         await advanceFrame()
         expect(capturedValue.x).toBe(10)
+    })
+})
+
+// ===========================================================================
+// useEventSync
+// ===========================================================================
+
+/**
+ * Creates a mock C# object with event subscription support.
+ * Simulates the bootstrap's add_EventName / remove_EventName proxy mechanism.
+ */
+function createMockCSharpObject(initialValues: Record<string, unknown>) {
+    const listeners = new Map<string, Set<Function>>()
+    const values = { ...initialValues }
+
+    const proxy = new Proxy(values, {
+        get(target, prop) {
+            const propName = String(prop)
+            if (propName.startsWith("add_")) {
+                return (handler: Function) => {
+                    const eventName = propName.slice(4)
+                    if (!listeners.has(eventName)) listeners.set(eventName, new Set())
+                    listeners.get(eventName)!.add(handler)
+                }
+            }
+            if (propName.startsWith("remove_")) {
+                return (handler: Function) => {
+                    const eventName = propName.slice(7)
+                    listeners.get(eventName)?.delete(handler)
+                }
+            }
+            return target[propName]
+        },
+    })
+
+    return {
+        proxy,
+        fire(eventName: string) {
+            listeners.get(eventName)?.forEach(h => (h as any)())
+        },
+        set(prop: string, value: unknown) {
+            (values as any)[prop] = value
+        },
+        listenerCount(eventName: string) {
+            return listeners.get(eventName)?.size ?? 0
+        },
+    }
+}
+
+describe("useEventSync", () => {
+    // -- Convention form --
+
+    describe("convention form", () => {
+        it("reads initial value on mount", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(obj.proxy, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            expect(capturedValue).toBe(100)
+        })
+
+        it("subscribes to OnPropertyChanged event", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+
+            function TestComponent() {
+                useEventSync(obj.proxy, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            expect(obj.listenerCount("OnHealthChanged")).toBe(1)
+        })
+
+        it("updates when event fires", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(obj.proxy, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(100)
+
+            obj.set("Health", 75)
+            obj.fire("OnHealthChanged")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(75)
+        })
+
+        it("unsubscribes on unmount", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+
+            function TestComponent() {
+                useEventSync(obj.proxy, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(obj.listenerCount("OnHealthChanged")).toBe(1)
+
+            unmount(container)
+            await flushMicrotasks()
+            expect(obj.listenerCount("OnHealthChanged")).toBe(0)
+        })
+
+        it("does not poll via RAF", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+
+            function TestComponent() {
+                useEventSync(obj.proxy, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            // RAF should not have been called by useEventSync
+            // (useFrameSync calls it, useEventSync should not)
+            const rafCallCount = (globalThis as any).requestAnimationFrame.mock.calls.length
+            // Advance several frames — count should not grow from useEventSync
+            await advanceFrame()
+            await advanceFrame()
+            await advanceFrame()
+            const rafCallCountAfter = (globalThis as any).requestAnimationFrame.mock.calls.length
+            expect(rafCallCountAfter).toBe(rafCallCount)
+        })
+
+        it("handles null source without crashing", async () => {
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(null as any, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            expect(capturedValue).toBeUndefined()
+        })
+
+        it("re-subscribes when deps change", async () => {
+            const obj1 = createMockCSharpObject({ Health: 100 })
+            const obj2 = createMockCSharpObject({ Health: 200 })
+            let capturedValue: unknown
+            let currentSource = obj1
+
+            function TestComponent({ source }: { source: any }) {
+                capturedValue = useEventSync(source.proxy, "Health", [source.proxy])
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent, { source: currentSource }), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(100)
+            expect(obj1.listenerCount("OnHealthChanged")).toBe(1)
+
+            // Switch source
+            currentSource = obj2
+            render(React.createElement(TestComponent, { source: currentSource }), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(200)
+            expect(obj1.listenerCount("OnHealthChanged")).toBe(0)
+            expect(obj2.listenerCount("OnHealthChanged")).toBe(1)
+        })
+
+        it("handles multiple rapid events correctly", async () => {
+            const obj = createMockCSharpObject({ Score: 0 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(obj.proxy, "Score")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            obj.set("Score", 10)
+            obj.fire("OnScoreChanged")
+            obj.set("Score", 20)
+            obj.fire("OnScoreChanged")
+            obj.set("Score", 30)
+            obj.fire("OnScoreChanged")
+            await flushMicrotasks()
+
+            expect(capturedValue).toBe(30)
+        })
+    })
+
+    // -- Explicit form --
+
+    describe("explicit form", () => {
+        it("reads initial value from custom getter", async () => {
+            const obj = createMockCSharpObject({ Items: { Count: 5 } })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(
+                    () => (obj.proxy as any).Items.Count,
+                    [[obj.proxy, "OnItemsChanged"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            expect(capturedValue).toBe(5)
+        })
+
+        it("subscribes to multiple events", async () => {
+            const obj = createMockCSharpObject({ Count: 0 })
+
+            function TestComponent() {
+                useEventSync(
+                    () => (obj.proxy as any).Count,
+                    [[obj.proxy, "OnItemAdded"], [obj.proxy, "OnItemRemoved"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+
+            expect(obj.listenerCount("OnItemAdded")).toBe(1)
+            expect(obj.listenerCount("OnItemRemoved")).toBe(1)
+        })
+
+        it("updates on any subscribed event", async () => {
+            const obj = createMockCSharpObject({ Count: 0 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(
+                    () => (obj.proxy as any).Count,
+                    [[obj.proxy, "OnItemAdded"], [obj.proxy, "OnItemRemoved"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(0)
+
+            obj.set("Count", 3)
+            obj.fire("OnItemAdded")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(3)
+
+            obj.set("Count", 2)
+            obj.fire("OnItemRemoved")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(2)
+        })
+
+        it("unsubscribes all events on unmount", async () => {
+            const obj = createMockCSharpObject({ Count: 0 })
+
+            function TestComponent() {
+                useEventSync(
+                    () => (obj.proxy as any).Count,
+                    [[obj.proxy, "OnItemAdded"], [obj.proxy, "OnItemRemoved"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(obj.listenerCount("OnItemAdded")).toBe(1)
+            expect(obj.listenerCount("OnItemRemoved")).toBe(1)
+
+            unmount(container)
+            await flushMicrotasks()
+            expect(obj.listenerCount("OnItemAdded")).toBe(0)
+            expect(obj.listenerCount("OnItemRemoved")).toBe(0)
+        })
+
+        it("supports events from multiple sources", async () => {
+            const inventory = createMockCSharpObject({ Count: 5 })
+            const player = createMockCSharpObject({ Level: 1 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(
+                    () => (inventory.proxy as any).Count * (player.proxy as any).Level,
+                    [[inventory.proxy, "OnChanged"], [player.proxy, "OnLevelUp"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(5)
+
+            player.set("Level", 2)
+            player.fire("OnLevelUp")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(10)
+
+            inventory.set("Count", 10)
+            inventory.fire("OnChanged")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(20)
+        })
+
+        it("handles getter that throws", async () => {
+            let shouldThrow = false
+            let capturedValue: unknown
+
+            const obj = createMockCSharpObject({})
+
+            function TestComponent() {
+                capturedValue = useEventSync(
+                    () => {
+                        if (shouldThrow) throw new Error("destroyed")
+                        return 42
+                    },
+                    [[obj.proxy, "OnChanged"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(42)
+
+            shouldThrow = true
+            obj.fire("OnChanged")
+            await flushMicrotasks()
+            // Should not crash — value stays at last good value
+            expect(capturedValue).toBe(42)
+        })
+
+        it("works with static-like event sources", async () => {
+            const staticClass = createMockCSharpObject({ Score: 999 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(
+                    () => (staticClass.proxy as any).Score,
+                    [[staticClass.proxy, "OnScoreChanged"]]
+                )
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(999)
+
+            staticClass.set("Score", 1500)
+            staticClass.fire("OnScoreChanged")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(1500)
+        })
+
+        it("handler still fires when event passes arguments (ignored by design)", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+            let capturedValue: unknown
+
+            function TestComponent() {
+                capturedValue = useEventSync(obj.proxy, "Health")
+                return null
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(TestComponent), container)
+            await flushMicrotasks()
+            expect(capturedValue).toBe(100)
+
+            // C# event fires — handler re-reads getter, ignoring event args
+            obj.set("Health", 80)
+            obj.fire("OnHealthChanged")
+            await flushMicrotasks()
+            expect(capturedValue).toBe(80)
+        })
+
+        it("multiple components subscribe to the same event independently", async () => {
+            const obj = createMockCSharpObject({ Health: 100 })
+            let value1: unknown, value2: unknown
+
+            function Component1() { value1 = useEventSync(() => (obj.proxy as any).Health, [[obj.proxy, "OnHealthChanged"]]); return null }
+            function Component2() { value2 = useEventSync(() => (obj.proxy as any).Health, [[obj.proxy, "OnHealthChanged"]]); return null }
+
+            function Parent() {
+                return React.createElement(React.Fragment, null,
+                    React.createElement(Component1),
+                    React.createElement(Component2)
+                )
+            }
+
+            const container = createMockContainer()
+            render(React.createElement(Parent), container)
+            await flushMicrotasks()
+            expect(value1).toBe(100)
+            expect(value2).toBe(100)
+            expect(obj.listenerCount("OnHealthChanged")).toBe(2)
+
+            obj.set("Health", 50)
+            obj.fire("OnHealthChanged")
+            await flushMicrotasks()
+            expect(value1).toBe(50)
+            expect(value2).toBe(50)
+        })
     })
 })

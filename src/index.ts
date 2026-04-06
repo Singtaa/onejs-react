@@ -45,7 +45,8 @@ export type {
 export { Transform2D, useVectorContent } from './vector';
 
 // Sync Hooks & C# Interop Utilities
-export { useFrameSync, useFrameSyncWith, useThrottledSync, toArray } from './hooks';
+export { useFrameSync, useFrameSyncWith, useThrottledSync, useEventSync, toArray } from './hooks';
+export type { EventSource } from './hooks';
 
 // Types
 export type {
