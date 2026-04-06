@@ -303,16 +303,21 @@ const CLASS_ESCAPE_MAP: [string, string][] = [
 ];
 
 /**
- * Escape special characters in a class name for USS compatibility
+ * Escape special characters in a class name for USS compatibility.
  * Tailwind class names like "hover:bg-red-500" become "hover_c_bg-red-500"
+ * Results are cached since the same class names are used repeatedly across renders.
  */
+const _escapeCache = new Map<string, string>();
 function escapeClassName(name: string): string {
+    const cached = _escapeCache.get(name);
+    if (cached !== undefined) return cached;
     let escaped = name;
     for (const [char, replacement] of CLASS_ESCAPE_MAP) {
         if (escaped.includes(char)) {
             escaped = escaped.split(char).join(replacement);
         }
     }
+    _escapeCache.set(name, escaped);
     return escaped;
 }
 
@@ -437,14 +442,20 @@ function clearRemovedStyles(element: CSObject, oldKeys: Set<string>, newKeys: Se
     }
 }
 
-// Parse className string into a Set of escaped class names
+// Parse className string into a Set of escaped class names.
+// Results are cached since the same className strings recur across renders.
+const _parseCache = new Map<string, Set<string>>();
 function parseClassNames(className: string | undefined): Set<string> {
     if (!className) return new Set();
-    return new Set(
+    const cached = _parseCache.get(className);
+    if (cached !== undefined) return cached;
+    const result = new Set(
         className.split(/\s+/)
             .filter(Boolean)
             .map(escapeClassName)
     );
+    _parseCache.set(className, result);
+    return result;
 }
 
 // Apply className(s) to element (with escaping for Tailwind/USS compatibility)
