@@ -441,6 +441,18 @@ export interface BaseProps {
    */
   focusable?: boolean;
 
+  // Enabled state
+  /**
+   * Whether this element is disabled. When `true`, the reconciler calls
+   * `VisualElement.SetEnabled(false)` on the underlying C# element, which
+   * applies the `:disabled` USS pseudo-class, blocks pointer events, and
+   * prevents the element and its descendants from receiving focus.
+   *
+   * Removing the prop (or setting it to `false`) restores the element to
+   * `SetEnabled(true)`. Every VisualElement starts enabled by default.
+   */
+  disabled?: boolean;
+
   // Vector drawing
   /**
    * Callback for custom vector drawing via Unity's generateVisualContent.
@@ -583,6 +595,7 @@ export interface VisualElement extends RenderContainer {
   visible: boolean;
   enabledSelf: boolean;
   enabledInHierarchy: boolean;
+  SetEnabled: (value: boolean) => void;
 
   // Text content (for TextElement-derived types)
   text?: string;

@@ -123,6 +123,21 @@ describe('host-config', () => {
             const instance = createInstance('ojs-view', {});
             expect((instance.element as unknown as { focusable?: boolean }).focusable).toBeUndefined();
         });
+
+        it('applies disabled=true by calling SetEnabled(false)', () => {
+            const instance = createInstance('ojs-button', { disabled: true } as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(false);
+        });
+
+        it('applies disabled=false by calling SetEnabled(true)', () => {
+            const instance = createInstance('ojs-button', { disabled: false } as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(true);
+        });
+
+        it('leaves element enabled by default when disabled prop is omitted', () => {
+            const instance = createInstance('ojs-view', {});
+            expect(getMockElement(instance).enabledSelf).toBe(true);
+        });
     });
 
     describe('style application', () => {
@@ -334,6 +349,28 @@ describe('host-config', () => {
 
             commitUpdate(instance, 'ojs-button', { focusable: true } as TestProps, {} as TestProps);
             expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(true);
+        });
+
+        it('updates disabled when the prop changes', () => {
+            const instance = createInstance('ojs-button', { disabled: false } as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(true);
+
+            commitUpdate(instance, 'ojs-button', { disabled: false } as TestProps, { disabled: true } as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(false);
+
+            commitUpdate(instance, 'ojs-button', { disabled: true } as TestProps, { disabled: false } as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(true);
+        });
+
+        it('restores disabled to enabled when prop is removed', () => {
+            // Unlike focusable, every VisualElement starts enabled by default,
+            // so removing `disabled={true}` must call SetEnabled(true) to
+            // restore the element rather than leaving it stuck disabled.
+            const instance = createInstance('ojs-button', { disabled: true } as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(false);
+
+            commitUpdate(instance, 'ojs-button', { disabled: true } as TestProps, {} as TestProps);
+            expect(getMockElement(instance).enabledSelf).toBe(true);
         });
     });
 
