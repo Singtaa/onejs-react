@@ -108,6 +108,21 @@ describe('host-config', () => {
                 createInstance('unknown-type', {});
             }).toThrow('Unknown element type: unknown-type');
         });
+
+        it('forwards the focusable prop to the element', () => {
+            const instance = createInstance('ojs-view', { focusable: true } as TestProps);
+            expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(true);
+        });
+
+        it('forwards focusable=false explicitly', () => {
+            const instance = createInstance('ojs-button', { focusable: false } as TestProps);
+            expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(false);
+        });
+
+        it('does not set focusable when prop is omitted', () => {
+            const instance = createInstance('ojs-view', {});
+            expect((instance.element as unknown as { focusable?: boolean }).focusable).toBeUndefined();
+        });
     });
 
     describe('style application', () => {
@@ -301,6 +316,24 @@ describe('host-config', () => {
 
             expect(instance.appliedStyleKeys.has('width')).toBe(false);
             expect(instance.appliedStyleKeys.has('height')).toBe(true);
+        });
+
+        it('updates focusable when the prop changes', () => {
+            const instance = createInstance('ojs-view', { focusable: false } as TestProps);
+            expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(false);
+
+            commitUpdate(instance, 'ojs-view', { focusable: false } as TestProps, { focusable: true } as TestProps);
+            expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(true);
+        });
+
+        it('does not clobber focusable when the prop becomes undefined', () => {
+            // Removing the prop should leave the element's current state alone,
+            // so element-specific defaults (Button etc.) remain intact.
+            const instance = createInstance('ojs-button', { focusable: true } as TestProps);
+            expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(true);
+
+            commitUpdate(instance, 'ojs-button', { focusable: true } as TestProps, {} as TestProps);
+            expect((instance.element as unknown as { focusable: boolean }).focusable).toBe(true);
         });
     });
 

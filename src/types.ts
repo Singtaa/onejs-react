@@ -430,6 +430,17 @@ export interface BaseProps {
    */
   pickingMode?: 'Position' | 'Ignore';
 
+  // Focus
+  /**
+   * Whether this element can receive focus.
+   * Maps directly to `VisualElement.focusable` in Unity UI Toolkit.
+   *
+   * Default is element-specific (e.g. Button is focusable by default, View is not).
+   * Setting this to `true` makes the element a focus target for keyboard/gamepad
+   * navigation and enables `NavigationMoveEvent`/`NavigationSubmitEvent` routing.
+   */
+  focusable?: boolean;
+
   // Vector drawing
   /**
    * Callback for custom vector drawing via Unity's generateVisualContent.
