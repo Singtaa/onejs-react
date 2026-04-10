@@ -281,9 +281,26 @@ export interface GeometryEventData {
   newRect: { x: number; y: number; width: number; height: number };
 }
 
+/**
+ * Direction values dispatched by `NavigationMoveEvent`. Mirrors
+ * `UnityEngine.UIElements.NavigationMoveEvent.Direction`, serialized to
+ * lowercase strings by the C# bridge (see `QuickJSUIBridge.OnNavigationMove`
+ * and `QuickJSBootstrap.__NAV_DIRECTION_NAMES`). `NavigationSubmitEvent` /
+ * `NavigationCancelEvent` do not carry a direction — the field is only
+ * populated for navigation-move.
+ */
+export type NavigationDirection =
+  | 'none'
+  | 'left'
+  | 'up'
+  | 'right'
+  | 'down'
+  | 'next'
+  | 'previous';
+
 export interface NavigationEventData {
   type: string;
-  direction?: string;
+  direction?: NavigationDirection;
   modifiers?: number;
 }
 
