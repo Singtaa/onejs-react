@@ -262,9 +262,32 @@ export interface ChangeEventData<T = unknown> {
   value: T;
 }
 
+/**
+ * Shape of the synthetic event object passed to focus / blur handlers at
+ * runtime. Matches `QuickJSBootstrap.__dispatchEvent` (see
+ * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`) — every synthetic
+ * event carries `target` / `currentTarget` as integer C# handles plus the
+ * propagation-control surface, and the C# bridge's `OnFocusIn` / `OnFocusOut`
+ * dispatch an empty data object, so focus events add no fields beyond the
+ * base.
+ *
+ * `relatedTarget` is intentionally absent: the C# bridge serializes `{}` for
+ * focus events and never includes it. Any code that previously depended on
+ * `e.relatedTarget` at runtime has been silently receiving `undefined`.
+ *
+ * `target` / `currentTarget` are raw C# handles, not `VisualElement` proxies.
+ * Resolve them via `CS.QuickJSNative.GetObjectByHandle(handle)` when an
+ * element reference is needed, or compare them directly against
+ * `ref.current?.__csHandle` to check element identity.
+ */
 export interface FocusEventData {
   type: string;
-  relatedTarget?: unknown;
+  target: number;
+  currentTarget: number;
+  preventDefault(): void;
+  stopPropagation(): void;
+  defaultPrevented: boolean;
+  propagationStopped: boolean;
 }
 
 export interface DragEventData {
