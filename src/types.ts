@@ -163,6 +163,17 @@ export interface ViewStyle {
   /** Tint color applied to the background image */
   unityBackgroundImageTintColor?: StyleColor;
 
+  /**
+   * Override the shader / material used to render the element. Accepts a
+   * Unity `Material` (typical) or a `MaterialDefinition`; `null` clears the
+   * inline override so the element falls back to the panel default.
+   *
+   * Typed loosely as `object | null` because the React layer has no reason
+   * to pin the caller to a specific C# shape — the style parser constructs
+   * a `StyleMaterialDefinition` at assignment time.
+   */
+  unityMaterial?: object | null;
+
   // Slicing
   /** 9-slice top inset */
   unitySliceTop?: number;

@@ -14,7 +14,8 @@ declare const CS: {
         UIElements: {
             Length: new (value: number, unit?: number) => CSLength;
             LengthUnit: { Pixel: number; Percent: number };
-            StyleKeyword: { Auto: number; None: number; Initial: number };
+            StyleKeyword: { Auto: number; None: number; Initial: number; Null: number };
+            StyleMaterialDefinition: new (v: unknown) => unknown;
             Angle: { Degrees: (v: number) => any; Radians: (v: number) => any; Turns: (v: number) => any; Gradians: (v: number) => any };
             Translate: new (x: any, y: any) => any;
             Rotate: new (angle: any) => any;
@@ -499,6 +500,18 @@ function parseTransformOriginStyle(value: unknown): unknown {
  * @returns Parsed value suitable for Unity UI Toolkit
  */
 export function parseStyleValue(key: string, value: unknown): unknown {
+    // `unityMaterial` is special: it can legitimately be `null` (meaning
+    // "reset to the panel default") so we can't short-circuit like the
+    // length/color paths below. Wrap in StyleMaterialDefinition either way.
+    if (key === "unityMaterial") {
+        if (value === undefined) return undefined
+        const SMD = CS.UnityEngine.UIElements.StyleMaterialDefinition
+        if (value === null) {
+            return new SMD(CS.UnityEngine.UIElements.StyleKeyword.Null)
+        }
+        return new SMD(value as any)
+    }
+
     if (value === undefined || value === null) return value
 
     // Length properties
