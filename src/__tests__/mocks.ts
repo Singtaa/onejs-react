@@ -71,6 +71,7 @@ export class MockVisualElement {
     text = '';
     value: unknown = undefined;
     label = '';
+    enabledSelf = true;
 
     constructor(csType = 'UnityEngine.UIElements.VisualElement') {
         this.__csHandle = Math.floor(Math.random() * 1000000);
@@ -115,6 +116,11 @@ export class MockVisualElement {
 
     Clear(): void {
         this._children = [];
+    }
+
+    // Enabled state
+    SetEnabled(value: boolean): void {
+        this.enabledSelf = value;
     }
 
     // Class list methods

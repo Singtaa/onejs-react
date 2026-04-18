@@ -786,7 +786,7 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>,
 
 // Props handled by the reconciler infrastructure - not forwarded to C# elements
 const RESERVED_PROPS = new Set([
-    'children', 'key', 'ref', 'style', 'className', 'pickingMode',
+    'children', 'key', 'ref', 'style', 'className', 'pickingMode', 'focusable', 'disabled',
     'onGenerateVisualContent',
     ...Object.keys(EVENT_PROPS),
 ]);
@@ -862,6 +862,16 @@ function createInstance(type: string, props: BaseProps): Instance {
         element.pickingMode = CS.UnityEngine.UIElements.PickingMode[props.pickingMode];
     }
 
+    // Apply focusable
+    if (props.focusable !== undefined) {
+        element.focusable = props.focusable;
+    }
+
+    // Apply disabled (inverted — SetEnabled(true) means "not disabled")
+    if (props.disabled !== undefined) {
+        element.SetEnabled(!props.disabled);
+    }
+
     return instance;
 }
 
@@ -898,6 +908,24 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
         } else {
             // Reset to default (Position)
             element.pickingMode = CS.UnityEngine.UIElements.PickingMode.Position;
+        }
+    }
+
+    // Update focusable - only set if explicitly provided, do not override
+    // element-specific defaults (Button is focusable by default, View is not)
+    // when the prop is removed.
+    if (oldProps.focusable !== newProps.focusable && newProps.focusable !== undefined) {
+        element.focusable = newProps.focusable;
+    }
+
+    // Update disabled - unlike focusable, every VisualElement starts enabled
+    // by default, so removing the prop after a previous `disabled={true}` is
+    // expected to restore the enabled state.
+    if (oldProps.disabled !== newProps.disabled) {
+        if (newProps.disabled !== undefined) {
+            element.SetEnabled(!newProps.disabled);
+        } else {
+            element.SetEnabled(true);
         }
     }
 

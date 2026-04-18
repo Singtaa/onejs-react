@@ -163,6 +163,17 @@ export interface ViewStyle {
   /** Tint color applied to the background image */
   unityBackgroundImageTintColor?: StyleColor;
 
+  /**
+   * Override the shader / material used to render the element. Accepts a
+   * Unity `Material` (typical) or a `MaterialDefinition`; `null` clears the
+   * inline override so the element falls back to the panel default.
+   *
+   * Typed loosely as `object | null` because the React layer has no reason
+   * to pin the caller to a specific C# shape — the style parser constructs
+   * a `StyleMaterialDefinition` at assignment time.
+   */
+  unityMaterial?: object | null;
+
   // Slicing
   /** 9-slice top inset */
   unitySliceTop?: number;
@@ -262,9 +273,32 @@ export interface ChangeEventData<T = unknown> {
   value: T;
 }
 
+/**
+ * Shape of the synthetic event object passed to focus / blur handlers at
+ * runtime. Matches `QuickJSBootstrap.__dispatchEvent` (see
+ * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`) — every synthetic
+ * event carries `target` / `currentTarget` as integer C# handles plus the
+ * propagation-control surface, and the C# bridge's `OnFocusIn` / `OnFocusOut`
+ * dispatch an empty data object, so focus events add no fields beyond the
+ * base.
+ *
+ * `relatedTarget` is intentionally absent: the C# bridge serializes `{}` for
+ * focus events and never includes it. Any code that previously depended on
+ * `e.relatedTarget` at runtime has been silently receiving `undefined`.
+ *
+ * `target` / `currentTarget` are raw C# handles, not `VisualElement` proxies.
+ * Resolve them via `CS.QuickJSNative.GetObjectByHandle(handle)` when an
+ * element reference is needed, or compare them directly against
+ * `ref.current?.__csHandle` to check element identity.
+ */
 export interface FocusEventData {
   type: string;
-  relatedTarget?: unknown;
+  target: number;
+  currentTarget: number;
+  preventDefault(): void;
+  stopPropagation(): void;
+  defaultPrevented: boolean;
+  propagationStopped: boolean;
 }
 
 export interface DragEventData {
@@ -281,9 +315,26 @@ export interface GeometryEventData {
   newRect: { x: number; y: number; width: number; height: number };
 }
 
+/**
+ * Direction values dispatched by `NavigationMoveEvent`. Mirrors
+ * `UnityEngine.UIElements.NavigationMoveEvent.Direction`, serialized to
+ * lowercase strings by the C# bridge (see `QuickJSUIBridge.OnNavigationMove`
+ * and `QuickJSBootstrap.__NAV_DIRECTION_NAMES`). `NavigationSubmitEvent` /
+ * `NavigationCancelEvent` do not carry a direction — the field is only
+ * populated for navigation-move.
+ */
+export type NavigationDirection =
+  | 'none'
+  | 'left'
+  | 'up'
+  | 'right'
+  | 'down'
+  | 'next'
+  | 'previous';
+
 export interface NavigationEventData {
   type: string;
-  direction?: string;
+  direction?: NavigationDirection;
   modifiers?: number;
 }
 
@@ -430,6 +481,29 @@ export interface BaseProps {
    */
   pickingMode?: 'Position' | 'Ignore';
 
+  // Focus
+  /**
+   * Whether this element can receive focus.
+   * Maps directly to `VisualElement.focusable` in Unity UI Toolkit.
+   *
+   * Default is element-specific (e.g. Button is focusable by default, View is not).
+   * Setting this to `true` makes the element a focus target for keyboard/gamepad
+   * navigation and enables `NavigationMoveEvent`/`NavigationSubmitEvent` routing.
+   */
+  focusable?: boolean;
+
+  // Enabled state
+  /**
+   * Whether this element is disabled. When `true`, the reconciler calls
+   * `VisualElement.SetEnabled(false)` on the underlying C# element, which
+   * applies the `:disabled` USS pseudo-class, blocks pointer events, and
+   * prevents the element and its descendants from receiving focus.
+   *
+   * Removing the prop (or setting it to `false`) restores the element to
+   * `SetEnabled(true)`. Every VisualElement starts enabled by default.
+   */
+  disabled?: boolean;
+
   // Vector drawing
   /**
    * Callback for custom vector drawing via Unity's generateVisualContent.
@@ -572,6 +646,7 @@ export interface VisualElement extends RenderContainer {
   visible: boolean;
   enabledSelf: boolean;
   enabledInHierarchy: boolean;
+  SetEnabled: (value: boolean) => void;
 
   // Text content (for TextElement-derived types)
   text?: string;

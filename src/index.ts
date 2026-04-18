@@ -61,6 +61,7 @@ export type {
   DragEventData,
   GeometryEventData,
   NavigationEventData,
+  NavigationDirection,
   TransitionEventData,
   // Event handler types
   PointerEventHandler,
