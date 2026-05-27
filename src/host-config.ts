@@ -406,7 +406,7 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
 
         const expanded = STYLE_SHORTHANDS[key];
         if (expanded) {
-            const parsed = parseStyleValue(expanded[0], value);
+            const parsed = resolveForBatch(parseStyleValue(expanded[0], value));
             for (const prop of expanded) {
                 batched[prop] = parsed;
                 appliedKeys.add(prop);
@@ -424,7 +424,7 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
             }
             appliedKeys.add(key);
         } else {
-            batched[key] = parseStyleValue(key, value);
+            batched[key] = resolveForBatch(parseStyleValue(key, value));
             appliedKeys.add(key);
         }
     }
@@ -434,6 +434,25 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
     }
 
     return appliedKeys;
+}
+
+// Force-resolve CS path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center)
+// to their underlying int value. parseEnumValue and parseLength's StyleKeyword
+// cases return path proxies whose .valueOf() reads the int via GetField. The
+// non-batched __cs.invoke path resolved these implicitly via __resolveValue;
+// the batched path JSON.stringifies the whole dict, so path proxies serialize
+// via toJSON to {__csTypeRef:...} which C# can't interpret as an enum value.
+// CS object proxies (with __csHandle) keep their toJSON shape — only path
+// proxies need coercion.
+function resolveForBatch(value: unknown): unknown {
+    // Path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center) have a
+    // function as their underlying Proxy target so they can also be invoked
+    // as constructors — so typeof is "function", not "object". Just check the
+    // __csPathProxy sentinel and rely on truthy/property semantics.
+    if (value && (value as any).__csPathProxy) {
+        return Number(value)
+    }
+    return value
 }
 
 // Clear style properties that are no longer in the new style
