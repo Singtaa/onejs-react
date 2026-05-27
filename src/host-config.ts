@@ -71,6 +71,9 @@ declare const CS: {
             };
             FrostedGlassElement: new () => CSObject;
         };
+        StyleBridge: {
+            ApplyStyles: (element: CSObject, styles: Record<string, unknown>) => void;
+        };
     };
 };
 
@@ -385,44 +388,51 @@ function getRenderTextureHandle(value: RenderTextureRef): number {
     return value.__rtHandle ?? value.__handle ?? -1;
 }
 
-// Apply style properties to element, returns the set of applied keys
+// Apply style properties to element, returns the set of applied keys.
+//
+// Batched path: parsed style values are collected into a single dict and sent
+// to CS.OneJS.StyleBridge.ApplyStyles in one __cs.invoke crossing instead of
+// one per property. On WebGL each crossing is ~3ms (JSON marshal + reflection),
+// so the difference is ~N invokes vs 1 invoke per element. backgroundImage
+// stays on its individual GPU-bridge path since it's not a plain IStyle setter.
 function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string> {
     const appliedKeys = new Set<string>();
     if (!style) return appliedKeys;
 
-    const s = element.style;
+    const batched: Record<string, unknown> = {}
+
     for (const [key, value] of Object.entries(style)) {
         if (value === undefined) continue;
 
-        // Handle shorthand properties
         const expanded = STYLE_SHORTHANDS[key];
         if (expanded) {
-            // Parse the value once, apply to all expanded properties
             const parsed = parseStyleValue(expanded[0], value);
             for (const prop of expanded) {
-                s[prop] = parsed;
+                batched[prop] = parsed;
                 appliedKeys.add(prop);
             }
         } else if (key === "backgroundImage") {
             if (value == null) {
                 CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
             } else if (isRenderTextureHandle(value)) {
-                // GPU compute RenderTexture handles (via rt.getUnityObject())
                 const handle = getRenderTextureHandle(value);
                 if (handle >= 0) {
                     CS.OneJS.GPU.GPUBridge.SetElementBackgroundImage(element, handle);
                 }
             } else if (typeof value === "object" && "__csHandle" in value) {
-                // C# objects: Texture2D, Sprite, VectorImage, RenderTexture
                 CS.OneJS.GPU.GPUBridge.SetElementBackgroundFromObject(element, value);
             }
             appliedKeys.add(key);
         } else {
-            // Parse and apply individual property
-            s[key] = parseStyleValue(key, value);
+            batched[key] = parseStyleValue(key, value);
             appliedKeys.add(key);
         }
     }
+
+    if (Object.keys(batched).length > 0) {
+        CS.OneJS.StyleBridge.ApplyStyles(element, batched);
+    }
+
     return appliedKeys;
 }
 
