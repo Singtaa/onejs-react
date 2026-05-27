@@ -73,6 +73,7 @@ declare const CS: {
         };
         StyleBridge: {
             ApplyStyles: (element: CSObject, styles: Record<string, unknown>) => void;
+            AddClassesBatch: (element: CSObject, classes: string[]) => void;
         };
     };
 };
@@ -487,13 +488,18 @@ function parseClassNames(className: string | undefined): Set<string> {
     return result;
 }
 
-// Apply className(s) to element (with escaping for Tailwind/USS compatibility)
+// Apply className(s) to element (with escaping for Tailwind/USS compatibility).
+// Routes through StyleBridge.AddClassesBatch so a multi-class string is one
+// __cs.invoke crossing instead of one per class.
 function applyClassName(element: CSObject, className: string | undefined) {
     if (!className) return;
 
-    const classes = className.split(/\s+/).filter(Boolean);
-    for (const cls of classes) {
-        element.AddToClassList(escapeClassName(cls));
+    const classes: string[] = [];
+    for (const cls of className.split(/\s+/)) {
+        if (cls) classes.push(escapeClassName(cls));
+    }
+    if (classes.length > 0) {
+        CS.OneJS.StyleBridge.AddClassesBatch(element, classes);
     }
 }
 
