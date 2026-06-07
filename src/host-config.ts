@@ -677,6 +677,32 @@ function removeMergedTextChild(parentInstance: Instance, child: Instance) {
     rebuildMergedText(parentInstance);
 }
 
+// Insert childEl immediately before beforeChildEl in parentEl's child list.
+//
+// Unity's VisualElement.Insert(i, child) calls child.RemoveFromHierarchy() *before*
+// placing it at index i. So when childEl is already a child of parentEl sitting
+// *before* beforeChildEl (a reorder/move, which is exactly what react-reconciler
+// commits via insertBefore for a reused keyed child), that internal removal shifts
+// beforeChildEl down one slot and childEl overshoots its target, landing one
+// position too late (e.g. past a static sibling kept last). Target one slot earlier
+// in precisely that case. Fresh inserts (childEl not yet in parentEl) and children
+// sitting after beforeChildEl are unaffected.
+//
+// IndexOf/Insert/Add all route through contentContainer identically, so the indices
+// and the insertion share one coordinate space (correct for ScrollView-style parents).
+function insertElementBefore(parentEl: CSObject, childEl: CSObject, beforeChildEl: CSObject) {
+    const beforeIndex = parentEl.IndexOf(beforeChildEl);
+    if (beforeIndex < 0) {
+        // beforeChild isn't actually in the parent (should not normally happen).
+        // Fall back to appending, preserving the previous fallback behavior.
+        parentEl.Add(childEl);
+        return;
+    }
+    const childIndex = parentEl.IndexOf(childEl);
+    const target = childIndex >= 0 && childIndex < beforeIndex ? beforeIndex - 1 : beforeIndex;
+    parentEl.Insert(target, childEl);
+}
+
 // MARK: Component-specific prop handlers
 
 // Apply common props (text, value, label) - skip unchanged values
@@ -1046,23 +1072,13 @@ export const hostConfig = {
             insertMergedTextChild(parentInstance, child, beforeChild);
         } else {
             handleNonTextChild(parentInstance);
-            const index = parentInstance.element.IndexOf(beforeChild.element);
-            if (index >= 0) {
-                parentInstance.element.Insert(index, child.element);
-            } else {
-                parentInstance.element.Add(child.element);
-            }
+            insertElementBefore(parentInstance.element, child.element, beforeChild.element);
         }
         trackParent(child.element, parentInstance.element);
     },
 
     insertInContainerBefore(container: Container, child: Instance, beforeChild: Instance) {
-        const index = container.IndexOf(beforeChild.element);
-        if (index >= 0) {
-            container.Insert(index, child.element);
-        } else {
-            container.Add(child.element);
-        }
+        insertElementBefore(container, child.element, beforeChild.element);
         // Container is the root - no parent to track
     },
 

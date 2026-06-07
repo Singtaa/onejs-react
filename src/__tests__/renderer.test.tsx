@@ -383,5 +383,72 @@ describe('renderer', () => {
             expect(view.childCount).toBe(3);
             expect((view.children[2] as MockVisualElement).text).toBe('C');
         });
+
+        it('keeps a trailing static sibling last when a keyed list reorders', async () => {
+            // Regression: a keyed array followed by a static sibling, where reordering
+            // the array moves a reused child. React commits that move as
+            // insertBefore(view, movedChild, staticButton); the child must land before
+            // the button, not overshoot past it.
+            const container = createMockContainer();
+            let setOrder: (order: string[]) => void;
+
+            function Palette() {
+                const [order, _setOrder] = useState(['a', 'b']);
+                setOrder = _setOrder;
+                return (
+                    <ojs-view>
+                        {order.map((id) => (
+                            <ojs-label key={id} text={id} />
+                        ))}
+                        <ojs-button text="ADD" />
+                    </ojs-view>
+                );
+            }
+
+            render(<Palette />, container as any);
+            await flushMicrotasks();
+
+            const view = container.children[0] as MockVisualElement;
+            expect(view.children.map((c) => c.text)).toEqual(['a', 'b', 'ADD']);
+
+            // Swap the two keyed children; the static ADD button must stay last.
+            setOrder!(['b', 'a']);
+            await flushMicrotasks();
+
+            expect(view.children.map((c) => c.text)).toEqual(['b', 'a', 'ADD']);
+        });
+
+        it('keeps a trailing static sibling last across remove-then-add reorders', async () => {
+            // Closer to the reported scenario: blocks are removed and added such that a
+            // surviving block reorders relative to its old position. The trailing
+            // button must remain the last child throughout.
+            const container = createMockContainer();
+            let setIds: (ids: string[]) => void;
+
+            function Palette() {
+                const [ids, _setIds] = useState(['x', 'y', 'z']);
+                setIds = _setIds;
+                return (
+                    <ojs-view>
+                        {ids.map((id) => (
+                            <ojs-label key={id} text={id} />
+                        ))}
+                        <ojs-button text="ADD" />
+                    </ojs-view>
+                );
+            }
+
+            render(<Palette />, container as any);
+            await flushMicrotasks();
+
+            const view = container.children[0] as MockVisualElement;
+            expect(view.children.map((c) => c.text)).toEqual(['x', 'y', 'z', 'ADD']);
+
+            // Remove 'x' and reintroduce a block such that survivors reorder.
+            setIds!(['z', 'y', 'w']);
+            await flushMicrotasks();
+
+            expect(view.children.map((c) => c.text)).toEqual(['z', 'y', 'w', 'ADD']);
+        });
     });
 });

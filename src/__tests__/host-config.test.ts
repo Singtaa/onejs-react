@@ -644,6 +644,47 @@ describe('host-config', () => {
             expect(parentEl.children[2]).toBe(child3.element);
         });
 
+        it('insertBefore moving an existing child before a trailing sibling does not overshoot', () => {
+            // Reproduces the keyed-array-next-to-static-sibling reorder bug.
+            // React reorders [a, b, static] -> [b, a, static] by giving the reused
+            // child `a` a Placement and committing insertBefore(parent, a, static).
+            // Unity's Insert(i, child) removes the child *before* placing it at i, so a
+            // naive IndexOf(static) + Insert overshoots and lands `a` past `static`.
+            const parent = createInstance('ojs-view', {});
+            const a = createInstance('ojs-label', { text: 'a' });
+            const b = createInstance('ojs-label', { text: 'b' });
+            const staticSibling = createInstance('ojs-button', { text: 'STATIC' });
+
+            appendChild(parent, a);
+            appendChild(parent, b);
+            appendChild(parent, staticSibling);
+
+            // React moves `a` to sit right before the (unchanged) static sibling.
+            insertBefore(parent, a, staticSibling);
+
+            const parentEl = getMockElement(parent);
+            expect(parentEl.children.map((c) => c.text)).toEqual(['b', 'a', 'STATIC']);
+        });
+
+        it('insertBefore moving an existing child after another keeps order', () => {
+            // The mirror case: child currently sits *after* beforeChild. Removal does
+            // not shift beforeChild, so the index must not be decremented.
+            const parent = createInstance('ojs-view', {});
+            const a = createInstance('ojs-label', { text: 'a' });
+            const b = createInstance('ojs-label', { text: 'b' });
+            const c = createInstance('ojs-label', { text: 'c' });
+
+            appendChild(parent, a);
+            appendChild(parent, b);
+            appendChild(parent, c);
+
+            // Move `c` to sit right before `b`: [a, b, c] -> [a, c, b].
+            insertBefore(parent, c, b);
+
+            const parentEl = getMockElement(parent);
+            expect(parentEl.children.map((el) => el.text)).toEqual(['a', 'c', 'b']);
+        });
+
         it('removeChild removes child from parent', () => {
             const parent = createInstance('ojs-view', {});
             const child = createInstance('ojs-label', {});

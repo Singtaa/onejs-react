@@ -34,6 +34,21 @@ Implementation: `hasMixedContent` flag + `unmergTextChildren()` function
 
 ---
 
+### Keyed Reorder Insertion Order ✅
+When a keyed array sits next to a trailing static sibling, reordering the array moves a reused child, which React commits as `insertBefore(parent, child, staticSibling)`. Unity's `VisualElement.Insert(i, child)` calls `child.RemoveFromHierarchy()` *before* placing it at index `i`, so a naive `IndexOf(beforeChild)` + `Insert` overshoots when the moved child currently sits before the target, landing it *past* the static sibling.
+
+```tsx
+// The ADD button stays last even when the keyed list reorders
+<View>
+    {items.map(it => <Slot key={it.id} />)}
+    <PaletteButton />
+</View>
+```
+
+Implementation: `insertElementBefore()` helper (targets `beforeIndex - 1` when the child precedes `beforeChild`), used by both `insertBefore` and `insertInContainerBefore`. Note: freshly-mounted children never overshoot. Only reused/moved ones do.
+
+---
+
 ### 3. More Events ✅
 Added 40+ event handlers:
 

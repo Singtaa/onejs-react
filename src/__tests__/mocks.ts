@@ -338,6 +338,22 @@ export function createMockCS() {
                     ClearElementBackgroundImage: () => {},
                 },
             },
+            // Mirrors the real CS.OneJS.StyleBridge batched path: ApplyStyles writes
+            // each parsed style value onto element.style; AddClassesBatch adds each
+            // class. host-config sends pre-parsed values (MockLength/MockColor/etc.),
+            // so a direct assignment is faithful for assertions.
+            StyleBridge: {
+                ApplyStyles: (element: MockVisualElement, styles: Record<string, unknown>) => {
+                    for (const key in styles) {
+                        element.style[key] = styles[key];
+                    }
+                },
+                AddClassesBatch: (element: MockVisualElement, classes: string[]) => {
+                    for (const cls of classes) {
+                        element.AddToClassList(cls);
+                    }
+                },
+            },
         },
     };
 }
