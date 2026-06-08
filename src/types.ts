@@ -251,10 +251,8 @@ export interface MouseEventData {
 
 export interface WheelEventData {
   type: string;
-  x: number;
-  y: number;
-  delta: { x: number; y: number };
-  modifiers?: number;
+  deltaX: number;
+  deltaY: number;
 }
 
 export interface KeyEventData {
