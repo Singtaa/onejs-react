@@ -68,6 +68,7 @@ export class MockVisualElement {
     private _classList: Set<string> = new Set();
 
     // Common properties
+    name = '';
     text = '';
     value: unknown = undefined;
     label = '';

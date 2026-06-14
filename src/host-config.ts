@@ -847,7 +847,7 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>,
 
 // Props handled by the reconciler infrastructure - not forwarded to C# elements
 const RESERVED_PROPS = new Set([
-    'children', 'key', 'ref', 'style', 'className', 'pickingMode', 'focusable', 'disabled',
+    'children', 'key', 'ref', 'style', 'className', 'name', 'pickingMode', 'focusable', 'disabled',
     'onGenerateVisualContent',
     ...Object.keys(EVENT_PROPS),
 ]);
@@ -918,6 +918,13 @@ function createInstance(type: string, props: BaseProps): Instance {
     applyVisualContentCallback(instance, props);
     applyComponentProps(element, type, props as Record<string, unknown>);
 
+    // Apply name (VisualElement.name). Drives USS #id selectors and the label
+    // shown in the UI Toolkit Debugger. Universal to every VisualElement, so
+    // it lives here rather than in the per-type prop handlers.
+    if (props.name !== undefined) {
+        element.name = props.name;
+    }
+
     // Apply pickingMode
     if (props.pickingMode !== undefined) {
         element.pickingMode = CS.UnityEngine.UIElements.PickingMode[props.pickingMode];
@@ -961,6 +968,12 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
 
     // Update component-specific props - pass oldProps to skip unchanged values
     applyComponentProps(element, instance.type, newProps as Record<string, unknown>, oldProps as Record<string, unknown>);
+
+    // Update name. Unity defaults VisualElement.name to "", so removing the prop
+    // resets it to empty rather than leaving the stale value behind.
+    if (oldProps.name !== newProps.name) {
+        element.name = newProps.name ?? '';
+    }
 
     // Update pickingMode
     if (oldProps.pickingMode !== newProps.pickingMode) {

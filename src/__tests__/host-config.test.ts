@@ -138,6 +138,16 @@ describe('host-config', () => {
             const instance = createInstance('ojs-view', {});
             expect(getMockElement(instance).enabledSelf).toBe(true);
         });
+
+        it('forwards the name prop to the element (USS #id selectors / Debugger)', () => {
+            const instance = createInstance('ojs-view', { name: 'my-panel' } as TestProps);
+            expect(getMockElement(instance).name).toBe('my-panel');
+        });
+
+        it('leaves name empty by default when the prop is omitted', () => {
+            const instance = createInstance('ojs-view', {});
+            expect(getMockElement(instance).name).toBe('');
+        });
     });
 
     describe('style application', () => {
@@ -371,6 +381,22 @@ describe('host-config', () => {
 
             commitUpdate(instance, 'ojs-button', { disabled: true } as TestProps, {} as TestProps);
             expect(getMockElement(instance).enabledSelf).toBe(true);
+        });
+
+        it('updates name when the prop changes', () => {
+            const instance = createInstance('ojs-view', { name: 'first' } as TestProps);
+            expect(getMockElement(instance).name).toBe('first');
+
+            commitUpdate(instance, 'ojs-view', { name: 'first' } as TestProps, { name: 'second' } as TestProps);
+            expect(getMockElement(instance).name).toBe('second');
+        });
+
+        it('resets name to empty string when the prop is removed', () => {
+            const instance = createInstance('ojs-view', { name: 'first' } as TestProps);
+            expect(getMockElement(instance).name).toBe('first');
+
+            commitUpdate(instance, 'ojs-view', { name: 'first' } as TestProps, {} as TestProps);
+            expect(getMockElement(instance).name).toBe('');
         });
     });
 

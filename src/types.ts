@@ -409,6 +409,21 @@ export interface BaseProps {
   style?: ViewStyle;
   className?: string;
 
+  /**
+   * Element name. Maps directly to `VisualElement.name` in Unity UI Toolkit.
+   *
+   * Useful for:
+   * - **USS `#id` selectors**: a rule like `#my-panel { ... }` targets the
+   *   element whose `name` is `my-panel` (analogous to a CSS ID selector).
+   * - **Debugging**: the UI Toolkit Debugger window shows the name instead of
+   *   the bare type (e.g. `VisualElement#my-panel`).
+   *
+   * Names need not be unique, but since `#` selectors match by name, prefer
+   * unique names for elements you intend to select on. Removing the prop resets
+   * the name to an empty string (Unity's default).
+   */
+  name?: string;
+
   // Click
   onClick?: PointerEventHandler;
 
