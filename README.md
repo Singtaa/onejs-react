@@ -112,6 +112,27 @@ RenderContainer         (minimal: __csHandle, __csType)
         └── ScrollViewElement (+ scrollOffset, ScrollTo)
 ```
 
+### Portals
+
+`createPortal(children, container, key?)` renders a subtree into a different `VisualElement`, outside the normal parent hierarchy - the OneJS equivalent of `react-dom`'s `createPortal`.
+
+UI Toolkit has no `z-index`: paint order follows the element hierarchy and a parent with `overflow: hidden` clips its children. Portaling overlays (modals, tooltips, dropdowns) into a top-level container like `__root` lets them escape clipping and paint above the rest of the UI.
+
+```tsx
+import { createPortal, View } from "onejs-react"
+
+function Modal({ children }) {
+    return createPortal(
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+            {children}
+        </View>,
+        __root
+    )
+}
+```
+
+> Use the `createPortal` exported from `onejs-react`, not the one from `react-dom` - the latter targets the browser DOM and will not work here.
+
 ## Key Concepts
 
 - **Element types**: Use `ojs-` prefix internally (e.g., `ojs-view`, `ojs-button`) to avoid conflicts with HTML types
@@ -136,7 +157,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | File | Coverage |
 |------|----------|
 | `host-config.test.ts` | Instance creation, style/className management, events, children |
-| `renderer.test.tsx` | Integration tests: render(), unmount(), React state, effects |
+| `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
 | `mocks.ts` | Mock implementations of Unity UI Toolkit classes |
 | `setup.ts` | Global test setup for CS, __eventAPI |

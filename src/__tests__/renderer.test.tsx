@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React, { useState, useEffect } from 'react';
-import { render, unmount, getRoot } from '../renderer';
+import { render, unmount, createPortal, getRoot } from '../renderer';
 import { View, Label, Button } from '../components';
 import { MockVisualElement, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
 
@@ -137,6 +137,110 @@ describe('renderer', () => {
 
             // Should not throw
             expect(() => unmount(container as any)).not.toThrow();
+        });
+    });
+
+    describe('createPortal()', () => {
+        it('renders portal children into the target, not the host container', async () => {
+            const host = createMockContainer();
+            const portalTarget = createMockContainer();
+
+            function App() {
+                return (
+                    <ojs-view>
+                        <ojs-label text="in-tree" />
+                        {createPortal(<ojs-button text="in-portal" />, portalTarget as any)}
+                    </ojs-view>
+                );
+            }
+
+            render(<App />, host as any);
+            await flushMicrotasks();
+
+            // Host tree contains only the view + its label child, not the portal child
+            const view = host.children[0] as MockVisualElement;
+            expect(view.childCount).toBe(1);
+            expect(view.children[0].__csType).toBe('UnityEngine.UIElements.Label');
+
+            // Portal target received the button
+            expect(portalTarget.childCount).toBe(1);
+            expect(portalTarget.children[0].__csType).toBe('UnityEngine.UIElements.Button');
+        });
+
+        it('appends into an existing target without clearing it', async () => {
+            const host = createMockContainer();
+            const portalTarget = createMockContainer();
+            const existing = new MockVisualElement();
+            portalTarget.Add(existing);
+
+            render(
+                <ojs-view>{createPortal(<ojs-label text="overlay" />, portalTarget as any)}</ojs-view>,
+                host as any
+            );
+            await flushMicrotasks();
+
+            expect(portalTarget.childCount).toBe(2);
+            expect(portalTarget.children).toContain(existing);
+        });
+
+        it('updates portal children when state changes', async () => {
+            const host = createMockContainer();
+            const portalTarget = createMockContainer();
+            let setText: (s: string) => void;
+
+            function App() {
+                const [text, _setText] = useState('a');
+                setText = _setText;
+                return <ojs-view>{createPortal(<ojs-label text={text} />, portalTarget as any)}</ojs-view>;
+            }
+
+            render(<App />, host as any);
+            await flushMicrotasks();
+            expect((portalTarget.children[0] as MockVisualElement).text).toBe('a');
+
+            setText!('b');
+            await flushMicrotasks();
+            expect((portalTarget.children[0] as MockVisualElement).text).toBe('b');
+        });
+
+        it('removes portal content from the target on unmount', async () => {
+            const host = createMockContainer();
+            const portalTarget = createMockContainer();
+
+            render(
+                <ojs-view>{createPortal(<ojs-label text="x" />, portalTarget as any)}</ojs-view>,
+                host as any
+            );
+            await flushMicrotasks();
+            expect(portalTarget.childCount).toBe(1);
+
+            unmount(host as any);
+            await flushMicrotasks();
+            expect(portalTarget.childCount).toBe(0);
+        });
+
+        it('removes portal content when conditionally unmounted', async () => {
+            const host = createMockContainer();
+            const portalTarget = createMockContainer();
+            let setShow: (b: boolean) => void;
+
+            function App() {
+                const [show, _setShow] = useState(true);
+                setShow = _setShow;
+                return (
+                    <ojs-view>
+                        {show && createPortal(<ojs-label text="modal" />, portalTarget as any)}
+                    </ojs-view>
+                );
+            }
+
+            render(<App />, host as any);
+            await flushMicrotasks();
+            expect(portalTarget.childCount).toBe(1);
+
+            setShow!(false);
+            await flushMicrotasks();
+            expect(portalTarget.childCount).toBe(0);
         });
     });
 

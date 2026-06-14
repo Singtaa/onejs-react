@@ -1,5 +1,5 @@
 import Reconciler from 'react-reconciler';
-import type { ReactNode } from 'react';
+import type { ReactNode, ReactPortal } from 'react';
 import { hostConfig, type Container } from './host-config';
 import type { RenderContainer, VisualElement } from './types';
 
@@ -56,6 +56,39 @@ export function unmount(container: RenderContainer): void {
     reconciler.updateContainer(null, root, null, () => {});
     roots.delete(container);
   }
+}
+
+/**
+ * Render `children` into a different container, outside the normal parent
+ * hierarchy. The returned node must be included in a render tree (i.e. returned
+ * from a component) to take effect.
+ *
+ * Unlike the DOM, UI Toolkit has no `z-index`: paint order follows the element
+ * hierarchy (later siblings draw on top) and a parent with `overflow: hidden`
+ * clips its descendants. Portaling a subtree into a top-level container such as
+ * `__root` lets modals, tooltips, and other overlays escape clipping and paint
+ * above the rest of the UI.
+ *
+ * @param children  React nodes to render into `container`.
+ * @param container Target VisualElement, e.g. `__root` or a ref'd element.
+ * @param key       Optional React key for the portal.
+ *
+ * @example
+ * function Modal({ children }: { children: ReactNode }) {
+ *     return createPortal(
+ *         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+ *             {children}
+ *         </View>,
+ *         __root
+ *     )
+ * }
+ */
+export function createPortal(children: ReactNode, container: RenderContainer, key: string | null = null): ReactPortal {
+  // `react-reconciler`'s ReactPortal type ({ containerInfo, implementation, ... })
+  // is structurally different from `react`'s ReactPortal (extends ReactElement with
+  // type/props). The runtime value is a valid portal either way; bridge the known
+  // @types discrepancy so consumers get `react`'s ReactPortal, matching react-dom.
+  return reconciler.createPortal(children, container as Container, null, key) as unknown as ReactPortal;
 }
 
 /**
