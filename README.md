@@ -114,29 +114,27 @@ RenderContainer         (minimal: __csHandle, __csType)
 
 ### Portals
 
-`createPortal(children, container, key?)` renders a subtree into a different `VisualElement`, outside the normal parent hierarchy - the OneJS equivalent of `react-dom`'s `createPortal`.
-
-UI Toolkit has no `z-index`: paint order follows the element hierarchy and a parent with `overflow: hidden` clips its children. Portaling overlays (modals, tooltips, dropdowns) into a top-level container like `__root` lets them escape clipping.
-
-`__root` is also the render container, so a portal into it is a sibling of your app, and React's commit order can place it behind the app root. Call `BringToFront()` on the portal's root element on mount to keep it on top:
+`<Portal>` renders children above the rest of the UI (modals, tooltips, dropdowns). UI Toolkit has no `z-index` and `overflow: hidden` clips children, so a deeply-nested overlay gets clipped and stuck below later siblings. `<Portal>` mounts into a shared overlay layer that onejs-react keeps as the last child of `__root`, so overlays always paint on top. Zero setup.
 
 ```tsx
-import { createPortal, View } from "onejs-react"
-import { useRef, useEffect } from "react"
+import { Portal, View } from "onejs-react"
 
 function Modal({ children }) {
-    const ref = useRef(null)
-    useEffect(() => { ref.current?.BringToFront() }, [])
-    return createPortal(
-        <View ref={ref} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
-            {children}
-        </View>,
-        __root
+    return (
+        <Portal>
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+                {children}
+            </View>
+        </Portal>
     )
 }
 ```
 
-> Use the `createPortal` exported from `onejs-react`, not the one from `react-dom` - the latter targets the browser DOM and will not work here.
+The layer ignores picking when empty, so a closed overlay never blocks the app.
+
+`<Portal>` is built on `createPortal(children, container, key?)` (the OneJS equivalent of `react-dom`'s `createPortal`), exported for when you need a specific target. With a custom target you own draw order, so prefer `<Portal>` for overlays.
+
+> Use the exports from `onejs-react`, not `react-dom` - the latter targets the browser DOM and will not work here.
 
 ## Key Concepts
 

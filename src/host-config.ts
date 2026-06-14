@@ -86,6 +86,10 @@ declare const __eventAPI: {
     removeParent: (childHandle: number) => void;
 };
 
+// Panel root element, provided by the runtime. This is also the container apps
+// pass to render(), so it is the natural home for a shared overlay layer.
+declare const __root: CSObject;
+
 interface CSStyle {
     [key: string]: unknown;
 }
@@ -435,6 +439,34 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string
     }
 
     return appliedKeys;
+}
+
+// Shared overlay layer for <Portal>. A full-screen, click-through element kept as
+// the LAST child of __root, so portaled content (modals, tooltips, dropdowns)
+// always paints above the app and escapes any `overflow: hidden` ancestor.
+//
+// It must be appended AFTER the app's root view exists, otherwise it lands before
+// the app and renders behind it. Callers create it from an effect (post-mount), by
+// which point the app root is already in __root, so Add() puts the layer last.
+//
+// Keyed by __root so a fresh root (e.g. after a domain reload) gets its own layer.
+const _portalLayers = new WeakMap<object, VisualElement>();
+
+export function getPortalLayer(): VisualElement {
+    const root = __root as unknown as object;
+    let layer = _portalLayers.get(root);
+    if (!layer) {
+        const el: CSObject = new CS.UnityEngine.UIElements.VisualElement();
+        el.name = "onejs-portal-root";
+        applyStyle(el, { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 });
+        // The layer itself ignores picking so empty regions stay click-through; its
+        // children (modals, etc.) still receive input normally.
+        el.pickingMode = CS.UnityEngine.UIElements.PickingMode.Ignore;
+        __root.Add(el);
+        layer = el;
+        _portalLayers.set(root, layer);
+    }
+    return layer;
 }
 
 // Force-resolve CS path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center)

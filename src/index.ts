@@ -21,6 +21,10 @@ export { registerElement } from './host-config';
 // Renderer
 export { render, unmount, createPortal, flushSync, batchedUpdates, getDebugInfo } from './renderer';
 
+// Portals
+export { Portal } from './portal';
+export type { PortalProps } from './portal';
+
 // Error Handling
 export { ErrorBoundary, formatError } from './error-boundary';
 export type { ErrorBoundaryProps } from './error-boundary';

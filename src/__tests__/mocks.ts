@@ -73,6 +73,7 @@ export class MockVisualElement {
     value: unknown = undefined;
     label = '';
     enabledSelf = true;
+    pickingMode = 0;
 
     constructor(csType = 'UnityEngine.UIElements.VisualElement') {
         this.__csHandle = Math.floor(Math.random() * 1000000);
