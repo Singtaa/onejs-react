@@ -116,14 +116,19 @@ RenderContainer         (minimal: __csHandle, __csType)
 
 `createPortal(children, container, key?)` renders a subtree into a different `VisualElement`, outside the normal parent hierarchy - the OneJS equivalent of `react-dom`'s `createPortal`.
 
-UI Toolkit has no `z-index`: paint order follows the element hierarchy and a parent with `overflow: hidden` clips its children. Portaling overlays (modals, tooltips, dropdowns) into a top-level container like `__root` lets them escape clipping and paint above the rest of the UI.
+UI Toolkit has no `z-index`: paint order follows the element hierarchy and a parent with `overflow: hidden` clips its children. Portaling overlays (modals, tooltips, dropdowns) into a top-level container like `__root` lets them escape clipping.
+
+`__root` is also the render container, so a portal into it is a sibling of your app, and React's commit order can place it behind the app root. Call `BringToFront()` on the portal's root element on mount to keep it on top:
 
 ```tsx
 import { createPortal, View } from "onejs-react"
+import { useRef, useEffect } from "react"
 
 function Modal({ children }) {
+    const ref = useRef(null)
+    useEffect(() => { ref.current?.BringToFront() }, [])
     return createPortal(
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+        <View ref={ref} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
             {children}
         </View>,
         __root
