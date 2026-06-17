@@ -1132,14 +1132,20 @@ export const hostConfig = {
             removeMergedTextChild(parentInstance, child);
         } else {
             __eventAPI.removeAllEventListeners(child.element);
-            parentInstance.element.Remove(child.element);
+            // RemoveFromHierarchy() detaches the element from its current parent and
+            // is a safe no-op if it's already detached. Using it instead of
+            // parentInstance.element.Remove(child.element) keeps unmount from throwing
+            // when the root was cleared before React tore the tree down (hot reload).
+            child.element.RemoveFromHierarchy();
         }
         untrackParent(child.element);
     },
 
     removeChildFromContainer(container: Container, child: Instance) {
         __eventAPI.removeAllEventListeners(child.element);
-        container.Remove(child.element);
+        // See removeChild: tolerant of an already-detached element so a hot-reload
+        // teardown (which clears the root first) can still unmount cleanly.
+        child.element.RemoveFromHierarchy();
         untrackParent(child.element);
     },
 

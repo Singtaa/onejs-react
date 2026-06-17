@@ -60,6 +60,7 @@ export class MockVisualElement {
 
     // Child management
     private _children: MockVisualElement[] = [];
+    private _parent: MockVisualElement | null = null;
 
     // Style object (simulates IStyle)
     style: Record<string, unknown> = {};
@@ -85,6 +86,7 @@ export class MockVisualElement {
     Add(child: MockVisualElement): void {
         if (child && !this._children.includes(child)) {
             this._children.push(child);
+            child._parent = this;
         }
     }
 
@@ -96,6 +98,7 @@ export class MockVisualElement {
                 this._children.splice(existingIndex, 1);
             }
             this._children.splice(index, 0, child);
+            child._parent = this;
         }
     }
 
@@ -103,13 +106,21 @@ export class MockVisualElement {
         const index = this._children.indexOf(child);
         if (index >= 0) {
             this._children.splice(index, 1);
+            child._parent = null;
         }
     }
 
     RemoveAt(index: number): void {
         if (index >= 0 && index < this._children.length) {
-            this._children.splice(index, 1);
+            const [child] = this._children.splice(index, 1);
+            if (child) child._parent = null;
         }
+    }
+
+    // Mirrors UnityEngine.UIElements.VisualElement.RemoveFromHierarchy(): detach from
+    // the current parent, a no-op when already detached.
+    RemoveFromHierarchy(): void {
+        this._parent?.Remove(this);
     }
 
     IndexOf(child: MockVisualElement): number {
@@ -117,6 +128,7 @@ export class MockVisualElement {
     }
 
     Clear(): void {
+        for (const child of this._children) child._parent = null;
         this._children = [];
     }
 

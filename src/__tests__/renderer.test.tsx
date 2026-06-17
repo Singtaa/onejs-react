@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React, { useState, useEffect } from 'react';
-import { render, unmount, createPortal, getRoot } from '../renderer';
+import { render, unmount, unmountAll, createPortal, getRoot } from '../renderer';
 import { View, Label, Button } from '../components';
 import { MockVisualElement, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
 
@@ -401,6 +401,56 @@ describe('renderer', () => {
             await flushMicrotasks();
 
             expect(cleanupFn).toHaveBeenCalled();
+        });
+
+        it('fires effect cleanup synchronously on unmount (no tick needed)', async () => {
+            // On hot-reload teardown the JS context is destroyed immediately after
+            // unmount, so cleanups must run synchronously rather than on a later tick.
+            const container = createMockContainer();
+            const cleanupFn = vi.fn();
+
+            function CleanupComponent() {
+                useEffect(() => cleanupFn, []);
+                return <ojs-view />;
+            }
+
+            render(<CleanupComponent />, container as any);
+            await flushMicrotasks();
+            expect(cleanupFn).not.toHaveBeenCalled();
+
+            unmount(container as any);
+            // No flushMicrotasks: cleanup must already have run.
+            expect(cleanupFn).toHaveBeenCalledTimes(1);
+            expect(getRoot(container as any)).toBeUndefined();
+        });
+
+        it('unmountAll tears down every root and fires cleanups (hot reload)', async () => {
+            // unmountAll is what the runtime teardown hook (__runTeardown) invokes
+            // before destroying the context on hot reload / stop.
+            const containerA = createMockContainer();
+            const containerB = createMockContainer();
+            const cleanupA = vi.fn();
+            const cleanupB = vi.fn();
+
+            function CompA() {
+                useEffect(() => cleanupA, []);
+                return <ojs-view />;
+            }
+            function CompB() {
+                useEffect(() => cleanupB, []);
+                return <ojs-view />;
+            }
+
+            render(<CompA />, containerA as any);
+            render(<CompB />, containerB as any);
+            await flushMicrotasks();
+
+            unmountAll();
+
+            expect(cleanupA).toHaveBeenCalledTimes(1);
+            expect(cleanupB).toHaveBeenCalledTimes(1);
+            expect(getRoot(containerA as any)).toBeUndefined();
+            expect(getRoot(containerB as any)).toBeUndefined();
         });
     });
 

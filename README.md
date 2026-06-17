@@ -98,6 +98,12 @@ import { render, RenderContainer } from "onejs-react"
 render(<App />, __root)
 ```
 
+### Unmounting & hot-reload teardown
+
+`unmount(container)` tears a root down **synchronously** (`updateContainerSync` + `flushSyncWork` + `flushPassiveEffects`), so `useEffect`/`useLayoutEffect` cleanup functions fire immediately instead of on a later scheduler tick. `unmountAll()` does the same for every active root.
+
+The first `render()` call registers `unmountAll` as a runtime teardown hook (`globalThis.__onTeardown`). The OneJS runtime invokes it right before destroying the JS context on hot reload / stop, so component cleanups run while the context is still alive. Without this, cleanups would be skipped on hot reload and stale C# subscriptions (e.g. from `useEventSync`) would leak across reloads.
+
 ### Type Hierarchy
 
 ```

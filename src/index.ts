@@ -19,7 +19,7 @@ export {
 export { registerElement } from './host-config';
 
 // Renderer
-export { render, unmount, createPortal, flushSync, batchedUpdates, getDebugInfo } from './renderer';
+export { render, unmount, unmountAll, createPortal, flushSync, batchedUpdates, getDebugInfo } from './renderer';
 
 // Portals
 export { Portal } from './portal';

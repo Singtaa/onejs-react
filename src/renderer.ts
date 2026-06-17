@@ -19,7 +19,24 @@ reconciler.injectIntoDevTools({
 // Track roots for hot reload / re-render
 const roots = new Map<RenderContainer, ReturnType<typeof reconciler.createContainer>>();
 
+// Register unmountAll as a runtime teardown hook exactly once. The OneJS runtime
+// (QuickJSUIBridge.Dispose) invokes __runTeardown() right before destroying the JS
+// context on hot reload / stop. Unmounting here fires useEffect/useLayoutEffect
+// cleanups while the context is still alive; otherwise they never run and stale
+// C# subscriptions (e.g. from useEventSync) leak across reloads.
+let teardownHookRegistered = false;
+function ensureTeardownHook(): void {
+  if (teardownHookRegistered) return;
+  const g = globalThis as any;
+  if (typeof g !== 'undefined' && typeof g.__onTeardown === 'function') {
+    g.__onTeardown(unmountAll);
+    teardownHookRegistered = true;
+  }
+}
+
 export function render(element: ReactNode, container: RenderContainer): void {
+  ensureTeardownHook();
+
   let root = roots.get(container);
 
   if (!root) {
@@ -52,9 +69,33 @@ export function render(element: ReactNode, container: RenderContainer): void {
 
 export function unmount(container: RenderContainer): void {
   const root = roots.get(container);
-  if (root) {
+  if (!root) return;
+  roots.delete(container);
+
+  const r = reconciler as any;
+  // Tear the tree down synchronously. updateContainer(null, ...) only *schedules*
+  // the unmount, which never gets a scheduler tick during a hot-reload teardown
+  // (the context is destroyed immediately after). updateContainerSync + flushSyncWork
+  // runs the commit now, firing useLayoutEffect cleanups during it.
+  if (typeof r.updateContainerSync === 'function') {
+    r.updateContainerSync(null, root, null, null);
+    if (typeof r.flushSyncWork === 'function') r.flushSyncWork();
+  } else {
     reconciler.updateContainer(null, root, null, () => {});
-    roots.delete(container);
+  }
+  // useEffect (passive) cleanups are queued by the unmount commit, not run by it.
+  // Flush them now so they also fire before the context goes away.
+  if (typeof r.flushPassiveEffects === 'function') r.flushPassiveEffects();
+}
+
+/**
+ * Unmount every active root. Invoked by the OneJS runtime teardown hook before the
+ * JS context is destroyed (hot reload / stop) so component cleanups run.
+ */
+export function unmountAll(): void {
+  // Snapshot keys first: unmount() mutates the roots map.
+  for (const container of Array.from(roots.keys())) {
+    unmount(container);
   }
 }
 
