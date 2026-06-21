@@ -75,6 +75,11 @@ declare const CS: {
             ApplyStyles: (element: CSObject, styles: Record<string, unknown>) => void;
             AddClassesBatch: (element: CSObject, classes: string[]) => void;
         };
+        NodeBridge: {
+            Add: (parentHandle: number, childHandle: number) => void;
+            Insert: (parentHandle: number, index: number, childHandle: number) => void;
+            RemoveFromHierarchy: (childHandle: number) => void;
+        };
     };
 };
 
@@ -571,6 +576,35 @@ function untrackParent(child: CSObject) {
     }
 }
 
+// Tree wiring routes through CS.OneJS.NodeBridge, a zero-alloc fast path, instead
+// of the per-element VisualElement.Add/Insert/RemoveFromHierarchy reflection calls.
+// Handles are read from the proxy's __csHandle (a JS-side field, no crossing).
+// Falls back to the direct proxy call when a handle isn't available (e.g. a
+// container that isn't a handle-tracked element).
+function elementHandle(el: CSObject): number {
+    return (el as unknown as { __csHandle?: number }).__csHandle ?? -1;
+}
+
+function nodeAdd(parentEl: CSObject, childEl: CSObject) {
+    const ph = elementHandle(parentEl);
+    const ch = elementHandle(childEl);
+    if (ph > 0 && ch > 0) CS.OneJS.NodeBridge.Add(ph, ch);
+    else parentEl.Add(childEl);
+}
+
+function nodeInsert(parentEl: CSObject, index: number, childEl: CSObject) {
+    const ph = elementHandle(parentEl);
+    const ch = elementHandle(childEl);
+    if (ph > 0 && ch > 0) CS.OneJS.NodeBridge.Insert(ph, index, ch);
+    else parentEl.Insert(index, childEl);
+}
+
+function nodeRemoveFromHierarchy(childEl: CSObject) {
+    const ch = elementHandle(childEl);
+    if (ch > 0) CS.OneJS.NodeBridge.RemoveFromHierarchy(ch);
+    else childEl.RemoveFromHierarchy();
+}
+
 
 // Apply event handlers
 function applyEvents(instance: Instance, props: BaseProps) {
@@ -655,7 +689,7 @@ function unmergTextChildren(parentInstance: Instance) {
     // Add each merged text child as an actual visual child
     for (const child of children) {
         child.mergedInto = undefined;
-        parentInstance.element.Add(child.element);
+        nodeAdd(parentInstance.element, child.element);
     }
 
     // Clear the merged children list
@@ -727,12 +761,12 @@ function insertElementBefore(parentEl: CSObject, childEl: CSObject, beforeChildE
     if (beforeIndex < 0) {
         // beforeChild isn't actually in the parent (should not normally happen).
         // Fall back to appending, preserving the previous fallback behavior.
-        parentEl.Add(childEl);
+        nodeAdd(parentEl, childEl);
         return;
     }
     const childIndex = parentEl.IndexOf(childEl);
     const target = childIndex >= 0 && childIndex < beforeIndex ? beforeIndex - 1 : beforeIndex;
-    parentEl.Insert(target, childEl);
+    nodeInsert(parentEl, target, childEl);
 }
 
 // MARK: Component-specific prop handlers
@@ -1092,7 +1126,7 @@ export const hostConfig = {
             appendMergedTextChild(parentInstance, child);
         } else {
             handleNonTextChild(parentInstance);
-            parentInstance.element.Add(child.element);
+            nodeAdd(parentInstance.element, child.element);
         }
         trackParent(child.element, parentInstance.element);
     },
@@ -1102,13 +1136,13 @@ export const hostConfig = {
             appendMergedTextChild(parentInstance, child);
         } else {
             handleNonTextChild(parentInstance);
-            parentInstance.element.Add(child.element);
+            nodeAdd(parentInstance.element, child.element);
         }
         trackParent(child.element, parentInstance.element);
     },
 
     appendChildToContainer(container: Container, child: Instance) {
-        container.Add(child.element);
+        nodeAdd(container, child.element);
         // Container is the root - no parent to track
     },
 
@@ -1136,7 +1170,7 @@ export const hostConfig = {
             // is a safe no-op if it's already detached. Using it instead of
             // parentInstance.element.Remove(child.element) keeps unmount from throwing
             // when the root was cleared before React tore the tree down (hot reload).
-            child.element.RemoveFromHierarchy();
+            nodeRemoveFromHierarchy(child.element);
         }
         untrackParent(child.element);
     },
@@ -1145,7 +1179,7 @@ export const hostConfig = {
         __eventAPI.removeAllEventListeners(child.element);
         // See removeChild: tolerant of an already-detached element so a hot-reload
         // teardown (which clears the root first) can still unmount cleanly.
-        child.element.RemoveFromHierarchy();
+        nodeRemoveFromHierarchy(child.element);
         untrackParent(child.element);
     },
 

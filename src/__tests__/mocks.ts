@@ -368,6 +368,23 @@ export function createMockCS() {
                     }
                 },
             },
+            // Mirrors the real CS.OneJS.NodeBridge: resolve element handles and
+            // delegate to the same tree ops the slow path would have called.
+            NodeBridge: {
+                Add: (parentHandle: number, childHandle: number) => {
+                    const parent = findElementByHandle(parentHandle);
+                    const child = findElementByHandle(childHandle);
+                    if (parent && child) parent.Add(child);
+                },
+                Insert: (parentHandle: number, index: number, childHandle: number) => {
+                    const parent = findElementByHandle(parentHandle);
+                    const child = findElementByHandle(childHandle);
+                    if (parent && child) parent.Insert(index, child);
+                },
+                RemoveFromHierarchy: (childHandle: number) => {
+                    findElementByHandle(childHandle)?.RemoveFromHierarchy();
+                },
+            },
         },
     };
 }

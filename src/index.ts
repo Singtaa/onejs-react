@@ -48,6 +48,9 @@ export type {
 // Vector Drawing
 export { Transform2D, useVectorContent } from './vector';
 
+// Batched vector drawing - single-crossing command buffer (see painter.ts)
+export { Painter, batchedVisualContent, useBatchedVectorContent } from './painter';
+
 // Sync Hooks & C# Interop Utilities
 export { useFrameSync, useFrameSyncWith, useThrottledSync, useEventSync, toArray } from './hooks';
 export type { EventSource } from './hooks';
