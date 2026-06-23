@@ -234,7 +234,6 @@ const EVENT_PROPS: Record<string, string> = {
     onPointerCancel: 'pointercancel',
     onPointerCapture: 'pointercapture',
     onPointerCaptureOut: 'pointercaptureout',
-    onPointerStationary: 'pointerstationary',
 
     // Mouse events
     onMouseDown: 'mousedown',

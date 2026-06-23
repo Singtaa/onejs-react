@@ -436,7 +436,6 @@ export interface BaseProps {
   onPointerCancel?: PointerEventHandler;
   onPointerCapture?: PointerEventHandler;
   onPointerCaptureOut?: PointerEventHandler;
-  onPointerStationary?: PointerEventHandler;
 
   // Mouse events
   onMouseDown?: MouseEventHandler;
