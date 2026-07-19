@@ -19,6 +19,25 @@ reconciler.injectIntoDevTools({
 // Track roots for hot reload / re-render
 const roots = new Map<RenderContainer, ReturnType<typeof reconciler.createContainer>>();
 
+// react-reconciler 0.31 (React 19) inserted onUncaughtError/onCaughtError ahead of
+// onRecoverableError in createContainer's signature. @types/react-reconciler (0.28.x)
+// predates them, so the call is typed manually here; with the 0.28-shaped arg list the
+// root's onCaughtError slot is left null at runtime and any error boundary catch
+// throws "onCaughtError is not a function".
+type RootErrorHandler = (error: unknown, errorInfo: unknown) => void;
+const createContainer = reconciler.createContainer as unknown as (
+  containerInfo: Container,
+  tag: number,
+  hydrationCallbacks: null,
+  isStrictMode: boolean,
+  concurrentUpdatesByDefaultOverride: null,
+  identifierPrefix: string,
+  onUncaughtError: RootErrorHandler,
+  onCaughtError: RootErrorHandler,
+  onRecoverableError: RootErrorHandler,
+  transitionCallbacks: null
+) => ReturnType<typeof reconciler.createContainer>;
+
 // Register unmountAll as a runtime teardown hook exactly once. The OneJS runtime
 // (QuickJSUIBridge.Dispose) invokes __runTeardown() right before destroying the JS
 // context on hot reload / stop. Unmounting here fires useEffect/useLayoutEffect
@@ -40,14 +59,16 @@ export function render(element: ReactNode, container: RenderContainer): void {
   let root = roots.get(container);
 
   if (!root) {
-    root = reconciler.createContainer(
+    root = createContainer(
       container as Container,
       0, // LegacyRoot (0) vs ConcurrentRoot (1)
       null, // hydrationCallbacks
       false, // isStrictMode
       null, // concurrentUpdatesByDefaultOverride
       '', // identifierPrefix
-      (error: Error) => console.error('[OneJS React] Recoverable error:', error),
+      (error) => console.error('[OneJS React] Uncaught error:', error),
+      (error) => console.error('[OneJS React] Error caught by boundary:', error),
+      (error) => console.error('[OneJS React] Recoverable error:', error),
       null // transitionCallbacks
     );
     roots.set(container, root);
