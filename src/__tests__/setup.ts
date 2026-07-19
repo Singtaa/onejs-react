@@ -9,7 +9,7 @@
  */
 
 import { vi, beforeEach, afterEach } from "vitest";
-import { createMockCS, resetAllMocks } from "./mocks";
+import { createMockCS, resetAllMocks, mockUrlAssets } from "./mocks";
 import { clearImageCache } from "../components";
 
 // Extend globalThis type for our mocks
@@ -60,9 +60,20 @@ beforeEach(() => {
     // Use real setTimeout/clearTimeout - React scheduler depends on them
     (global as any).setTimeout = originalSetTimeout;
     (global as any).clearTimeout = originalClearTimeout;
+
+    // Mock fetch serving text entries from mockUrlAssets (mirrors the
+    // UnityWebRequest-backed fetch from QuickJSBootstrap.js)
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+        const entry = mockUrlAssets.get(url);
+        if (typeof entry !== "string") {
+            return { ok: false, status: 404, statusText: "Not Found", text: async () => "" };
+        }
+        return { ok: true, status: 200, statusText: "OK", text: async () => entry };
+    }));
 });
 
 // Clean up after each test
 afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
 });

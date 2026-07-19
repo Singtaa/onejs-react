@@ -264,10 +264,25 @@ export class MockTexture2D {
 }
 
 /**
- * Mock file system for image loading tests.
- * Tests can add entries to control which files "exist" and what bytes they contain.
+ * Mock VectorImage as produced by SVGUtils.LoadFromString
  */
-export const mockFileSystem = new Map<string, number[]>()
+export class MockVectorImage {
+    constructor(public svgText: string) {}
+}
+
+/**
+ * Mock file system for image loading tests.
+ * Tests can add entries to control which files "exist" and what they contain:
+ * number[] entries are raster bytes, string entries are text (e.g. SVG source).
+ */
+export const mockFileSystem = new Map<string, number[] | string>()
+
+/**
+ * Mock URL-addressable assets for StreamingAssets-as-URL platforms (Android
+ * APK jar: URLs, WebGL http URLs). Keyed by full URL; number[] entries are
+ * served by Network.LoadTextureFromUrl, string entries by the fetch stub.
+ */
+export const mockUrlAssets = new Map<string, number[] | string>()
 
 /**
  * Create the mock CS global object that mirrors QuickJSBootstrap.js proxy
@@ -286,7 +301,14 @@ export function createMockCS() {
                 },
                 File: {
                     Exists: (path: string) => mockFileSystem.has(path),
-                    ReadAllBytes: (path: string) => mockFileSystem.get(path) || [],
+                    ReadAllBytes: (path: string) => {
+                        const entry = mockFileSystem.get(path);
+                        return Array.isArray(entry) ? entry : [];
+                    },
+                    ReadAllText: (path: string) => {
+                        const entry = mockFileSystem.get(path);
+                        return typeof entry === "string" ? entry : "";
+                    },
                 },
             },
         },
@@ -345,6 +367,20 @@ export function createMockCS() {
             },
         },
         OneJS: {
+            SVGUtils: {
+                LoadFromString: (svgText: string) => new MockVectorImage(svgText),
+            },
+            // Mirrors CS.OneJS.Network (Network.cs): LoadTextureFromUrl resolves
+            // to a Texture2D on success, null on failure (no throw).
+            Network: {
+                LoadTextureFromUrl: async (url: string) => {
+                    const entry = mockUrlAssets.get(url);
+                    if (!Array.isArray(entry)) return null;
+                    const tex = new MockTexture2D(2, 2);
+                    tex.LoadImage(entry);
+                    return tex;
+                },
+            },
             GPU: {
                 GPUBridge: {
                     SetElementBackgroundImage: () => {},
@@ -409,6 +445,7 @@ export function findElementByHandle(handle: number): MockVisualElement | undefin
 export function resetAllMocks(): void {
     createdElements = [];
     mockFileSystem.clear();
+    mockUrlAssets.clear();
 }
 
 /**

@@ -22,7 +22,7 @@ import {
     Image,
     clearImageCache,
 } from '../components';
-import { MockVisualElement, MockTexture2D, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI, mockFileSystem } from './mocks';
+import { MockVisualElement, MockTexture2D, MockVectorImage, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI, mockFileSystem, mockUrlAssets } from './mocks';
 
 // Helper to extract value from style (handles both raw values and MockLength/MockColor)
 function getStyleValue(style: unknown): unknown {
@@ -442,6 +442,98 @@ describe('components', () => {
             await flushMicrotasks();
 
             expect(readSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('loads SVG synchronously via SVGUtils in the editor', async () => {
+            mockFileSystem.set("/project/App/assets/icons/star.svg", "<svg></svg>");
+            (globalThis as any).__workingDir = "/project/App";
+
+            const container = createMockContainer();
+            render(<Image src="icons/star.svg" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeInstanceOf(MockVectorImage);
+            expect((el.image as MockVectorImage).svgText).toBe("<svg></svg>");
+        });
+    });
+
+    describe('Image on URL StreamingAssets platforms (Android APK, WebGL)', () => {
+        const JAR_BASE = "jar:file:///data/app/base.apk!/assets";
+
+        // Simulate an Android player: not the editor, and streamingAssetsPath
+        // is a jar: URL inside the APK that System.IO.File cannot read
+        beforeEach(() => {
+            const app = (globalThis as any).CS.UnityEngine.Application;
+            app.isEditor = false;
+            app.streamingAssetsPath = JAR_BASE;
+        });
+
+        it('loads raster images asynchronously via Network.LoadTextureFromUrl', async () => {
+            mockUrlAssets.set(`${JAR_BASE}/onejs/assets/images/logo.png`, [0x89, 0x50, 0x4e, 0x47]);
+
+            const container = createMockContainer();
+            render(<Image src="images/logo.png" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeInstanceOf(MockTexture2D);
+            expect((el.image as MockTexture2D)._loaded).toBe(true);
+            expect((el.image as MockTexture2D).filterMode).toBe(1); // Bilinear
+        });
+
+        it('loads SVG asynchronously via fetch + SVGUtils', async () => {
+            mockUrlAssets.set(`${JAR_BASE}/onejs/assets/icons/spinner.svg`, "<svg>spin</svg>");
+
+            const container = createMockContainer();
+            render(<Image src="icons/spinner.svg" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeInstanceOf(MockVectorImage);
+            expect((el.image as MockVectorImage).svgText).toBe("<svg>spin</svg>");
+        });
+
+        it('keeps a null image and logs an error when the asset is missing', async () => {
+            const container = createMockContainer();
+            render(<Image src="images/missing.png" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.image).toBeNull();
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining("Image src not found: images/missing.png")
+            );
+        });
+
+        it('dedupes concurrent loads and serves later mounts from the cache', async () => {
+            mockUrlAssets.set(`${JAR_BASE}/onejs/assets/a.png`, [0x89]);
+            const cs = (globalThis as any).CS;
+            const loadSpy = vi.spyOn(cs.OneJS.Network, 'LoadTextureFromUrl');
+
+            // Two simultaneous mounts of the same src share one request
+            const container1 = createMockContainer();
+            render(
+                <View>
+                    <Image src="a.png" />
+                    <Image src="a.png" />
+                </View>,
+                container1 as any
+            );
+            await flushMicrotasks();
+
+            expect(loadSpy).toHaveBeenCalledTimes(1);
+            const view = container1.children[0];
+            expect((view.children[0] as any).image).toBeInstanceOf(MockTexture2D);
+            expect((view.children[1] as any).image).toBeInstanceOf(MockTexture2D);
+
+            // A later mount resolves synchronously from the cache
+            const container2 = createMockContainer();
+            render(<Image src="a.png" />, container2 as any);
+            await flushMicrotasks();
+
+            expect(loadSpy).toHaveBeenCalledTimes(1);
+            expect((container2.children[0] as any).image).toBeInstanceOf(MockTexture2D);
         });
     });
 

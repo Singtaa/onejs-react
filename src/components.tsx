@@ -1,4 +1,4 @@
-import { forwardRef, createElement, useMemo, type ReactElement, type Ref } from 'react';
+import { forwardRef, createElement, useEffect, useMemo, useState, type ReactElement, type Ref } from 'react';
 import type {
   BaseProps,
   ViewProps,
@@ -33,6 +33,14 @@ useExtensions(CS.UnityEngine.ImageConversion)
 
 // Module-level image cache shared across all Image instances
 const _imageCache = new Map<string, any>()
+// In-flight async loads keyed by src, so simultaneous mounts share one request
+const _imagePending = new Map<string, Promise<any>>()
+
+// On Android, streamingAssetsPath is a jar:file://...apk!/assets URL; on WebGL
+// it's http(s). System.IO.File can't read those - they need UnityWebRequest.
+function _isUrlPath(path: string): boolean {
+    return path.includes("://")
+}
 
 function _resolveAssetPath(src: string): string {
     const Path = CS.System.IO.Path
@@ -46,7 +54,11 @@ function _resolveAssetPath(src: string): string {
             : Path.Combine(Path.GetDirectoryName(CS.UnityEngine.Application.dataPath), "App")
         return Path.Combine(workingDir, "assets", src)
     }
-    return Path.Combine(CS.UnityEngine.Application.streamingAssetsPath, "onejs", "assets", src)
+    const streamingAssets = CS.UnityEngine.Application.streamingAssetsPath
+    if (_isUrlPath(streamingAssets)) {
+        return `${streamingAssets}/onejs/assets/${src}`
+    }
+    return Path.Combine(streamingAssets, "onejs", "assets", src)
 }
 
 function _loadImageAsset(src: string): any | null {
@@ -54,6 +66,9 @@ function _loadImageAsset(src: string): any | null {
     if (cached) return cached
 
     const fullPath = _resolveAssetPath(src)
+    // URL paths (Android APK, WebGL) can't be read synchronously; the Image
+    // component falls back to _loadImageAssetAsync for these.
+    if (_isUrlPath(fullPath)) return null
     if (!CS.System.IO.File.Exists(fullPath)) {
         console.error(`Image src not found: ${src} (resolved to ${fullPath})`)
         return null
@@ -75,12 +90,52 @@ function _loadImageAsset(src: string): any | null {
     return result
 }
 
+function _loadImageAssetAsync(src: string, url: string): Promise<any> {
+    const existing = _imagePending.get(src)
+    if (existing) return existing
+
+    const promise = (async (): Promise<any> => {
+        try {
+            let result: any
+            if (src.toLowerCase().endsWith(".svg")) {
+                const res = await fetch(url)
+                if (!res.ok) {
+                    console.error(`Image src not found: ${src} (resolved to ${url})`)
+                    return null
+                }
+                const svgText = await res.text()
+                result = CS.OneJS.SVGUtils.LoadFromString(svgText)
+            } else {
+                const tex = await CS.OneJS.Network.LoadTextureFromUrl(url)
+                if (!tex) {
+                    console.error(`Image src not found: ${src} (resolved to ${url})`)
+                    return null
+                }
+                tex.filterMode = CS.UnityEngine.FilterMode.Bilinear
+                result = tex
+            }
+            _imageCache.set(src, result)
+            return result
+        } catch (e) {
+            console.error(`Image src failed to load: ${src} (resolved to ${url}): ${e}`)
+            return null
+        }
+    })()
+
+    _imagePending.set(src, promise)
+    promise.then(() => {
+        if (_imagePending.get(src) === promise) _imagePending.delete(src)
+    })
+    return promise
+}
+
 /**
  * Clear the Image component's image cache.
  * Call this if you need to force-reload images (e.g., after replacing files on disk).
  */
 export function clearImageCache(): void {
     _imageCache.clear()
+    _imagePending.clear()
 }
 
 // Props with ref support for intrinsic elements
@@ -170,11 +225,27 @@ export const ScrollView = forwardRef<ScrollViewElement, ScrollViewProps>((props,
 ScrollView.displayName = 'ScrollView';
 
 export const Image = forwardRef<ImageElement, ImageProps>(({ src, image, ...rest }, ref) => {
+  const [loaded, setLoaded] = useState<{ src: string; image: any } | null>(null)
   const resolved = useMemo(() => {
     if (src) return _loadImageAsset(src)
     return image
   }, [src, image])
-  return <ojs-image ref={ref} image={resolved} {...rest} />;
+
+  // Async fallback for platforms where StreamingAssets is a URL (Android APK,
+  // WebGL): load via UnityWebRequest, then re-render with the result.
+  useEffect(() => {
+    if (!src || resolved) return
+    const fullPath = _resolveAssetPath(src)
+    if (!_isUrlPath(fullPath)) return
+    let cancelled = false
+    _loadImageAssetAsync(src, fullPath).then((result) => {
+      if (!cancelled && result) setLoaded({ src, image: result })
+    })
+    return () => { cancelled = true }
+  }, [src, resolved])
+
+  const asyncImage = loaded && loaded.src === src ? loaded.image : null
+  return <ojs-image ref={ref} image={resolved ?? asyncImage} {...rest} />;
 });
 Image.displayName = 'Image';
 
