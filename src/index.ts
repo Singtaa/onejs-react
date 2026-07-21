@@ -51,6 +51,19 @@ export { Transform2D, useVectorContent } from './vector';
 // Batched vector drawing - single-crossing command buffer (see painter.ts)
 export { Painter, batchedVisualContent, useBatchedVectorContent } from './painter';
 
+// 2D particle engine control plane (C#-owned sim/render; see OneJS Runtime/Particles)
+export { createParticles, useParticles, toWire } from './particles';
+export type {
+  ParticlesConfig,
+  EmitterConfig,
+  EmitterShape,
+  ParticlesHandle,
+  EmitterHandle,
+  BurstOptions,
+  ParticleRange,
+  ParticleColor,
+} from './particles';
+
 // Sync Hooks & C# Interop Utilities
 export { useFrameSync, useFrameSyncWith, useThrottledSync, useEventSync, toArray } from './hooks';
 export type { EventSource } from './hooks';

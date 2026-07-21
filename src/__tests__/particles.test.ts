@@ -1,0 +1,181 @@
+import { describe, it, expect, beforeEach, vi } from "vitest"
+import { toWire, createParticles, type ParticlesConfig } from "../particles"
+
+/**
+ * Wire-schema parity tests. toWire's output is the C#-JS contract: field names
+ * and semantics must match ParticleWire.cs (validated on the C# side by
+ * ParticleTests.cs). If a test here changes, check the C# side.
+ */
+describe("particles wire schema", () => {
+    it("emits the canonical document with all defaults resolved", () => {
+        const doc = toWire({ emitters: [{}] })
+        expect(doc).toEqual({
+            v: 1,
+            max: 1000,
+            space: 0,
+            seed: 0,
+            emitters: [{
+                rate: 0,
+                emitting: true,
+                x: 0,
+                y: 0,
+                shape: 0,
+                shapeW: 0,
+                shapeH: 0,
+                angleMin: 0,
+                angleMax: 360,
+                speedMin: 0,
+                speedMax: 0,
+                lifeMin: 1,
+                lifeMax: 1,
+                sizeMin: 8,
+                sizeMax: 8,
+                gravityX: 0,
+                gravityY: 0,
+                drag: 0,
+                rotMin: 0,
+                rotMax: 0,
+                angVelMin: 0,
+                angVelMax: 0,
+                additiveness: 0,
+                colorKeys: [{ t: 0, r: 1, g: 1, b: 1, a: 1 }],
+                sizeKeys: [{ t: 0, v: 1 }],
+            }],
+        })
+    })
+
+    it("normalizes scalar and [min,max] ranges", () => {
+        const doc = toWire({ emitters: [{ speed: 50, lifetime: [0.5, 1.5] }] })
+        const e = doc.emitters[0]
+        expect([e.speedMin, e.speedMax]).toEqual([50, 50])
+        expect([e.lifeMin, e.lifeMax]).toEqual([0.5, 1.5])
+    })
+
+    it("maps shapes to ids and dimensions", () => {
+        const circle = toWire({ emitters: [{ shape: { type: "circle", radius: 12 } }] }).emitters[0]
+        expect([circle.shape, circle.shapeW, circle.shapeH]).toEqual([1, 12, 0])
+
+        const rect = toWire({ emitters: [{ shape: { type: "rect", width: 30, height: 20 } }] }).emitters[0]
+        expect([rect.shape, rect.shapeW, rect.shapeH]).toEqual([2, 30, 20])
+
+        const line = toWire({ emitters: [{ shape: { type: "line", length: 40 } }] }).emitters[0]
+        expect([line.shape, line.shapeW, line.shapeH]).toEqual([3, 40, 0])
+    })
+
+    it("parses hex colors including shorthand and alpha", () => {
+        const doc = toWire({ emitters: [{ colorOverLife: ["#f00", "#00ff0080", [0, 0, 1]] }] })
+        const keys = doc.emitters[0].colorKeys
+        expect(keys[0]).toEqual({ t: 0, r: 1, g: 0, b: 0, a: 1 })
+        expect(keys[1].t).toBeCloseTo(0.5)
+        expect(keys[1].g).toBe(1)
+        expect(keys[1].a).toBeCloseTo(128 / 255)
+        expect(keys[2]).toEqual({ t: 1, r: 0, g: 0, b: 1, a: 1 })
+    })
+
+    it("spaces shorthand keys evenly and preserves explicit t", () => {
+        const doc = toWire({
+            emitters: [{
+                sizeOverLife: [1, 2, 0],
+                colorOverLife: [{ t: 0.2, color: "#fff" }, { t: 0.9, color: "#000" }],
+            }],
+        })
+        expect(doc.emitters[0].sizeKeys).toEqual([
+            { t: 0, v: 1 }, { t: 0.5, v: 2 }, { t: 1, v: 0 },
+        ])
+        expect(doc.emitters[0].colorKeys.map((k) => k.t)).toEqual([0.2, 0.9])
+    })
+
+    it("rejects malformed colors", () => {
+        expect(() => toWire({ emitters: [{ colorOverLife: ["#12345"] }] })).toThrow(/invalid color/)
+    })
+})
+
+describe("createParticles handle", () => {
+    let sys: {
+        SetEmitterPos: ReturnType<typeof vi.fn>
+        SetEmitterRate: ReturnType<typeof vi.fn>
+        StartEmitter: ReturnType<typeof vi.fn>
+        StopEmitter: ReturnType<typeof vi.fn>
+        Burst: ReturnType<typeof vi.fn>
+        Pause: ReturnType<typeof vi.fn>
+        Resume: ReturnType<typeof vi.fn>
+        Clear: ReturnType<typeof vi.fn>
+        Dispose: ReturnType<typeof vi.fn>
+        AliveCount: number
+    }
+    let createSpy: ReturnType<typeof vi.fn>
+    const element = { __fake: "element" } as never
+
+    beforeEach(() => {
+        sys = {
+            SetEmitterPos: vi.fn(),
+            SetEmitterRate: vi.fn(),
+            StartEmitter: vi.fn(),
+            StopEmitter: vi.fn(),
+            Burst: vi.fn(),
+            Pause: vi.fn(),
+            Resume: vi.fn(),
+            Clear: vi.fn(),
+            Dispose: vi.fn(),
+            AliveCount: 7,
+        }
+        createSpy = vi.fn(() => sys)
+        ;(globalThis as any).CS.OneJS.ParticleBridge = { Create: createSpy }
+    })
+
+    const config: ParticlesConfig = { max: 50, emitters: [{ rate: 10 }, { rate: 0 }] }
+
+    it("creates with element, wire JSON, and null texture", () => {
+        createParticles(element, config)
+        expect(createSpy).toHaveBeenCalledTimes(1)
+        const [el, json, texture] = createSpy.mock.calls[0]
+        expect(el).toBe(element)
+        expect(JSON.parse(json)).toEqual(toWire(config))
+        expect(texture).toBeNull()
+    })
+
+    it("forwards emitter and system calls as single crossings", () => {
+        const fx = createParticles(element, config)
+        expect(fx.emitters).toHaveLength(2)
+
+        fx.emitters[1].pos(5, 6)
+        expect(sys.SetEmitterPos).toHaveBeenCalledWith(1, 5, 6)
+
+        fx.emitters[0].rate = 99
+        expect(sys.SetEmitterRate).toHaveBeenCalledWith(0, 99)
+        expect(fx.emitters[0].rate).toBe(99)
+
+        fx.emitters[0].stop()
+        expect(sys.StopEmitter).toHaveBeenCalledWith(0)
+        fx.emitters[0].start()
+        expect(sys.StartEmitter).toHaveBeenCalledWith(0)
+
+        fx.burst({ x: 1, y: 2, count: 30 })
+        expect(sys.Burst).toHaveBeenCalledWith(0, 1, 2, 30)
+        fx.burst({ x: 1, y: 2, count: 3, emitter: 1 })
+        expect(sys.Burst).toHaveBeenCalledWith(1, 1, 2, 3)
+
+        expect(fx.aliveCount).toBe(7)
+    })
+
+    it("dispose is idempotent and zeroes aliveCount", () => {
+        const fx = createParticles(element, config)
+        fx.dispose()
+        fx.dispose()
+        expect(sys.Dispose).toHaveBeenCalledTimes(1)
+        expect(fx.aliveCount).toBe(0)
+    })
+
+    it("registers a teardown hook when the bootstrap provides one", () => {
+        const hooks: Array<() => void> = []
+        ;(globalThis as any).__onTeardown = (cb: () => void) => hooks.push(cb)
+        try {
+            createParticles(element, config)
+            expect(hooks).toHaveLength(1)
+            hooks[0]()
+            expect(sys.Dispose).toHaveBeenCalledTimes(1)
+        } finally {
+            delete (globalThis as any).__onTeardown
+        }
+    })
+})
