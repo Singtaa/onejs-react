@@ -693,6 +693,10 @@ export interface VisualElement extends RenderContainer {
 
   // Layout
   MarkDirtyRepaint: () => void;
+  /** Element bounds in panel space (Unity's VisualElement.worldBound). */
+  worldBound: { x: number; y: number; width: number; height: number };
+  /** Element bounds in local space (Unity's VisualElement.localBound). */
+  localBound: { x: number; y: number; width: number; height: number };
 
   // Vector drawing
   /**

@@ -27,6 +27,8 @@ import type {
 
 declare const CS: any
 declare function useExtensions(typeRef: any): void
+// Provided by the OneJS bootstrap (Network.cs) on native, by the browser on WebGL
+declare function fetch(url: string): Promise<{ ok: boolean; status: number; text(): Promise<string> }>
 
 // Register ImageConversion extension methods so tex.LoadImage(bytes) works
 useExtensions(CS.UnityEngine.ImageConversion)
