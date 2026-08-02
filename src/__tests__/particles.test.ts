@@ -10,7 +10,7 @@ describe("particles wire schema", () => {
     it("emits the canonical document with all defaults resolved", () => {
         const doc = toWire({ emitters: [{}] })
         expect(doc).toEqual({
-            v: 1,
+            v: 2,
             max: 1000,
             space: 0,
             seed: 0,
@@ -30,6 +30,8 @@ describe("particles wire schema", () => {
                 lifeMax: 1,
                 sizeMin: 8,
                 sizeMax: 8,
+                aspectMin: 1,
+                aspectMax: 1,
                 gravityX: 0,
                 gravityY: 0,
                 drag: 0,
@@ -38,8 +40,15 @@ describe("particles wire schema", () => {
                 angVelMin: 0,
                 angVelMax: 0,
                 additiveness: 0,
+                attractX: 0,
+                attractY: 0,
+                attractStrength: 0,
+                attractEase: 1,
+                edge: 0,
+                bounciness: 0.5,
                 colorKeys: [{ t: 0, r: 1, g: 1, b: 1, a: 1 }],
                 sizeKeys: [{ t: 0, v: 1 }],
+                tintPalette: [],
             }],
         })
     })
@@ -88,11 +97,54 @@ describe("particles wire schema", () => {
     it("rejects malformed colors", () => {
         expect(() => toWire({ emitters: [{ colorOverLife: ["#12345"] }] })).toThrow(/invalid color/)
     })
+
+    it("normalizes the aspect range", () => {
+        expect(toWire({ emitters: [{ aspect: 0.25 }] }).emitters[0]).toMatchObject({
+            aspectMin: 0.25, aspectMax: 0.25,
+        })
+        expect(toWire({ emitters: [{ aspect: [0.2, 0.6] }] }).emitters[0]).toMatchObject({
+            aspectMin: 0.2, aspectMax: 0.6,
+        })
+    })
+
+    it("parses tintPalette entries as flat rgba (no curve time)", () => {
+        const palette = toWire({ emitters: [{ tintPalette: ["#f00", "#00ff0080"] }] }).emitters[0].tintPalette
+        expect(palette).toEqual([
+            { r: 1, g: 0, b: 0, a: 1 },
+            { r: 0, g: 1, b: 0, a: 128 / 255 },
+        ])
+    })
+
+    it("maps attract config, defaulting to full-strength ease-in", () => {
+        expect(toWire({ emitters: [{ attract: { pos: [40, 90] } }] }).emitters[0]).toMatchObject({
+            attractX: 40, attractY: 90, attractStrength: 1, attractEase: 1,
+        })
+        expect(toWire({
+            emitters: [{ attract: { pos: [1, 2], strength: 0.4, ease: "out" } }],
+        }).emitters[0]).toMatchObject({ attractStrength: 0.4, attractEase: 2 })
+    })
+
+    it("maps edge modes and bounciness", () => {
+        expect(toWire({ emitters: [{ edge: "bounce", bounciness: 0.2 }] }).emitters[0]).toMatchObject({
+            edge: 2, bounciness: 0.2,
+        })
+        expect(toWire({ emitters: [{ edge: "stick" }] }).emitters[0].edge).toBe(3)
+        expect(toWire({ emitters: [{ edge: "kill" }] }).emitters[0].edge).toBe(1)
+    })
+
+    it("rejects unknown enum strings", () => {
+        expect(() => toWire({ emitters: [{ edge: "explode" as never }] })).toThrow(/invalid edge mode/)
+        expect(() => toWire({
+            emitters: [{ attract: { pos: [0, 0], ease: "bouncy" as never } }],
+        })).toThrow(/invalid attract ease/)
+    })
 })
 
 describe("createParticles handle", () => {
     let sys: {
         SetEmitterPos: ReturnType<typeof vi.fn>
+        SetEmitterAttractor: ReturnType<typeof vi.fn>
+        SetEmitterTexture: ReturnType<typeof vi.fn>
         SetEmitterRate: ReturnType<typeof vi.fn>
         StartEmitter: ReturnType<typeof vi.fn>
         StopEmitter: ReturnType<typeof vi.fn>
@@ -109,6 +161,8 @@ describe("createParticles handle", () => {
     beforeEach(() => {
         sys = {
             SetEmitterPos: vi.fn(),
+            SetEmitterAttractor: vi.fn(),
+            SetEmitterTexture: vi.fn(),
             SetEmitterRate: vi.fn(),
             StartEmitter: vi.fn(),
             StopEmitter: vi.fn(),
@@ -141,6 +195,9 @@ describe("createParticles handle", () => {
         fx.emitters[1].pos(5, 6)
         expect(sys.SetEmitterPos).toHaveBeenCalledWith(1, 5, 6)
 
+        fx.emitters[1].attract(7, 8)
+        expect(sys.SetEmitterAttractor).toHaveBeenCalledWith(1, 7, 8)
+
         fx.emitters[0].rate = 99
         expect(sys.SetEmitterRate).toHaveBeenCalledWith(0, 99)
         expect(fx.emitters[0].rate).toBe(99)
@@ -156,6 +213,18 @@ describe("createParticles handle", () => {
         expect(sys.Burst).toHaveBeenCalledWith(1, 1, 2, 3)
 
         expect(fx.aliveCount).toBe(7)
+    })
+
+    it("applies per-emitter texture overrides after creation", () => {
+        const spark = { __fake: "spark" }
+        const smoke = { __fake: "smoke" }
+        createParticles(element, {
+            max: 10,
+            emitters: [{ rate: 1, texture: spark }, { rate: 1 }, { rate: 1, texture: smoke }],
+        })
+        expect(sys.SetEmitterTexture).toHaveBeenCalledTimes(2)
+        expect(sys.SetEmitterTexture).toHaveBeenCalledWith(0, spark)
+        expect(sys.SetEmitterTexture).toHaveBeenCalledWith(2, smoke)
     })
 
     it("dispose is idempotent and zeroes aliveCount", () => {

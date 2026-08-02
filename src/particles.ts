@@ -37,6 +37,8 @@ import type { VisualElement } from "./types"
 
 interface CSParticleSystem {
     SetEmitterPos(index: number, x: number, y: number): void
+    SetEmitterAttractor(index: number, x: number, y: number): void
+    SetEmitterTexture(index: number, texture: unknown): void
     SetEmitterRate(index: number, rate: number): void
     StartEmitter(index: number): void
     StopEmitter(index: number): void
@@ -70,6 +72,30 @@ export type EmitterShape =
     | { type: "rect"; width: number; height: number }
     | { type: "line"; length: number }
 
+/** Ramp shape for the attraction pull over a particle's life. */
+export type AttractEase = "linear" | "in" | "out"
+
+/**
+ * Pulls particles toward a point so they *arrive* by end of life, rather than
+ * modelling a physical attractor (which orbits and overshoots). Gravity, drag
+ * and initial velocity still apply; the pull progressively wins over them.
+ */
+export interface AttractConfig {
+    /** Target in emitter-local px (transformed like `pos` in panel space). */
+    pos: [number, number]
+    /** 0..1 - how completely the pull wins by end of life. 1 = exact arrival. Default 1. */
+    strength?: number
+    /** Default "in": particles hold their spread, then whoosh in. */
+    ease?: AttractEase
+}
+
+/**
+ * What happens when a particle's center leaves the host element's rect.
+ * "kill" reclaims it, "bounce" reflects it, "stick" freezes it in place (it
+ * still ages and fades, which is how snow/confetti settle).
+ */
+export type EdgeMode = "none" | "kill" | "bounce" | "stick"
+
 export interface EmitterConfig {
     /** Particles per second. Default 0 (burst-only emitter). */
     rate?: number
@@ -87,6 +113,8 @@ export interface EmitterConfig {
     lifetime?: ParticleRange
     /** Initial size in px. Default 8. */
     size?: ParticleRange
+    /** Quad width:height ratio - 1 is square, 0.2 a vertical streak. Default 1. */
+    aspect?: ParticleRange
     /** Constant acceleration in px/s^2. Default [0, 0]. */
     gravity?: [number, number]
     /** Velocity damping per second. Default 0. */
@@ -104,6 +132,23 @@ export interface EmitterConfig {
     colorOverLife?: ParticleColor[] | { t: number; color: ParticleColor }[]
     /** Size multiplier over normalized lifetime. Same key rules. */
     sizeOverLife?: number[] | { t: number; v: number }[]
+    /**
+     * Random per-particle tint, picked uniformly at spawn and *multiplied* into
+     * colorOverLife - so the fade ramp still shapes the alpha. Up to 16 entries.
+     * This is how one emitter produces multicolored confetti.
+     */
+    tintPalette?: ParticleColor[]
+    /** Pulls particles toward a point, arriving by end of life. Default: none. */
+    attract?: AttractConfig
+    /** Behavior at the host element's edges. Default "none". */
+    edge?: EdgeMode
+    /** Restitution for edge "bounce": 0 = dead stop, 1 = perfectly elastic. Default 0.5. */
+    bounciness?: number
+    /**
+     * CS Texture2D overriding the system sprite for this emitter. Emitters
+     * sharing a texture share a draw call, so keep distinct sprites few.
+     */
+    texture?: unknown
 }
 
 export interface ParticlesConfig {
@@ -122,6 +167,7 @@ export interface ParticlesConfig {
 
 export interface WireColorKey { t: number; r: number; g: number; b: number; a: number }
 export interface WireFloatKey { t: number; v: number }
+export interface WireRGBA { r: number; g: number; b: number; a: number }
 
 export interface WireEmitter {
     rate: number
@@ -139,6 +185,8 @@ export interface WireEmitter {
     lifeMax: number
     sizeMin: number
     sizeMax: number
+    aspectMin: number
+    aspectMax: number
     gravityX: number
     gravityY: number
     drag: number
@@ -147,12 +195,19 @@ export interface WireEmitter {
     angVelMin: number
     angVelMax: number
     additiveness: number
+    attractX: number
+    attractY: number
+    attractStrength: number
+    attractEase: number
+    edge: number
+    bounciness: number
     colorKeys: WireColorKey[]
     sizeKeys: WireFloatKey[]
+    tintPalette: WireRGBA[]
 }
 
 export interface WireDoc {
-    v: 1
+    v: 2
     max: number
     space: 0 | 1
     seed: number
@@ -185,6 +240,15 @@ function evenT(index: number, length: number): number {
 }
 
 const SHAPE_IDS = { point: 0, circle: 1, rect: 2, line: 3 } as const
+const ATTRACT_EASE_IDS: Record<string, number> = { linear: 0, in: 1, out: 2 }
+const EDGE_IDS: Record<string, number> = { none: 0, kill: 1, bounce: 2, stick: 3 }
+
+function enumId(map: Record<string, number>, value: string | undefined, fallback: number, what: string): number {
+    if (value === undefined) return fallback
+    const id = map[value]
+    if (id === undefined) throw new Error(`[onejs particles] invalid ${what} "${value}"`)
+    return id
+}
 
 /**
  * Normalizes an ergonomic config into the canonical wire document. Every field
@@ -198,6 +262,7 @@ export function toWire(config: ParticlesConfig): WireDoc {
         const [speedMin, speedMax] = range(e.speed, 0, 0)
         const [lifeMin, lifeMax] = range(e.lifetime, 1, 1)
         const [sizeMin, sizeMax] = range(e.size, 8, 8)
+        const [aspectMin, aspectMax] = range(e.aspect, 1, 1)
         const [rotMin, rotMax] = range(e.rotation, 0, 0)
         const [angVelMin, angVelMax] = range(e.angularVel, 0, 0)
 
@@ -219,6 +284,8 @@ export function toWire(config: ParticlesConfig): WireDoc {
                     ? { t: evenT(i, sizeSrc.length), v: entry }
                     : { t: entry.t, v: entry.v })
 
+        const tintPalette: WireRGBA[] = (e.tintPalette ?? []).map(parseColor)
+
         return {
             rate: e.rate ?? 0,
             emitting: e.emitting ?? true,
@@ -233,19 +300,27 @@ export function toWire(config: ParticlesConfig): WireDoc {
             speedMin, speedMax,
             lifeMin, lifeMax,
             sizeMin, sizeMax,
+            aspectMin, aspectMax,
             gravityX: e.gravity?.[0] ?? 0,
             gravityY: e.gravity?.[1] ?? 0,
             drag: e.drag ?? 0,
             rotMin, rotMax,
             angVelMin, angVelMax,
             additiveness: e.additiveness ?? 0,
+            attractX: e.attract?.pos[0] ?? 0,
+            attractY: e.attract?.pos[1] ?? 0,
+            attractStrength: e.attract ? e.attract.strength ?? 1 : 0,
+            attractEase: enumId(ATTRACT_EASE_IDS, e.attract?.ease, 1, "attract ease"),
+            edge: enumId(EDGE_IDS, e.edge, 0, "edge mode"),
+            bounciness: e.bounciness ?? 0.5,
             colorKeys,
             sizeKeys,
+            tintPalette,
         }
     })
 
     return {
-        v: 1,
+        v: 2,
         max: config.max ?? 1000,
         space: config.space === "panel" ? 1 : 0,
         seed: config.seed ?? 0,
@@ -258,6 +333,11 @@ export function toWire(config: ParticlesConfig): WireDoc {
 export interface EmitterHandle {
     /** Moves the emitter (element-local px). One crossing; fine per-frame. */
     pos(x: number, y: number): void
+    /**
+     * Moves the attraction target (element-local px). One crossing; fine
+     * per-frame. No effect unless the emitter was configured with `attract`.
+     */
+    attract(x: number, y: number): void
     /** Live emission rate in particles/s. */
     rate: number
     start(): void
@@ -292,11 +372,18 @@ export function createParticles(element: VisualElement, config: ParticlesConfig)
     const doc = toWire(config)
     const sys = CS.OneJS.ParticleBridge.Create(element, JSON.stringify(doc), config.texture ?? null)
 
+    // Textures can't ride the JSON document, so per-emitter overrides are applied
+    // as setup-time crossings right after creation.
+    config.emitters.forEach((e, i) => {
+        if (e.texture) sys.SetEmitterTexture(i, e.texture)
+    })
+
     let disposed = false
     const emitters: EmitterHandle[] = doc.emitters.map((e, i) => {
         let rate = e.rate
         return {
             pos: (x: number, y: number) => sys.SetEmitterPos(i, x, y),
+            attract: (x: number, y: number) => sys.SetEmitterAttractor(i, x, y),
             get rate() { return rate },
             set rate(r: number) {
                 rate = r

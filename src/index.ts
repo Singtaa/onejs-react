@@ -62,6 +62,9 @@ export type {
   BurstOptions,
   ParticleRange,
   ParticleColor,
+  AttractConfig,
+  AttractEase,
+  EdgeMode,
 } from './particles';
 
 // Sync Hooks & C# Interop Utilities
