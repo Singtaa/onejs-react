@@ -68,6 +68,11 @@ export type {
   SheetConfig,
 } from './particles';
 
+// Shader-driven procedural effects (C#-owned blit; see OneJS Runtime/ShaderFX)
+export { ShaderEffect, Flame } from './components';
+export type { FlameProps } from './components';
+export type { ShaderEffectProps } from './types';
+
 // Sync Hooks & C# Interop Utilities
 export { useFrameSync, useFrameSyncWith, useThrottledSync, useEventSync, toArray } from './hooks';
 export type { EventSource } from './hooks';

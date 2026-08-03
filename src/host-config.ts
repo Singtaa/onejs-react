@@ -71,6 +71,9 @@ declare const CS: {
             };
             FrostedGlassElement: new () => CSObject;
         };
+        ShaderFX: {
+            ShaderEffectElement: new () => CSObject;
+        };
         StyleBridge: {
             ApplyStyles: (element: CSObject, styles: Record<string, unknown>) => void;
             AddClassesBatch: (element: CSObject, classes: string[]) => void;
@@ -189,6 +192,7 @@ const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-image': () => new CS.UnityEngine.UIElements.Image(),
     'ojs-listview': () => new CS.UnityEngine.UIElements.ListView(),
     'ojs-frostedglass': () => new CS.OneJS.GPU.FrostedGlassElement(),
+    'ojs-shaderfx': () => new CS.OneJS.ShaderFX.ShaderEffectElement(),
 };
 
 // Built-in types with specific prop handling in applyComponentProps
@@ -958,6 +962,8 @@ function applyComponentProps(element: CSObject, type: string, props: Record<stri
         const el = element as any;
         if (props.blurRadius !== undefined && props.blurRadius !== oldProps?.blurRadius) el.BlurRadius = props.blurRadius;
         if (props.tintColor !== undefined && props.tintColor !== oldProps?.tintColor) el.TintColor = props.tintColor;
+    } else if (type === 'ojs-shaderfx') {
+        applyShaderFxProps(element as any, props, oldProps);
     }
 }
 
@@ -1349,3 +1355,77 @@ export const hostConfig = {
         return (console as Record<string, Function>)[methodName]?.bind(console, ...args);
     },
 } as unknown as OurHostConfig;
+
+// MARK: ShaderFX
+
+/** "#rgb" | "#rrggbb" | "#rrggbbaa" -> [r, g, b, a] floats. */
+function shaderHexToRgba(c: string): [number, number, number, number] {
+    let h = c.startsWith('#') ? c.slice(1) : c;
+    if (h.length === 3 || h.length === 4) h = h.split('').map((d) => d + d).join('');
+    if (h.length !== 6 && h.length !== 8) throw new Error(`[onejs shaderfx] invalid color "${c}"`);
+    const n = (i: number) => parseInt(h.slice(i, i + 2), 16) / 255;
+    return [n(0), n(2), n(4), h.length === 8 ? n(6) : 1];
+}
+
+const shaderShallowEq = (a: any, b: any) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    return ka.every((k) => a[k] === b[k]);
+};
+
+/**
+ * Applies ShaderEffect props. Each setter is one interop crossing and the
+ * element re-applies them before every blit, so ordering against shader/material
+ * creation does not matter. Dictionaries are compared shallowly, which is enough
+ * because effect props are flat numbers and strings.
+ */
+function applyShaderFxProps(el: any, props: any, oldProps?: any) {
+    if (props.shader !== undefined && props.shader !== oldProps?.shader) el.SetShader(props.shader);
+
+    if (props.resolution !== undefined || oldProps?.resolution !== undefined) {
+        const r = props.resolution;
+        const o = oldProps?.resolution;
+        if (!r || !o || r[0] !== o[0] || r[1] !== o[1]) {
+            // 0,0 tells the element to follow its own layout size.
+            el.SetResolution(r ? r[0] : 0, r ? r[1] : 0);
+        }
+    }
+
+    if (props.floats && !shaderShallowEq(props.floats, oldProps?.floats)) {
+        for (const k in props.floats) el.SetFloat(k, props.floats[k]);
+    }
+    if (props.vectors && !shaderShallowEq(props.vectors, oldProps?.vectors)) {
+        for (const k in props.vectors) {
+            const v = props.vectors[k];
+            el.SetVector(k, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 0);
+        }
+    }
+    if (props.colors && !shaderShallowEq(props.colors, oldProps?.colors)) {
+        for (const k in props.colors) {
+            const [r, g, b, a] = shaderHexToRgba(props.colors[k]);
+            el.SetColor(k, r, g, b, a);
+        }
+    }
+    if (props.textures && !shaderShallowEq(props.textures, oldProps?.textures)) {
+        for (const k in props.textures) {
+            const t = props.textures[k];
+            // A string names a built-in procedural texture; anything else is a CS Texture.
+            if (typeof t === 'string') el.SetBuiltinTexture(k, t);
+            else if (t) el.SetTexture(k, t);
+        }
+    }
+    if (props.ramp !== undefined) {
+        const same = oldProps?.ramp && oldProps.ramp.length === props.ramp.length
+            && props.ramp.every((c: string, i: number) => c === oldProps.ramp[i]);
+        if (!same) {
+            const flat: number[] = [];
+            for (const c of props.ramp) flat.push(...shaderHexToRgba(c));
+            el.SetRamp(props.rampProperty ?? '_Ramp', flat);
+        }
+    }
+    if (props.paused !== undefined && props.paused !== oldProps?.paused) {
+        if (props.paused) el.Pause(); else el.Resume();
+    }
+}

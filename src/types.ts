@@ -826,3 +826,40 @@ export interface ListViewProps extends BaseProps {
   showBorder?: boolean;
   showAlternatingRowBackgrounds?: 'None' | 'ContentOnly' | 'All';
 }
+
+/**
+ * A UI element whose background is generated each frame by a shader. The effect
+ * is blitted into a RenderTexture and shown as the element's backgroundImage, so
+ * the element stays a normal UI element: border-radius, clipping, opacity and
+ * antialiasing all still apply to it.
+ *
+ * Property names are the shader's own (`_Speed`, `_Ramp`, ...). Effects are a
+ * shader plus a thin wrapper component, so adding one needs no C#.
+ */
+export interface ShaderEffectProps extends BaseProps {
+  /** Shader to run, resolved through Resources (e.g. "OneJS/Fire"). */
+  shader: string;
+  /** Render size in px. Omit to follow the element's own layout size. */
+  resolution?: [number, number];
+  /** Scalar shader properties. */
+  floats?: Record<string, number>;
+  /** float4 shader properties. */
+  vectors?: Record<string, [number, number, number, number]>;
+  /** Colour properties as CSS hex strings. */
+  colors?: Record<string, string>;
+  /**
+   * Texture properties. A string names a built-in procedural texture
+   * ("noise", "noise:2", "flame-mask", "radial-mask"); anything else is
+   * treated as a CS Texture. Built-ins mean an effect can ship with no art.
+   */
+  textures?: Record<string, string | unknown>;
+  /** Gradient stops built into a 256x1 ramp texture. Alpha is carried through. */
+  ramp?: string[];
+  /** Shader property the ramp binds to. Default "_Ramp". */
+  rampProperty?: string;
+  /** Freeze the effect's clock. */
+  paused?: boolean;
+}
+
+/** Internal props for the ojs-shaderfx intrinsic element */
+export interface ShaderEffectIntrinsicProps extends ShaderEffectProps { }

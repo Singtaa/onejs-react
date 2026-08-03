@@ -13,6 +13,8 @@ import type {
   ListViewProps,
   FrostedGlassProps,
   FrostedGlassIntrinsicProps,
+  ShaderEffectProps,
+  ShaderEffectIntrinsicProps,
   VisualElement,
   TextElement,
   LabelElement,
@@ -160,6 +162,7 @@ declare module 'react/jsx-runtime' {
       'ojs-image': WithRef<ImageProps, ImageElement>;
       'ojs-listview': WithRef<ListViewProps, VisualElement>;
       'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
+      'ojs-shaderfx': WithRef<ShaderEffectIntrinsicProps, VisualElement>;
     }
   }
 }
@@ -302,3 +305,94 @@ export function createComponent<P extends BaseProps = BaseProps>(
     Component.displayName = displayName || name;
     return Component;
 }
+
+// MARK: ShaderFX
+
+/**
+ * Runs a shader into this element's background, one blit per frame.
+ *
+ * The generic layer: any shader, any properties. An effect is this component
+ * plus a wrapper that fills in the shader name and friendly prop names, so
+ * shipping a new effect costs a shader file and a few lines of TSX - no C#.
+ *
+ *     <ShaderEffect
+ *         shader="OneJS/Fire"
+ *         textures={{ _NoiseA: "noise:1", _NoiseB: "noise:2" }}
+ *         ramp={["#00000000", "#7a0d00", "#ff5a00", "#ffd042", "#fffbe8"]}
+ *         floats={{ _Speed: 1.2 }}
+ *         style={{ width: 160, height: 240 }}
+ *     />
+ */
+export const ShaderEffect = forwardRef<any, ShaderEffectProps>((props, ref) => {
+  return <ojs-shaderfx {...(props as any)} ref={ref} />;
+});
+ShaderEffect.displayName = 'ShaderEffect';
+
+/** Warm fire, transparent at the cool end so the flame sits on any background. */
+const FIRE_RAMP = ['#00000000', '#4a060088', '#c22200dd', '#ff6a10ff', '#ffc23cff', '#fff4d2ff'];
+
+// 'colors' is re-purposed here: on ShaderEffect it is raw shader colour
+// properties, on Flame it is the gradient, which is the name a caller expects.
+export interface FlameProps extends Omit<ShaderEffectProps, 'shader' | 'textures' | 'ramp' | 'floats' | 'colors'> {
+  /** Gradient from coolest to hottest. The first stop should be transparent. */
+  colors?: string[];
+  /** Overall animation rate. Default 1. */
+  speed?: number;
+  /** 0 flattens the noise to a smooth blob, 1 is fully turbulent. Default 1. */
+  turbulence?: number;
+  /** Raises or lowers the whole field before erosion. Default 1. */
+  intensity?: number;
+  /** Erosion cutoff: higher eats the flame back to fewer, sharper licks. Default 0.22. */
+  threshold?: number;
+  /** Width of the eroded edge. Lower is crisper, higher is smokier. Default 0.38. */
+  softness?: number;
+  /** Lateral drift of the column, strongest at the tip. Default 0.06. */
+  sway?: number;
+  /** Half-width at the base, as a fraction of the element's width. Default 0.44. */
+  width?: number;
+  /** How fast the silhouette narrows toward the tip. Default 0.7. */
+  taper?: number;
+  /** Boost applied to the multiplied noise before erosion. Default 7.5. */
+  gain?: number;
+  /** Fade-in distance off the base, so the flame is not cut flat. Default 0.05. */
+  baseSoftness?: number;
+  /** How quickly the flame thins with height. Lower burns taller. Default 0.55. */
+  topFalloff?: number;
+}
+
+/**
+ * A procedural flame. Two noise fields scroll upward at different rates and
+ * multiply, a mask carves the silhouette, and a colour ramp does the rest - no
+ * particles, no sprite sheet, nothing to keep in sync.
+ *
+ *     <Flame style={{ width: 160, height: 240 }} />
+ *     <Flame colors={["#00000000", "#001a4a", "#0080ff", "#9fe6ff"]} speed={1.4} />
+ */
+export const Flame = forwardRef<any, FlameProps>(
+  ({ colors, speed, turbulence, intensity, threshold, softness, sway, width, taper, gain,
+     baseSoftness, topFalloff, ...rest }, ref) => {
+    return (
+      <ShaderEffect
+        {...rest}
+        ref={ref}
+        shader="OneJS/Fire"
+        textures={{ _NoiseA: 'noise:1', _NoiseB: 'noise:2' }}
+        ramp={colors ?? FIRE_RAMP}
+        floats={{
+          _Speed: speed ?? 1,
+          _Turbulence: turbulence ?? 1,
+          _Intensity: intensity ?? 1,
+          _Threshold: threshold ?? 0.10,
+          _Softness: softness ?? 0.30,
+          _Sway: sway ?? 0.06,
+          _Width: width ?? 0.44,
+          _Taper: taper ?? 0.7,
+          _Gain: gain ?? 7.5,
+          _BaseSoft: baseSoftness ?? 0.05,
+          _TopFalloff: topFalloff ?? 0.55,
+        }}
+      />
+    );
+  }
+);
+Flame.displayName = 'Flame';
