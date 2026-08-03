@@ -1407,7 +1407,8 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
             const a = props.vectorArrays[k];
             const o = oldProps?.vectorArrays?.[k];
             if (!o || o.length !== a.length || a.some((v: number, i: number) => v !== o[i])) {
-                el.SetVectorArray(k, a);
+                // Float32Array so the bootstrap marshals it as a float array
+                el.SetVectorArray(k, Float32Array.from(a));
             }
         }
     }

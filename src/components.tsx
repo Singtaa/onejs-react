@@ -373,9 +373,10 @@ export interface FlameProps extends Omit<ShaderEffectProps, 'shader' | 'floats' 
   colors?: string[];
   /** Overall animation rate. Default 1. */
   speed?: number;
-  /** Erosion cutoff: higher eats the flame back to fewer, sharper licks. Default 0.10. */
+  /** Erosion cutoff: higher eats the flame back to fewer, sharper licks. Default 0.30. */
   threshold?: number;
-  /** Width of the eroded edge. Lower is crisper, higher is smokier. Default 0.30. */
+  /** Width of the eroded band. Must be on the order of the stack's value range
+   * (roughly `gain` x the shape), or the ramp saturates to its hot end. Default 1.0. */
   softness?: number;
   /** Half-width at the base, as a fraction of the element's width. Default 0.44. */
   width?: number;
@@ -407,7 +408,7 @@ export const Flame = forwardRef<any, FlameProps>(
         softness: 0.05,
         falloff: topFalloff ?? 0.55,
       }).multiply();
-      fx.erode(threshold ?? 0.10, softness ?? 0.30);
+      fx.erode(threshold ?? 0.30, softness ?? 1.0);
       fx.ramp(colors ?? FIRE_RAMP);
       fx.setSpeed(speed ?? 1);
     }, [colors, speed, threshold, softness, width, taper, topFalloff, gain]);

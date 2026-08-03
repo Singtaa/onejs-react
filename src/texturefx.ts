@@ -33,7 +33,12 @@ export type ShapeKind = keyof typeof SHAPE;
 export const MAX_TEXTUREFX_LAYERS = 6;
 
 export interface NoiseOptions {
-    /** Repeats across the element. A scalar applies to both axes. Default 4. */
+    /**
+     * Repeats across the element, so it is element-relative: the same scale on a
+     * bigger element gives bigger features, and an effect that reads well at one
+     * size can go blobby at another. Scale this with the element to keep a
+     * constant feature size. A scalar applies to both axes. Default 4.
+     */
     scale?: number | [number, number];
     /** Any number; different seeds give unrelated fields. Default 1. */
     seed?: number;
