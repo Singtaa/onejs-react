@@ -17,8 +17,11 @@ describe("TextureFX builder", () => {
         expect(c.floats._Softness).toBe(0.4)
         // _LScale = (scaleX, scaleY, octaves, seed)
         expect(c.vectorArrays._LScale).toEqual([3, 4, 2, 7])
-        // _LScroll = (scrollX, scrollY, amount, shapeId)
-        expect(c.vectorArrays._LScroll).toEqual([0.1, -0.5, 2, 0])
+        // _LScroll = (scrollX*scaleX, scrollY*scaleY, amount, shapeId): scroll is
+        // authored element-relative and pre-multiplied so scale does not change speed
+        expect(c.vectorArrays._LScroll[0]).toBeCloseTo(0.3)
+        expect(c.vectorArrays._LScroll[1]).toBeCloseTo(-2.0)
+        expect(c.vectorArrays._LScroll.slice(2, 4)).toEqual([2, 0])
         // _LMode = (src, blend, _, _); src 0 = noise, blend 0 = set
         expect(c.vectorArrays._LMode).toEqual([0, 0, 0, 0])
     })
@@ -75,5 +78,19 @@ describe("TextureFX builder", () => {
     it("carries the ramp through untouched, alpha included", () => {
         const ramp = ["#00000000", "#ff6a10ff"]
         expect(buildTextureFX((fx) => { fx.noise(); fx.ramp(ramp) }).ramp).toEqual(ramp)
+    })
+})
+
+describe("TextureFX scroll semantics", () => {
+    it("keeps speed independent of scale", () => {
+        // The same element-relative scroll at two scales must traverse the element
+        // at the same rate, i.e. noise-space velocity scales with the field.
+        const at = (scale: number) =>
+            buildTextureFX((fx) => { fx.noise({ scale, scroll: [0, -1] }); fx.ramp(["#000", "#fff"]) })
+                .vectorArrays._LScroll[1]
+        expect(at(4)).toBeCloseTo(-4)
+        expect(at(8)).toBeCloseTo(-8)
+        // one element-height per second at either scale
+        expect(at(4) / 4).toBeCloseTo(at(8) / 8)
     })
 })

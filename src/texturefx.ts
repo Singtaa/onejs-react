@@ -44,7 +44,13 @@ export interface NoiseOptions {
     seed?: number;
     /** fBm octaves, 1..4. More is wispier and costs more. Default 3. */
     octaves?: number;
-    /** UV units per second. Negative y scrolls the pattern upward. Default [0, 0]. */
+    /**
+     * Element-heights per second. 1 means the pattern travels the element's full
+     * height each second, and -1 travels upward. Deliberately independent of
+     * `scale`: the builder multiplies it by scale before it reaches the shader,
+     * which samples in noise space, so changing scale re-sizes the features
+     * without also changing how fast they move. Default [0, 0].
+     */
     scroll?: [number, number];
     /** Multiplier on this layer's value before blending. Default 1. */
     amount?: number;
@@ -197,7 +203,10 @@ export class TextureFXBuilder {
         const scale: number[] = [], scroll: number[] = [], params: number[] = [], mode: number[] = [];
         for (const l of this.layers) {
             scale.push(l.scale[0], l.scale[1], l.octaves, l.seed);
-            scroll.push(l.scroll[0], l.scroll[1], l.amount, l.shape);
+            // Scroll is authored element-relative but the shader samples in noise
+            // space, so pre-multiply by scale here. Without this, raising scale
+            // silently slows the animation.
+            scroll.push(l.scroll[0] * l.scale[0], l.scroll[1] * l.scale[1], l.amount, l.shape);
             params.push(...l.params);
             mode.push(l.src, l.blend, 0, 0);
         }

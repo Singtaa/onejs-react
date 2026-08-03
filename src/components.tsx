@@ -400,8 +400,8 @@ export const Flame = forwardRef<any, FlameProps>(
       // Two fields at different scales and rates: their product is what gives fire
       // its wispy, non-repeating structure. The gain is split so the product lands
       // in a usable range instead of collapsing toward zero.
-      fx.noise({ scale: [3, 4], seed: 1, scroll: [0.03, -0.35], amount: Math.sqrt(g) });
-      fx.noise({ scale: [6, 8], seed: 2, scroll: [-0.05, -0.62], amount: Math.sqrt(g) }).multiply();
+      fx.noise({ scale: [3, 4], seed: 1, scroll: [0.02, -1.1], amount: Math.sqrt(g) });
+      fx.noise({ scale: [6, 8], seed: 2, scroll: [-0.03, -1.9], amount: Math.sqrt(g) }).multiply();
       fx.shape('flame', {
         width: width ?? 0.44,
         taper: taper ?? 0.7,
