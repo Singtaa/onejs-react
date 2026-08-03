@@ -10,7 +10,7 @@ describe("particles wire schema", () => {
     it("emits the canonical document with all defaults resolved", () => {
         const doc = toWire({ emitters: [{}] })
         expect(doc).toEqual({
-            v: 2,
+            v: 3,
             max: 1000,
             space: 0,
             seed: 0,
@@ -46,6 +46,12 @@ describe("particles wire schema", () => {
                 attractEase: 1,
                 edge: 0,
                 bounciness: 0.5,
+                sheetCols: 1,
+                sheetRows: 1,
+                sheetMode: 0,
+                sheetFps: 24,
+                sheetFrames: 0,
+                sheetRandomStart: false,
                 colorKeys: [{ t: 0, r: 1, g: 1, b: 1, a: 1 }],
                 sizeKeys: [{ t: 0, v: 1 }],
                 tintPalette: [],
@@ -137,6 +143,27 @@ describe("particles wire schema", () => {
         expect(() => toWire({
             emitters: [{ attract: { pos: [0, 0], ease: "bouncy" as never } }],
         })).toThrow(/invalid attract ease/)
+        expect(() => toWire({
+            emitters: [{ sheet: { cols: 2, rows: 2, mode: "pingpong" as never } }],
+        })).toThrow(/invalid sheet mode/)
+    })
+
+    it("maps the flipbook sheet, defaulting to play-once-over-life", () => {
+        expect(toWire({ emitters: [{ sheet: { cols: 4, rows: 4 } }] }).emitters[0]).toMatchObject({
+            sheetCols: 4, sheetRows: 4, sheetMode: 0, sheetFps: 24,
+            sheetFrames: 0, sheetRandomStart: false,
+        })
+        expect(toWire({
+            emitters: [{ sheet: { cols: 8, rows: 2, mode: "fps", fps: 30, randomStart: true, frameCount: 13 } }],
+        }).emitters[0]).toMatchObject({
+            sheetCols: 8, sheetRows: 2, sheetMode: 1, sheetFps: 30,
+            sheetFrames: 13, sheetRandomStart: true,
+        })
+    })
+
+    it("leaves frameCount at 0 so C# resolves it from the grid", () => {
+        // One source of truth for cols*rows - the JS side never duplicates it.
+        expect(toWire({ emitters: [{ sheet: { cols: 3, rows: 5 } }] }).emitters[0].sheetFrames).toBe(0)
     })
 })
 

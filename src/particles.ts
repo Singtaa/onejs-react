@@ -96,6 +96,26 @@ export interface AttractConfig {
  */
 export type EdgeMode = "none" | "kill" | "bounce" | "stick"
 
+/**
+ * Treats the emitter's texture as a grid of animation frames. Frame 0 is the
+ * sheet's top-left cell, advancing left to right, top to bottom - the standard
+ * flipbook layout. This is how hand-painted effects (flames, explosions, smoke)
+ * get their motion; procedural curves alone can't produce it.
+ */
+export interface SheetConfig {
+    /** Grid dimensions of the sprite sheet. */
+    cols: number
+    rows: number
+    /** "life" plays the sheet once over the particle's lifetime (default); "fps" loops at a fixed rate. */
+    mode?: "life" | "fps"
+    /** Frames per second for mode "fps". Default 24. */
+    fps?: number
+    /** Start each particle on a random frame, so a burst doesn't animate in lockstep. Default false. */
+    randomStart?: boolean
+    /** Use only the first N cells, for sheets whose last row is padded. Default cols*rows. */
+    frameCount?: number
+}
+
 export interface EmitterConfig {
     /** Particles per second. Default 0 (burst-only emitter). */
     rate?: number
@@ -149,6 +169,8 @@ export interface EmitterConfig {
      * sharing a texture share a draw call, so keep distinct sprites few.
      */
     texture?: unknown
+    /** Play the texture as a flipbook grid instead of a single sprite. */
+    sheet?: SheetConfig
 }
 
 export interface ParticlesConfig {
@@ -201,13 +223,19 @@ export interface WireEmitter {
     attractEase: number
     edge: number
     bounciness: number
+    sheetCols: number
+    sheetRows: number
+    sheetMode: number
+    sheetFps: number
+    sheetFrames: number
+    sheetRandomStart: boolean
     colorKeys: WireColorKey[]
     sizeKeys: WireFloatKey[]
     tintPalette: WireRGBA[]
 }
 
 export interface WireDoc {
-    v: 2
+    v: 3
     max: number
     space: 0 | 1
     seed: number
@@ -242,6 +270,7 @@ function evenT(index: number, length: number): number {
 const SHAPE_IDS = { point: 0, circle: 1, rect: 2, line: 3 } as const
 const ATTRACT_EASE_IDS: Record<string, number> = { linear: 0, in: 1, out: 2 }
 const EDGE_IDS: Record<string, number> = { none: 0, kill: 1, bounce: 2, stick: 3 }
+const SHEET_MODE_IDS: Record<string, number> = { life: 0, fps: 1 }
 
 function enumId(map: Record<string, number>, value: string | undefined, fallback: number, what: string): number {
     if (value === undefined) return fallback
@@ -313,6 +342,13 @@ export function toWire(config: ParticlesConfig): WireDoc {
             attractEase: enumId(ATTRACT_EASE_IDS, e.attract?.ease, 1, "attract ease"),
             edge: enumId(EDGE_IDS, e.edge, 0, "edge mode"),
             bounciness: e.bounciness ?? 0.5,
+            sheetCols: e.sheet?.cols ?? 1,
+            sheetRows: e.sheet?.rows ?? 1,
+            sheetMode: enumId(SHEET_MODE_IDS, e.sheet?.mode, 0, "sheet mode"),
+            sheetFps: e.sheet?.fps ?? 24,
+            // 0 tells C# to resolve it to cols*rows, keeping one source of truth.
+            sheetFrames: e.sheet?.frameCount ?? 0,
+            sheetRandomStart: e.sheet?.randomStart ?? false,
             colorKeys,
             sizeKeys,
             tintPalette,
@@ -320,7 +356,7 @@ export function toWire(config: ParticlesConfig): WireDoc {
     })
 
     return {
-        v: 2,
+        v: 3,
         max: config.max ?? 1000,
         space: config.space === "panel" ? 1 : 0,
         seed: config.seed ?? 0,

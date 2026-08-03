@@ -65,6 +65,7 @@ export type {
   AttractConfig,
   AttractEase,
   EdgeMode,
+  SheetConfig,
 } from './particles';
 
 // Sync Hooks & C# Interop Utilities
