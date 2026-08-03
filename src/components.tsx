@@ -27,6 +27,8 @@ import type {
   FrostedGlassElement,
 } from './types';
 
+import { TextureFXBuilder, buildTextureFX, type TextureFXBuild } from './texturefx';
+
 declare const CS: any
 declare function useExtensions(typeRef: any): void
 // Provided by the OneJS bootstrap (Network.cs) on native, by the browser on WebGL
@@ -331,68 +333,86 @@ ShaderEffect.displayName = 'ShaderEffect';
 /** Warm fire, transparent at the cool end so the flame sits on any background. */
 const FIRE_RAMP = ['#00000000', '#4a060088', '#c22200dd', '#ff6a10ff', '#ffc23cff', '#fff4d2ff'];
 
-// 'colors' is re-purposed here: on ShaderEffect it is raw shader colour
-// properties, on Flame it is the gradient, which is the name a caller expects.
-export interface FlameProps extends Omit<ShaderEffectProps, 'shader' | 'textures' | 'ramp' | 'floats' | 'colors'> {
+export interface TextureFXProps extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectorArrays' | 'ramp'> {
+  /** Imperative builder: add sources, blend them, erode, then ramp. */
+  build: TextureFXBuild;
+}
+
+/**
+ * Composes a procedural texture from noise, shapes and blends.
+ *
+ *     <TextureFX
+ *         style={{ width: 160, height: 240 }}
+ *         build={(fx) => {
+ *             fx.noise({ scale: [3, 4], seed: 1, scroll: [0.03, -0.35] })
+ *             fx.noise({ scale: [6, 8], seed: 2, scroll: [-0.05, -0.62] }).multiply()
+ *             fx.shape('flame', { width: 0.44 }).multiply()
+ *             fx.erode(0.10, 0.30).ramp(['#00000000', '#c22200', '#ff6a10', '#fff4d2'])
+ *         }}
+ *     />
+ */
+export const TextureFX = forwardRef<any, TextureFXProps>(({ build, ...rest }, ref) => {
+  // Recompiling on every render would rebuild the uniform arrays for nothing;
+  // the caller controls invalidation by identity of `build`.
+  const compiled = useMemo(() => buildTextureFX(build), [build]);
+  return (
+    <ShaderEffect
+      {...rest}
+      ref={ref}
+      shader="OneJS/TextureFX"
+      floats={compiled.floats}
+      vectorArrays={compiled.vectorArrays}
+      ramp={compiled.ramp}
+    />
+  );
+});
+TextureFX.displayName = 'TextureFX';
+
+export interface FlameProps extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectorArrays' | 'ramp' | 'colors' | 'textures'> {
   /** Gradient from coolest to hottest. The first stop should be transparent. */
   colors?: string[];
   /** Overall animation rate. Default 1. */
   speed?: number;
-  /** 0 flattens the noise to a smooth blob, 1 is fully turbulent. Default 1. */
-  turbulence?: number;
-  /** Raises or lowers the whole field before erosion. Default 1. */
-  intensity?: number;
-  /** Erosion cutoff: higher eats the flame back to fewer, sharper licks. Default 0.22. */
+  /** Erosion cutoff: higher eats the flame back to fewer, sharper licks. Default 0.10. */
   threshold?: number;
-  /** Width of the eroded edge. Lower is crisper, higher is smokier. Default 0.38. */
+  /** Width of the eroded edge. Lower is crisper, higher is smokier. Default 0.30. */
   softness?: number;
-  /** Lateral drift of the column, strongest at the tip. Default 0.06. */
-  sway?: number;
   /** Half-width at the base, as a fraction of the element's width. Default 0.44. */
   width?: number;
   /** How fast the silhouette narrows toward the tip. Default 0.7. */
   taper?: number;
-  /** Boost applied to the multiplied noise before erosion. Default 7.5. */
-  gain?: number;
-  /** Fade-in distance off the base, so the flame is not cut flat. Default 0.05. */
-  baseSoftness?: number;
   /** How quickly the flame thins with height. Lower burns taller. Default 0.55. */
   topFalloff?: number;
+  /** Multiplier on both noise layers, i.e. how much the field is boosted. Default 7.5. */
+  gain?: number;
 }
 
 /**
- * A procedural flame. Two noise fields scroll upward at different rates and
- * multiply, a mask carves the silhouette, and a colour ramp does the rest - no
- * particles, no sprite sheet, nothing to keep in sync.
- *
- *     <Flame style={{ width: 160, height: 240 }} />
- *     <Flame colors={["#00000000", "#001a4a", "#0080ff", "#9fe6ff"]} speed={1.4} />
+ * A procedural flame. This is a *preset over TextureFX*, not its own shader: two
+ * scrolling noise fields multiplied, carved by a flame shape, eroded and ramped.
+ * Anything it does is reachable from <TextureFX> directly.
  */
 export const Flame = forwardRef<any, FlameProps>(
-  ({ colors, speed, turbulence, intensity, threshold, softness, sway, width, taper, gain,
-     baseSoftness, topFalloff, ...rest }, ref) => {
-    return (
-      <ShaderEffect
-        {...rest}
-        ref={ref}
-        shader="OneJS/Fire"
-        textures={{ _NoiseA: 'noise:1', _NoiseB: 'noise:2' }}
-        ramp={colors ?? FIRE_RAMP}
-        floats={{
-          _Speed: speed ?? 1,
-          _Turbulence: turbulence ?? 1,
-          _Intensity: intensity ?? 1,
-          _Threshold: threshold ?? 0.10,
-          _Softness: softness ?? 0.30,
-          _Sway: sway ?? 0.06,
-          _Width: width ?? 0.44,
-          _Taper: taper ?? 0.7,
-          _Gain: gain ?? 7.5,
-          _BaseSoft: baseSoftness ?? 0.05,
-          _TopFalloff: topFalloff ?? 0.55,
-        }}
-      />
-    );
+  ({ colors, speed, threshold, softness, width, taper, topFalloff, gain, ...rest }, ref) => {
+    const build = useMemo<TextureFXBuild>(() => (fx: TextureFXBuilder) => {
+      const g = gain ?? 7.5;
+      // Two fields at different scales and rates: their product is what gives fire
+      // its wispy, non-repeating structure. The gain is split so the product lands
+      // in a usable range instead of collapsing toward zero.
+      fx.noise({ scale: [3, 4], seed: 1, scroll: [0.03, -0.35], amount: Math.sqrt(g) });
+      fx.noise({ scale: [6, 8], seed: 2, scroll: [-0.05, -0.62], amount: Math.sqrt(g) }).multiply();
+      fx.shape('flame', {
+        width: width ?? 0.44,
+        taper: taper ?? 0.7,
+        softness: 0.05,
+        falloff: topFalloff ?? 0.55,
+      }).multiply();
+      fx.erode(threshold ?? 0.10, softness ?? 0.30);
+      fx.ramp(colors ?? FIRE_RAMP);
+      fx.setSpeed(speed ?? 1);
+    }, [colors, speed, threshold, softness, width, taper, topFalloff, gain]);
+
+    return <TextureFX {...rest} ref={ref} build={build} />;
   }
 );
 Flame.displayName = 'Flame';

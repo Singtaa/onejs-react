@@ -845,6 +845,8 @@ export interface ShaderEffectProps extends BaseProps {
   floats?: Record<string, number>;
   /** float4 shader properties. */
   vectors?: Record<string, [number, number, number, number]>;
+  /** float4 array properties, as flat arrays of 4 floats per element. */
+  vectorArrays?: Record<string, number[]>;
   /** Colour properties as CSS hex strings. */
   colors?: Record<string, string>;
   /**

@@ -1402,6 +1402,15 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
             el.SetVector(k, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 0);
         }
     }
+    if (props.vectorArrays) {
+        for (const k in props.vectorArrays) {
+            const a = props.vectorArrays[k];
+            const o = oldProps?.vectorArrays?.[k];
+            if (!o || o.length !== a.length || a.some((v: number, i: number) => v !== o[i])) {
+                el.SetVectorArray(k, a);
+            }
+        }
+    }
     if (props.colors && !shaderShallowEq(props.colors, oldProps?.colors)) {
         for (const k in props.colors) {
             const [r, g, b, a] = shaderHexToRgba(props.colors[k]);
