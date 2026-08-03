@@ -10,7 +10,7 @@ describe("particles wire schema", () => {
     it("emits the canonical document with all defaults resolved", () => {
         const doc = toWire({ emitters: [{}] })
         expect(doc).toEqual({
-            v: 3,
+            v: 4,
             max: 1000,
             space: 0,
             seed: 0,
@@ -46,6 +46,8 @@ describe("particles wire schema", () => {
                 attractEase: 1,
                 edge: 0,
                 bounciness: 0.5,
+                pivotX: 0,
+                pivotY: 0,
                 sheetCols: 1,
                 sheetRows: 1,
                 sheetMode: 0,

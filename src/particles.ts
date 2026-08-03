@@ -135,6 +135,13 @@ export interface EmitterConfig {
     size?: ParticleRange
     /** Quad width:height ratio - 1 is square, 0.2 a vertical streak. Default 1. */
     aspect?: ParticleRange
+    /**
+     * Which point of the sprite sits on the particle position, in normalized quad
+     * coords: [0, 0] is the center (default), [0, 0.5] the bottom edge (Y is down).
+     * Bottom-anchoring is what keeps a flame or fountain from hanging below its
+     * source. This is also the point the sprite rotates around.
+     */
+    pivot?: [number, number]
     /** Constant acceleration in px/s^2. Default [0, 0]. */
     gravity?: [number, number]
     /** Velocity damping per second. Default 0. */
@@ -223,6 +230,8 @@ export interface WireEmitter {
     attractEase: number
     edge: number
     bounciness: number
+    pivotX: number
+    pivotY: number
     sheetCols: number
     sheetRows: number
     sheetMode: number
@@ -235,7 +244,7 @@ export interface WireEmitter {
 }
 
 export interface WireDoc {
-    v: 3
+    v: 4
     max: number
     space: 0 | 1
     seed: number
@@ -342,6 +351,8 @@ export function toWire(config: ParticlesConfig): WireDoc {
             attractEase: enumId(ATTRACT_EASE_IDS, e.attract?.ease, 1, "attract ease"),
             edge: enumId(EDGE_IDS, e.edge, 0, "edge mode"),
             bounciness: e.bounciness ?? 0.5,
+            pivotX: e.pivot?.[0] ?? 0,
+            pivotY: e.pivot?.[1] ?? 0,
             sheetCols: e.sheet?.cols ?? 1,
             sheetRows: e.sheet?.rows ?? 1,
             sheetMode: enumId(SHEET_MODE_IDS, e.sheet?.mode, 0, "sheet mode"),
@@ -356,7 +367,7 @@ export function toWire(config: ParticlesConfig): WireDoc {
     })
 
     return {
-        v: 3,
+        v: 4,
         max: config.max ?? 1000,
         space: config.space === "panel" ? 1 : 0,
         seed: config.seed ?? 0,
