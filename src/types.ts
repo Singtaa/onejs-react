@@ -285,7 +285,7 @@ export interface ChangeEventData<T = unknown> {
  * `e.relatedTarget` at runtime has been silently receiving `undefined`.
  *
  * `target` / `currentTarget` are raw C# handles, not `VisualElement` proxies.
- * Resolve them via `CS.QuickJSNative.GetObjectByHandle(handle)` when an
+ * Resolve them via `CS.OneJS.QuickJSNative.GetObjectByHandle(handle)` when an
  * element reference is needed, or compare them directly against
  * `ref.current?.__csHandle` to check element identity.
  */
