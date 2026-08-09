@@ -60,7 +60,7 @@ afterEach(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Mock C# proxy objects - simulates proxy caching behavior
+// Mock C# proxy objects: simulates proxy caching behavior
 //
 // In real OneJS, accessing a C# object from JS always returns the same
 // proxy reference (cached by handle). Properties read through to C# on
@@ -85,7 +85,7 @@ function createMockInventory(items: MockItem[]): MockInventory {
     const proxy: any = {
         get Count() { return items.length },
     }
-    // Numeric indexer - proxy reads live from the array
+    // Numeric indexer: proxy reads live from the array
     return {
         Items: new Proxy(proxy, {
             get(target, prop) {
@@ -242,7 +242,7 @@ describe("collection sync: parent/child pattern", () => {
         const childRenders: Record<number, number> = {}
 
         function ItemView({ item }: { item: MockItem }) {
-            // Watch only Version - catches all changes without listing every property
+            // Watch only Version: catches all changes without listing every property
             const data = useFrameSync(
                 () => item,
                 (i) => [i.Version]

@@ -1,5 +1,5 @@
 /**
- * Tests for host-config.ts - the React reconciler implementation
+ * Tests for host-config.ts: the React reconciler implementation
  *
  * Tests cover:
  * - Instance creation (createInstance)

@@ -1,5 +1,5 @@
 /**
- * Pre-setup - Defines globals that must exist before any module imports.
+ * Pre-setup: Defines globals that must exist before any module imports.
  *
  * This runs before setup.ts to ensure useExtensions and CS are available when
  * components.tsx is first imported (it calls useExtensions at module level).

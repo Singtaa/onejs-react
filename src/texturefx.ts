@@ -1,5 +1,5 @@
 /**
- * TextureFX - compose a procedural texture out of noise, shapes and blends.
+ * TextureFX: compose a procedural texture out of noise, shapes and blends.
  *
  *     <TextureFX
  *         style={{ width: 160, height: 240 }}

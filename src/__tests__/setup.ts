@@ -1,5 +1,5 @@
 /**
- * Test setup - Mocks the Unity QuickJS runtime environment
+ * Test setup: Mocks the Unity QuickJS runtime environment
  *
  * In the real environment, these globals are provided by:
  * - CS: QuickJSBootstrap.js proxy to C# types
@@ -54,10 +54,10 @@ beforeEach(() => {
         warn: vi.fn(),
     };
 
-    // Use real queueMicrotask - React scheduler depends on it
+    // Use real queueMicrotask: React scheduler depends on it
     (global as any).queueMicrotask = originalQueueMicrotask || ((cb: () => void) => Promise.resolve().then(cb));
 
-    // Use real setTimeout/clearTimeout - React scheduler depends on them
+    // Use real setTimeout/clearTimeout: React scheduler depends on them
     (global as any).setTimeout = originalSetTimeout;
     (global as any).clearTimeout = originalClearTimeout;
 

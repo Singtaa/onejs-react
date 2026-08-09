@@ -48,7 +48,7 @@ export type {
 // Vector Drawing
 export { Transform2D, useVectorContent } from './vector';
 
-// Batched vector drawing - single-crossing command buffer (see painter.ts)
+// Batched vector drawing: single-crossing command buffer (see painter.ts)
 export { Painter, batchedVisualContent, useBatchedVectorContent } from './painter';
 
 // 2D particle engine control plane (C#-owned sim/render; see OneJS Runtime/Particles)

@@ -43,7 +43,7 @@ const _imageCache = new Map<string, any>()
 const _imagePending = new Map<string, Promise<any>>()
 
 // On Android, streamingAssetsPath is a jar:file://...apk!/assets URL; on WebGL
-// it's http(s). System.IO.File can't read those - they need UnityWebRequest.
+// it's http(s). System.IO.File can't read those: they need UnityWebRequest.
 function _isUrlPath(path: string): boolean {
     return path.includes("://")
 }
@@ -276,8 +276,8 @@ FrostedGlass.displayName = 'FrostedGlass';
  * Create a typed React component for a registered custom element.
  * Use with `registerElement()` to add custom C# VisualElement types to React.
  *
- * @param name - Element name matching what was passed to registerElement()
- * @param displayName - Optional display name for React DevTools
+ * @param name: Element name matching what was passed to registerElement()
+ * @param displayName: Optional display name for React DevTools
  *
  * @example
  * import { registerElement, createComponent } from "onejs-react"
@@ -315,7 +315,7 @@ export function createComponent<P extends BaseProps = BaseProps>(
  *
  * The generic layer: any shader, any properties. An effect is this component
  * plus a wrapper that fills in the shader name and friendly prop names, so
- * shipping a new effect costs a shader file and a few lines of TSX - no C#.
+ * shipping a new effect costs a shader file and a few lines of TSX: no C#.
  *
  *     <ShaderEffect
  *         shader="OneJS/Fire"

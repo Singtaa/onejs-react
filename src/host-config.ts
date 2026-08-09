@@ -2,7 +2,7 @@ import type {HostConfig} from 'react-reconciler';
 import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback} from './types';
 import {parseStyleValue, parseColor} from './style-parser';
 
-// CSObject is an alias for VisualElement - they represent the same C# objects
+// CSObject is an alias for VisualElement: they represent the same C# objects
 type CSObject = VisualElement & { pickingMode?: number };
 
 // Global declarations for QuickJS environment
@@ -20,7 +20,7 @@ const ContinuousEventPriority = 8;
 const DefaultEventPriority = 32;
 const IdleEventPriority = 536870912;
 
-// Current update priority - used by React's scheduler
+// Current update priority: used by React's scheduler
 let currentUpdatePriority = DefaultEventPriority;
 
 // Microtask scheduling
@@ -31,7 +31,7 @@ interface CSEnum {
     [key: string]: number;
 }
 
-// CS interop - these are provided by QuickJSBootstrap.js
+// CS interop: these are provided by QuickJSBootstrap.js
 declare const CS: {
     UnityEngine: {
         UIElements: {
@@ -201,8 +201,8 @@ const BUILT_IN_TYPES = new Set(Object.keys(TYPE_MAP));
 /**
  * Register a custom VisualElement type for use in React JSX.
  *
- * @param name - Element name (with or without 'ojs-' prefix)
- * @param constructor - C# constructor reference (e.g., CS.MyNamespace.MyWidget)
+ * @param name: Element name (with or without 'ojs-' prefix)
+ * @param constructor: C# constructor reference (e.g., CS.MyNamespace.MyWidget)
  *
  * @example
  * import { registerElement, createComponent } from "onejs-react"
@@ -483,12 +483,12 @@ export function getPortalLayer(): VisualElement {
 // non-batched __cs.invoke path resolved these implicitly via __resolveValue;
 // the batched path JSON.stringifies the whole dict, so path proxies serialize
 // via toJSON to {__csTypeRef:...} which C# can't interpret as an enum value.
-// CS object proxies (with __csHandle) keep their toJSON shape - only path
+// CS object proxies (with __csHandle) keep their toJSON shape: only path
 // proxies need coercion.
 function resolveForBatch(value: unknown): unknown {
     // Path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center) have a
     // function as their underlying Proxy target so they can also be invoked
-    // as constructors - so typeof is "function", not "object". Just check the
+    // as constructors, so typeof is "function", not "object". Just check the
     // __csPathProxy sentinel and rely on truthy/property semantics.
     if (value && (value as any).__csPathProxy) {
         return Number(value)
@@ -502,7 +502,7 @@ function clearRemovedStyles(element: CSObject, oldKeys: Set<string>, newKeys: Se
     for (const key of oldKeys) {
         if (!newKeys.has(key)) {
             if (key === "backgroundImage") {
-                // Special handling for backgroundImage - use GPUBridge to clear
+                // Special handling for backgroundImage: use GPUBridge to clear
                 CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
             } else {
                 // Setting to undefined clears the inline style, falling back to USS
@@ -543,7 +543,7 @@ function applyClassName(element: CSObject, className: string | undefined) {
     }
 }
 
-// Update className selectively - only add/remove what changed
+// Update className selectively: only add/remove what changed
 function updateClassNames(element: CSObject, oldClassName: string | undefined, newClassName: string | undefined) {
     const oldClasses = parseClassNames(oldClassName);
     const newClasses = parseClassNames(newClassName);
@@ -665,8 +665,8 @@ function applyVisualContentCallback(instance: Instance, props: BaseProps) {
 function rebuildMergedText(instance: Instance) {
     const children = instance.mergedTextChildren;
     if (!children || children.length === 0) {
-        // No merged children - clear text (or keep prop-based text?)
-        // For now, set to empty - if user wants text, they should use children
+        // No merged children: clear text (or keep prop-based text?)
+        // For now, set to empty: if user wants text, they should use children
         instance.element.text = '';
         return;
     }
@@ -680,7 +680,7 @@ function shouldMergeText(parentInstance: Instance, child: Instance): boolean {
     return TEXT_MERGE_TYPES.has(parentInstance.type) && child.type === 'text';
 }
 
-// "Unmerge" all text children - add them as actual visual children
+// "Unmerge" all text children: add them as actual visual children
 // Called when a non-text child is added, breaking the pure-text assumption
 function unmergTextChildren(parentInstance: Instance) {
     const children = parentInstance.mergedTextChildren;
@@ -774,7 +774,7 @@ function insertElementBefore(parentEl: CSObject, childEl: CSObject, beforeChildE
 
 // MARK: Component-specific prop handlers
 
-// Apply common props (text, value, label) - skip unchanged values
+// Apply common props (text, value, label): skip unchanged values
 function applyCommonProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
     if (props.text !== undefined && props.text !== oldProps?.text) el.text = props.text as string;
@@ -796,7 +796,7 @@ function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>
     }
 }
 
-// Apply TextField-specific properties - skip unchanged values
+// Apply TextField-specific properties: skip unchanged values
 function applyTextFieldProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
     if (props.readOnly !== undefined && props.readOnly !== oldProps?.readOnly) el.isReadOnly = props.readOnly;
@@ -811,7 +811,7 @@ function applyTextFieldProps(element: CSObject, props: Record<string, unknown>, 
     if (props.autoCorrection !== undefined && props.autoCorrection !== oldProps?.autoCorrection) el.autoCorrection = props.autoCorrection;
 }
 
-// Apply Slider-specific properties - skip unchanged values
+// Apply Slider-specific properties: skip unchanged values
 function applySliderProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
     if (props.lowValue !== undefined && props.lowValue !== oldProps?.lowValue) el.lowValue = props.lowValue;
@@ -825,14 +825,14 @@ function applySliderProps(element: CSObject, props: Record<string, unknown>, old
     }
 }
 
-// Apply Toggle-specific properties - skip unchanged values
+// Apply Toggle-specific properties: skip unchanged values
 function applyToggleProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
     if (props.text !== undefined && props.text !== oldProps?.text) el.text = props.text;
     if (props.toggleOnLabelClick !== undefined && props.toggleOnLabelClick !== oldProps?.toggleOnLabelClick) el.toggleOnLabelClick = props.toggleOnLabelClick;
 }
 
-// Apply Image-specific properties - skip unchanged values
+// Apply Image-specific properties: skip unchanged values
 function applyImageProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
     if (props.image !== undefined && props.image !== oldProps?.image) {
@@ -864,7 +864,7 @@ function applyImageProps(element: CSObject, props: Record<string, unknown>, oldP
     }
 }
 
-// Apply ScrollView-specific properties - skip unchanged values
+// Apply ScrollView-specific properties: skip unchanged values
 function applyScrollViewProps(element: CSScrollView, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
     setEnumProp(element, 'mode', props, 'mode', UIE.ScrollViewMode, oldProps);
@@ -880,7 +880,7 @@ function applyScrollViewProps(element: CSScrollView, props: Record<string, unkno
     setValueProp(element, 'verticalPageSize', props, 'verticalPageSize', oldProps);
 }
 
-// Apply ListView-specific properties - skip unchanged values
+// Apply ListView-specific properties: skip unchanged values
 function applyListViewProps(element: CSListView, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
 
@@ -914,14 +914,14 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>,
     setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground, oldProps);
 }
 
-// Props handled by the reconciler infrastructure - not forwarded to C# elements
+// Props handled by the reconciler infrastructure, not forwarded to C# elements
 const RESERVED_PROPS = new Set([
     'children', 'key', 'ref', 'style', 'className', 'name', 'pickingMode', 'focusable', 'disabled',
     'onGenerateVisualContent',
     ...Object.keys(EVENT_PROPS),
 ]);
 
-// Forward non-reserved props directly to C# element (for custom elements) - skip unchanged
+// Forward non-reserved props directly to C# element (for custom elements): skip unchanged
 function applyCustomProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     for (const [key, value] of Object.entries(props)) {
         if (value === undefined || RESERVED_PROPS.has(key)) continue;
@@ -1006,7 +1006,7 @@ function createInstance(type: string, props: BaseProps): Instance {
         element.focusable = props.focusable;
     }
 
-    // Apply disabled (inverted - SetEnabled(true) means "not disabled")
+    // Apply disabled (inverted: SetEnabled(true) means "not disabled")
     if (props.disabled !== undefined) {
         element.SetEnabled(!props.disabled);
     }
@@ -1018,7 +1018,7 @@ function createInstance(type: string, props: BaseProps): Instance {
 function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseProps) {
     const element = instance.element;
 
-    // Update style - skip if values are shallowly equal (inline style objects are
+    // Update style: skip if values are shallowly equal (inline style objects are
     // new references each render but usually contain the same values)
     if (oldProps.style !== newProps.style && !shallowEqual(oldProps.style as any, newProps.style as any)) {
         const newStyleKeys = getExpandedStyleKeys(newProps.style);
@@ -1026,7 +1026,7 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
         instance.appliedStyleKeys = applyStyle(element, newProps.style);
     }
 
-    // Update className - selectively add/remove classes
+    // Update className: selectively add/remove classes
     if (oldProps.className !== newProps.className) {
         updateClassNames(element, oldProps.className, newProps.className);
     }
@@ -1037,7 +1037,7 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
     // Update vector drawing callback
     applyVisualContentCallback(instance, newProps);
 
-    // Update component-specific props - pass oldProps to skip unchanged values
+    // Update component-specific props: pass oldProps to skip unchanged values
     applyComponentProps(element, instance.type, newProps as Record<string, unknown>, oldProps as Record<string, unknown>);
 
     // Update name. Unity defaults VisualElement.name to "", so removing the prop
@@ -1056,14 +1056,14 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
         }
     }
 
-    // Update focusable - only set if explicitly provided, do not override
+    // Update focusable: only set if explicitly provided, do not override
     // element-specific defaults (Button is focusable by default, View is not)
     // when the prop is removed.
     if (oldProps.focusable !== newProps.focusable && newProps.focusable !== undefined) {
         element.focusable = newProps.focusable;
     }
 
-    // Update disabled - unlike focusable, every VisualElement starts enabled
+    // Update disabled: unlike focusable, every VisualElement starts enabled
     // by default, so removing the prop after a previous `disabled={true}` is
     // expected to restore the enabled state.
     if (oldProps.disabled !== newProps.disabled) {
@@ -1079,7 +1079,7 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
 
 // NOTE: We use a type assertion because @types/react-reconciler (0.28.x) is outdated
 // and doesn't match react-reconciler 0.31.x (React 19). The HostConfig interface
-// has changed significantly - notably commitUpdate no longer receives updatePayload.
+// has changed significantly: notably commitUpdate no longer receives updatePayload.
 // Once @types/react-reconciler is updated for React 19, we can use proper typing.
 type OurHostConfig = HostConfig<
     string,           // Type
@@ -1148,7 +1148,7 @@ export const hostConfig = {
 
     appendChildToContainer(container: Container, child: Instance) {
         nodeAdd(container, child.element);
-        // Container is the root - no parent to track
+        // Container is the root: no parent to track
     },
 
     insertBefore(parentInstance: Instance, child: Instance, beforeChild: Instance) {
@@ -1163,7 +1163,7 @@ export const hostConfig = {
 
     insertInContainerBefore(container: Container, child: Instance, beforeChild: Instance) {
         insertElementBefore(container, child.element, beforeChild.element);
-        // Container is the root - no parent to track
+        // Container is the root: no parent to track
     },
 
     removeChild(parentInstance: Instance, child: Instance) {
@@ -1247,7 +1247,7 @@ export const hostConfig = {
     scheduleTimeout: setTimeout,
     cancelTimeout: clearTimeout,
 
-    // Priority management - required by React 19's reconciler
+    // Priority management: required by React 19's reconciler
     setCurrentUpdatePriority(priority: number) {
         currentUpdatePriority = priority;
     },

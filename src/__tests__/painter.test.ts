@@ -97,7 +97,7 @@ describe("Painter command buffer", () => {
 
         expect(executeSpy).toHaveBeenCalledTimes(2)
         expect(first).toEqual([OP.BeginPath, OP.MoveTo, 1, 2])
-        // Second repaint is identical, not double-length - the painter cleared.
+        // Second repaint is identical, not double-length: the painter cleared.
         expect(second).toEqual(first)
     })
 })

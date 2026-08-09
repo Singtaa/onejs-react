@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /**
- * Length value - can be a number (pixels) or string with unit
+ * Length value: can be a number (pixels) or string with unit
  * @example
  * 100        // 100px
  * "100px"    // 100px
@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 export type StyleLength = number | string;
 
 /**
- * Color value - supports multiple formats
+ * Color value: supports multiple formats
  * @example
  * "#fff"              // Short hex
  * "#ffffff"           // Full hex
@@ -35,7 +35,7 @@ export type StyleColor = string;
  * - Named: "red", "blue", "transparent", etc.
  */
 export interface ViewStyle {
-  // Layout - dimensions
+  // Layout: dimensions
   /** Width in pixels or percentage. Examples: 100, "100px", "50%", "auto" */
   width?: StyleLength;
   /** Height in pixels or percentage. Examples: 100, "100px", "50%", "auto" */
@@ -82,7 +82,7 @@ export interface ViewStyle {
   /** Background color. Examples: "#3498db", "rgba(0,0,0,0.5)", "red" */
   backgroundColor?: StyleColor;
   /**
-   * Background image - accepts Texture2D, Sprite, VectorImage, RenderTexture,
+   * Background image: accepts Texture2D, Sprite, VectorImage, RenderTexture,
    * or a GPU compute RenderTexture handle.
    *
    * @example
@@ -169,7 +169,7 @@ export interface ViewStyle {
    * inline override so the element falls back to the panel default.
    *
    * Typed loosely as `object | null` because the React layer has no reason
-   * to pin the caller to a specific C# shape - the style parser constructs
+   * to pin the caller to a specific C# shape: the style parser constructs
    * a `StyleMaterialDefinition` at assignment time.
    */
   unityMaterial?: object | null;
@@ -274,7 +274,7 @@ export interface ChangeEventData<T = unknown> {
 /**
  * Shape of the synthetic event object passed to focus / blur handlers at
  * runtime. Matches `QuickJSBootstrap.__dispatchEvent` (see
- * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`) - every synthetic
+ * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`), every synthetic
  * event carries `target` / `currentTarget` as integer C# handles plus the
  * propagation-control surface, and the C# bridge's `OnFocusIn` / `OnFocusOut`
  * dispatch an empty data object, so focus events add no fields beyond the
@@ -318,7 +318,7 @@ export interface GeometryEventData {
  * `UnityEngine.UIElements.NavigationMoveEvent.Direction`, serialized to
  * lowercase strings by the C# bridge (see `QuickJSUIBridge.OnNavigationMove`
  * and `QuickJSBootstrap.__NAV_DIRECTION_NAMES`). `NavigationSubmitEvent` /
- * `NavigationCancelEvent` do not carry a direction - the field is only
+ * `NavigationCancelEvent` do not carry a direction: the field is only
  * populated for navigation-move.
  */
 export type NavigationDirection =
@@ -353,7 +353,7 @@ export type GeometryEventHandler = (event: GeometryEventData) => void;
 export type NavigationEventHandler = (event: NavigationEventData) => void;
 export type TransitionEventHandler = (event: TransitionEventData) => void;
 
-// Vector Drawing Types - Re-export from unity-types (CS.* namespace)
+// Vector Drawing Types: Re-export from unity-types (CS.* namespace)
 // These types are provided by the unity-types package and represent Unity's actual API
 
 /** Unity Vector2 - 2D point/vector. Use CS.UnityEngine.Vector2 at runtime. */
@@ -372,7 +372,7 @@ export type ArcDirection = CS.UnityEngine.UIElements.ArcDirection;
 export type Painter2D = CS.UnityEngine.UIElements.Painter2D;
 
 /**
- * Unity MeshGenerationContext - Provides rendering context within generateVisualContent callback.
+ * Unity MeshGenerationContext: Provides rendering context within generateVisualContent callback.
  *
  * Access painter2D for vector drawing, or use DrawText/DrawVectorImage for other content.
  *
@@ -485,7 +485,7 @@ export interface BaseProps {
   onTransitionEnd?: TransitionEventHandler;
   onTransitionCancel?: TransitionEventHandler;
 
-  // Picking mode - controls whether the element receives pointer events
+  // Picking mode: controls whether the element receives pointer events
   /**
    * Controls whether this element is pickable by pointer events.
    * - "Position" (default): Element receives pointer events based on its rectangle
@@ -649,7 +649,7 @@ export interface RenderContainer {
   __csType: string;
 }
 
-// VisualElement - base type for all UI Toolkit elements
+// VisualElement: base type for all UI Toolkit elements
 // This is the C# VisualElement exposed to JS via refs
 // Note: This interface represents the JS-side view of Unity's VisualElement
 export interface VisualElement extends RenderContainer {
@@ -765,7 +765,7 @@ export interface ImageElement extends VisualElement {
 }
 
 // ListView uses Unity's virtualization callbacks directly
-// This is intentionally imperative - ListView manages its own element recycling
+// This is intentionally imperative: ListView manages its own element recycling
 export interface FrostedGlassProps extends BaseProps {
   /** Blur radius in screen pixels. Higher = more blurry. Default: 10. */
   blur?: number;
@@ -785,14 +785,14 @@ export interface FrostedGlassElement extends VisualElement {
 }
 
 export interface ListViewProps extends BaseProps {
-  // Data source - the array of items to display
+  // Data source: the array of items to display
   itemsSource: unknown[];
 
-  // Element creation callback - called when ListView needs a new visual element
+  // Element creation callback: called when ListView needs a new visual element
   // Return a VisualElement (e.g., new CS.UnityEngine.UIElements.Label())
   makeItem: () => VisualElement;
 
-  // Bind callback - called to populate an element with data at the given index
+  // Bind callback: called to populate an element with data at the given index
   // The element is recycled, so clear/set all relevant properties
   bindItem: (element: VisualElement, index: number) => void;
 

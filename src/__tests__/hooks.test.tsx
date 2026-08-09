@@ -15,7 +15,7 @@ import { render, unmount } from "../renderer"
 import { createMockContainer, flushMicrotasks } from "./mocks"
 
 // ---------------------------------------------------------------------------
-// RAF mock - needed because hooks use requestAnimationFrame for polling
+// RAF mock: needed because hooks use requestAnimationFrame for polling
 // ---------------------------------------------------------------------------
 
 type RafCallback = (time: number) => void
@@ -152,7 +152,7 @@ describe("toArray", () => {
 })
 
 // ===========================================================================
-// useFrameSync - simple mode (no selector)
+// useFrameSync: simple mode (no selector)
 // ===========================================================================
 
 describe("useFrameSync (simple mode)", () => {
@@ -256,7 +256,7 @@ describe("useFrameSync (simple mode)", () => {
         await advanceFrame()
         const initialRenders = capture.renderCount
 
-        // NaN should be Object.is equal to NaN - no re-render
+        // NaN should be Object.is equal to NaN: no re-render
         val = NaN
         await advanceFrame()
         expect(capture.renderCount).toBe(initialRenders)
@@ -264,7 +264,7 @@ describe("useFrameSync (simple mode)", () => {
 })
 
 // ===========================================================================
-// useFrameSync - selector mode
+// useFrameSync: selector mode
 // ===========================================================================
 
 describe("useFrameSync (selector mode)", () => {
@@ -341,7 +341,7 @@ describe("useFrameSync (selector mode)", () => {
         await flushMicrotasks()
         const initialRenders = capture.renderCount
 
-        // Advance one frame with no changes - should not re-render
+        // Advance one frame with no changes: should not re-render
         await advanceFrame()
         expect(capture.renderCount).toBe(initialRenders)
 
@@ -434,7 +434,7 @@ describe("useFrameSync (selector mode)", () => {
         expect(capture.value?.Name).toBe("Tavern")
         const afterInit = capture.renderCount
 
-        // Set to null - should detect change (deps go from ["Tavern", 5] to [undefined, undefined])
+        // Set to null: should detect change (deps go from ["Tavern", 5] to [undefined, undefined])
         currentPlace = null
         await advanceFrame()
 
@@ -453,12 +453,12 @@ describe("useFrameSync (selector mode)", () => {
         await advanceFrame()
         const afterInit = capture.renderCount
 
-        // No version change - no re-render
+        // No version change: no re-render
         gameState.data = "changed but version same"
         await advanceFrame()
         expect(capture.renderCount).toBe(afterInit)
 
-        // Bump version - triggers re-render
+        // Bump version: triggers re-render
         gameState.Version = 2
         gameState.data = "updated"
         await advanceFrame()
@@ -479,7 +479,7 @@ describe("useFrameSync (selector mode)", () => {
         unmount(container as any)
         await flushMicrotasks()
 
-        // Advance more frames - getter should not be called
+        // Advance more frames: getter should not be called
         await advanceFrame()
         await advanceFrame()
         await advanceFrame()
@@ -564,7 +564,7 @@ describe("useFrameSyncWith (deprecated)", () => {
         await flushMicrotasks()
         expect(capturedValue).toEqual({ x: 1, y: 2, z: 3 })
 
-        // No change - should not update (custom equality says they're equal)
+        // No change: should not update (custom equality says they're equal)
         await advanceFrame()
         const stableValue = capturedValue
 
@@ -573,7 +573,7 @@ describe("useFrameSyncWith (deprecated)", () => {
         // custom equality prevents unnecessary state updates
         expect(capturedValue).toEqual({ x: 1, y: 2, z: 3 })
 
-        // Change a value - should trigger update
+        // Change a value: should trigger update
         x = 10
         await advanceFrame()
         expect(capturedValue.x).toBe(10)
@@ -714,7 +714,7 @@ describe("useEventSync", () => {
             // RAF should not have been called by useEventSync
             // (useFrameSync calls it, useEventSync should not)
             const rafCallCount = (globalThis as any).requestAnimationFrame.mock.calls.length
-            // Advance several frames - count should not grow from useEventSync
+            // Advance several frames: count should not grow from useEventSync
             await advanceFrame()
             await advanceFrame()
             await advanceFrame()
@@ -934,7 +934,7 @@ describe("useEventSync", () => {
             shouldThrow = true
             obj.fire("OnChanged")
             await flushMicrotasks()
-            // Should not crash - value stays at last good value
+            // Should not crash: value stays at last good value
             expect(capturedValue).toBe(42)
         })
 
@@ -975,7 +975,7 @@ describe("useEventSync", () => {
             await flushMicrotasks()
             expect(capturedValue).toBe(100)
 
-            // C# event fires - handler re-reads getter, ignoring event args
+            // C# event fires: handler re-reads getter, ignoring event args
             obj.set("Health", 80)
             obj.fire("OnHealthChanged")
             await flushMicrotasks()

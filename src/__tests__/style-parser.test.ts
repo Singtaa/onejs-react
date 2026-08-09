@@ -1,5 +1,5 @@
 /**
- * Tests for style-parser.ts - style value parsing utilities
+ * Tests for style-parser.ts: style value parsing utilities
  *
  * Tests cover:
  * - Length parsing (numbers, "px", "%", "auto")

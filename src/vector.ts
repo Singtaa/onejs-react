@@ -98,8 +98,8 @@ export class Transform2D {
 
     /**
      * Apply a translation (move the origin).
-     * @param x - Horizontal translation
-     * @param y - Vertical translation
+     * @param x: Horizontal translation
+     * @param y: Vertical translation
      */
     translate(x: number, y: number): void {
         // new_e = a*x + c*y + e
@@ -110,7 +110,7 @@ export class Transform2D {
 
     /**
      * Apply a rotation around the current origin.
-     * @param angle - Rotation angle in radians (clockwise)
+     * @param angle: Rotation angle in radians (clockwise)
      */
     rotate(angle: number): void {
         const cos = Math.cos(angle)
@@ -130,8 +130,8 @@ export class Transform2D {
 
     /**
      * Apply a scale transformation.
-     * @param x - Horizontal scale factor
-     * @param y - Vertical scale factor (defaults to x for uniform scale)
+     * @param x: Horizontal scale factor
+     * @param y: Vertical scale factor (defaults to x for uniform scale)
      */
     scale(x: number, y?: number): void {
         const sy = y ?? x
@@ -144,8 +144,8 @@ export class Transform2D {
 
     /**
      * Transform a point using the current transformation matrix.
-     * @param x - X coordinate in local space
-     * @param y - Y coordinate in local space
+     * @param x: X coordinate in local space
+     * @param y: Y coordinate in local space
      * @returns Transformed point as Unity Vector2
      */
     point(x: number, y: number): Vector2 {
@@ -156,7 +156,7 @@ export class Transform2D {
 
     /**
      * Transform multiple points at once.
-     * @param coords - Array of [x, y] coordinate pairs
+     * @param coords: Array of [x, y] coordinate pairs
      * @returns Array of transformed Vector2 points
      *
      * @example
@@ -183,12 +183,12 @@ export class Transform2D {
 
     /**
      * Set the transformation matrix directly.
-     * @param a - Horizontal scale (1 = no scale)
-     * @param b - Vertical skew
-     * @param c - Horizontal skew
-     * @param d - Vertical scale (1 = no scale)
-     * @param e - Horizontal translation
-     * @param f - Vertical translation
+     * @param a: Horizontal scale (1 = no scale)
+     * @param b: Vertical skew
+     * @param c: Horizontal skew
+     * @param d: Vertical scale (1 = no scale)
+     * @param e: Horizontal translation
+     * @param f: Vertical translation
      */
     setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void {
         this._a = a
@@ -201,12 +201,12 @@ export class Transform2D {
 
     /**
      * Multiply the current matrix by another matrix.
-     * @param a - Horizontal scale
-     * @param b - Vertical skew
-     * @param c - Horizontal skew
-     * @param d - Vertical scale
-     * @param e - Horizontal translation
-     * @param f - Vertical translation
+     * @param a: Horizontal scale
+     * @param b: Vertical skew
+     * @param c: Horizontal skew
+     * @param d: Vertical scale
+     * @param e: Horizontal translation
+     * @param f: Vertical translation
      */
     transform(a: number, b: number, c: number, d: number, e: number, f: number): void {
         const a_ = this._a * a + this._c * b
@@ -231,8 +231,8 @@ export class Transform2D {
  * Returns a ref to attach to a VisualElement. When dependencies change,
  * automatically calls MarkDirtyRepaint() to trigger a redraw.
  *
- * @param draw - Drawing callback that receives MeshGenerationContext
- * @param deps - Dependency array (like useEffect) - repaint when these change
+ * @param draw: Drawing callback that receives MeshGenerationContext
+ * @param deps: Dependency array (like useEffect), repaint when these change
  * @returns Ref to attach to the element
  *
  * @example

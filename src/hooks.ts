@@ -14,12 +14,12 @@ declare function cancelAnimationFrame(id: number): void;
  *
  * **Selector mode**: Extracts an array of comparable values to watch. Re-renders only when
  * any selected value changes. Essential for C# proxy objects where the proxy reference is
- * cached - without a selector, you'd be comparing the same proxy to itself.
+ * cached: without a selector, you'd be comparing the same proxy to itself.
  * The returned value is always read fresh from the getter during render.
  *
- * @param getter - Function that returns the current value (called every frame)
- * @param selectOrDeps - Either a selector function or a dependency array
- * @param deps - Optional dependency array (only when using a selector)
+ * @param getter: Function that returns the current value (called every frame)
+ * @param selectOrDeps: Either a selector function or a dependency array
+ * @param deps: Optional dependency array (only when using a selector)
  * @returns The current value, updated each frame if changed
  *
  * @example
@@ -100,7 +100,7 @@ function useFrameSyncSimple<T>(getter: () => T, deps: readonly unknown[]): T {
                     setValue(current)
                 }
             } catch {
-                // Getter might fail if object was destroyed - that's ok
+                // Getter might fail if object was destroyed: that's ok
             }
 
             if (runningRef.current) {
@@ -199,7 +199,7 @@ function useFrameSyncSelect<T>(
  *
  * `useFrameSyncWith` compares the value returned by the getter using a custom
  * equality function. However, this does NOT work with C# proxy objects because
- * the proxy reference is cached - you end up comparing the same object to itself.
+ * the proxy reference is cached: you end up comparing the same object to itself.
  *
  * Instead, use `useFrameSync` with a selector that extracts comparable values:
  * ```ts
@@ -281,9 +281,9 @@ export function useFrameSyncWith<T>(
  * Throttled version of useFrameSync that only checks at a specified interval.
  * Useful when you don't need per-frame updates and want to reduce overhead.
  *
- * @param getter - Function that returns the current value
- * @param intervalMs - How often to check for changes (in milliseconds)
- * @param deps - Optional dependency array
+ * @param getter: Function that returns the current value
+ * @param intervalMs: How often to check for changes (in milliseconds)
+ * @param deps: Optional dependency array
  *
  * @example
  * // Check every 100ms instead of every frame
@@ -338,14 +338,14 @@ export function useThrottledSync<T>(
 /**
  * Converts a C# collection (List<T>, array, etc.) to a JavaScript array.
  *
- * C# collections exposed through the OneJS proxy are not JS arrays - they
+ * C# collections exposed through the OneJS proxy are not JS arrays: they
  * lack .map(), .filter(), and other array methods. This utility converts
  * them for use in React rendering.
  *
  * Supports objects with a `.Count` property (List<T>, IList) or a `.Length`
  * property (C# arrays). Returns an empty array for null/undefined input.
  *
- * @param collection - A C# collection, or null/undefined
+ * @param collection: A C# collection, or null/undefined
  * @returns A JavaScript array containing the elements
  *
  * @example
@@ -357,7 +357,7 @@ export function useThrottledSync<T>(
  * const renderers = toArray(go.GetComponentsInChildren(CS.UnityEngine.Renderer))
  *
  * @example
- * // Safe with null - returns []
+ * // Safe with null: returns []
  * const npcs = toArray(currentPlace?.NPCs)
  *
  * @example
@@ -385,7 +385,7 @@ export type EventSource = [source: object, eventName: string]
 
 /**
  * Syncs a value from C# to React state via event subscription instead of polling.
- * Zero work when nothing changes - the getter is only called when an event fires.
+ * Zero work when nothing changes: the getter is only called when an event fires.
  *
  * Use this instead of `useFrameSync` when C# fires events on state change.
  * `useFrameSync` polls every frame (causing GC pressure); `useEventSync` does

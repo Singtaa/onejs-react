@@ -164,7 +164,7 @@ describe("particles wire schema", () => {
     })
 
     it("leaves frameCount at 0 so C# resolves it from the grid", () => {
-        // One source of truth for cols*rows - the JS side never duplicates it.
+        // One source of truth for cols*rows: the JS side never duplicates it.
         expect(toWire({ emitters: [{ sheet: { cols: 3, rows: 5 } }] }).emitters[0].sheetFrames).toBe(0)
     })
 })

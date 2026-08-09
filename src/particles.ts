@@ -26,7 +26,7 @@
  *     // ...
  *     <View ref={ref} onPointerDown={(e) => fx.burst({ x: e.localX, y: e.localY, count: 30 })} />
  *
- * The wire schema (toWire's output) is the C#-JS contract - it must match
+ * The wire schema (toWire's output) is the C#-JS contract: it must match
  * ParticleWire.cs, kept in sync by particles.test.ts and ParticleTests.cs.
  */
 
@@ -98,7 +98,7 @@ export type EdgeMode = "none" | "kill" | "bounce" | "stick"
 
 /**
  * Treats the emitter's texture as a grid of animation frames. Frame 0 is the
- * sheet's top-left cell, advancing left to right, top to bottom - the standard
+ * sheet's top-left cell, advancing left to right, top to bottom: the standard
  * flipbook layout. This is how hand-painted effects (flames, explosions, smoke)
  * get their motion; procedural curves alone can't produce it.
  */
@@ -161,7 +161,7 @@ export interface EmitterConfig {
     sizeOverLife?: number[] | { t: number; v: number }[]
     /**
      * Random per-particle tint, picked uniformly at spawn and *multiplied* into
-     * colorOverLife - so the fade ramp still shapes the alpha. Up to 16 entries.
+     * colorOverLife, so the fade ramp still shapes the alpha. Up to 16 entries.
      * This is how one emitter produces multicolored confetti.
      */
     tintPalette?: ParticleColor[]

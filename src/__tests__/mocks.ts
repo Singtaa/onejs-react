@@ -51,7 +51,7 @@ export const MockStyleKeyword = {
 };
 
 /**
- * Mock VisualElement - base class for all UI Toolkit elements
+ * Mock VisualElement: base class for all UI Toolkit elements
  */
 export class MockVisualElement {
     // Unique identifier (simulates Unity's instance ID via __csHandle)
@@ -169,7 +169,7 @@ export class MockVisualElement {
 }
 
 /**
- * Mock TextElement - base text element for implicit text content
+ * Mock TextElement: base text element for implicit text content
  */
 export class MockTextElement extends MockVisualElement {
     constructor() {
@@ -440,7 +440,7 @@ export function findElementByHandle(handle: number): MockVisualElement | undefin
 }
 
 /**
- * Reset all mocks - call this before each test
+ * Reset all mocks: call this before each test
  */
 export function resetAllMocks(): void {
     createdElements = [];

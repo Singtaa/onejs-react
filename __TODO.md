@@ -1,6 +1,6 @@
 # onejs-react Reconciler TODO
 
-## High Impact - COMPLETED
+## High Impact: COMPLETED
 
 ### 1. `ref` Support ✅
 Refs now point to the actual UI Toolkit element (CSObject).
@@ -132,15 +132,15 @@ import { ErrorBoundary } from "onejs-react"
 **Current state:** Basic `injectIntoDevTools` call exists but doesn't enable actual DevTools inspection since QuickJS lacks WebSocket support.
 
 **Added utilities:**
-- `flushSync(callback)` - Execute synchronously, flush all updates
-- `batchedUpdates(callback)` - Batch multiple updates together
-- `getDebugInfo()` - Get renderer version and active root count
+- `flushSync(callback)`: Execute synchronously, flush all updates
+- `batchedUpdates(callback)`: Batch multiple updates together
+- `getDebugInfo()`: Get renderer version and active root count
 
 **Full DevTools would require:**
 
-1. **WebSocket bridge** - C# `ClientWebSocket` exposed to JS
-2. **react-devtools-core backend** - Bundle and load before React
-3. **Bootstrap integration** - Initialize DevTools before user code
+1. **WebSocket bridge**: C# `ClientWebSocket` exposed to JS
+2. **react-devtools-core backend**: Bundle and load before React
+3. **Bootstrap integration**: Initialize DevTools before user code
 
 Architecture (React Native approach):
 ```

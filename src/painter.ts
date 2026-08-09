@@ -37,7 +37,7 @@ declare const CS: {
     }
 }
 
-// Opcode contract - must match Assets/Singtaa/OneJS/Runtime/PainterBridge.cs.
+// Opcode contract: must match Assets/Singtaa/OneJS/Runtime/PainterBridge.cs.
 const OP_BEGIN_PATH = 1
 const OP_CLOSE_PATH = 2
 const OP_MOVE_TO = 3
@@ -61,7 +61,7 @@ const OP_DASH_PATTERN = 18
  * Records Painter2D drawing ops into a numeric buffer for batched playback.
  *
  * Methods are chainable. Coordinates and colors are plain numbers (no CS object
- * construction), which is the whole point - the buffer crosses to C# once and
+ * construction), which is the whole point: the buffer crosses to C# once and
  * the structs are built C#-side.
  *
  * Enum-like options live as statics so they do not collide with the CS enum
@@ -145,7 +145,7 @@ export class Painter {
 /**
  * Wrap a draw function so it records into a reused Painter and auto-flushes in
  * one crossing after each repaint. The recommended entry point for batched
- * drawing - assign the result straight to onGenerateVisualContent.
+ * drawing: assign the result straight to onGenerateVisualContent.
  */
 export function batchedVisualContent(draw: (p: Painter) => void): GenerateVisualContentCallback {
     const painter = new Painter()

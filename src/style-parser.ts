@@ -240,8 +240,8 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
 
 /**
  * Parse an enum style value
- * @param key - Style property name
- * @param value - String value from React style (e.g., "row", "flex-start")
+ * @param key: Style property name
+ * @param value: String value from React style (e.g., "row", "flex-start")
  * @returns Unity enum value or null if not found
  */
 function parseEnumValue(key: string, value: string): number | null {
@@ -257,7 +257,7 @@ function parseEnumValue(key: string, value: string): number | null {
 
 /**
  * Parse a length value from various formats
- * @param value - number, "100", "100px", "50%", "auto"
+ * @param value: number, "100", "100px", "50%", "auto"
  * @returns Unity Length struct or StyleKeyword
  */
 export function parseLength(value: number | string): CSLength | number | null {
@@ -335,7 +335,7 @@ function parseHexColor(hex: string): CSColor | null {
 
 /**
  * Parse a color value from various formats
- * @param value - "#fff", "#ffffff", "#ffffffff", "rgb(255,0,0)", "rgba(255,0,0,0.5)", "red"
+ * @param value: "#fff", "#ffffff", "#ffffffff", "rgb(255,0,0)", "rgba(255,0,0,0.5)", "red"
  * @returns Unity Color struct or null if invalid
  */
 export function parseColor(value: string): CSColor | null {
@@ -354,7 +354,7 @@ export function parseColor(value: string): CSColor | null {
         return parseHexColor(trimmed.slice(1))
     }
 
-    // rgb(r, g, b) or rgba(r, g, b, a) - supports both integer and percentage values
+    // rgb(r, g, b) or rgba(r, g, b, a): supports both integer and percentage values
     const rgbMatch = trimmed.match(/^rgba?\s*\(\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*(?:,\s*([\d.]+))?\s*\)$/)
     if (rgbMatch) {
         const isPercent = rgbMatch[2] === "%"
@@ -495,8 +495,8 @@ function parseTransformOriginStyle(value: unknown): unknown {
 
 /**
  * Parse a style value based on the property name
- * @param key - Style property name (e.g., "width", "backgroundColor")
- * @param value - Raw value from React style object
+ * @param key: Style property name (e.g., "width", "backgroundColor")
+ * @param value: Raw value from React style object
  * @returns Parsed value suitable for Unity UI Toolkit
  */
 export function parseStyleValue(key: string, value: unknown): unknown {
@@ -535,12 +535,12 @@ export function parseStyleValue(key: string, value: unknown): unknown {
         // Could already be a Color object, pass through
     }
 
-    // Plain number properties - pass through as-is
+    // Plain number properties: pass through as-is
     if (NUMBER_PROPERTIES.has(key)) {
         return value
     }
 
-    // Enum properties - convert string to Unity enum value
+    // Enum properties: convert string to Unity enum value
     if (key in ENUM_MAPPINGS && typeof value === "string") {
         const parsed = parseEnumValue(key, value)
         if (parsed !== null) return parsed
@@ -553,7 +553,7 @@ export function parseStyleValue(key: string, value: unknown): unknown {
     if (key === "scale") return parseScaleStyle(value)
     if (key === "transformOrigin") return parseTransformOriginStyle(value)
 
-    // Unknown property - pass through unchanged
+    // Unknown property: pass through unchanged
     return value
 }
 
