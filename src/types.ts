@@ -169,7 +169,7 @@ export interface ViewStyle {
    * inline override so the element falls back to the panel default.
    *
    * Typed loosely as `object | null` because the React layer has no reason
-   * to pin the caller to a specific C# shape — the style parser constructs
+   * to pin the caller to a specific C# shape - the style parser constructs
    * a `StyleMaterialDefinition` at assignment time.
    */
   unityMaterial?: object | null;
@@ -274,7 +274,7 @@ export interface ChangeEventData<T = unknown> {
 /**
  * Shape of the synthetic event object passed to focus / blur handlers at
  * runtime. Matches `QuickJSBootstrap.__dispatchEvent` (see
- * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`) — every synthetic
+ * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`) - every synthetic
  * event carries `target` / `currentTarget` as integer C# handles plus the
  * propagation-control surface, and the C# bridge's `OnFocusIn` / `OnFocusOut`
  * dispatch an empty data object, so focus events add no fields beyond the
@@ -318,7 +318,7 @@ export interface GeometryEventData {
  * `UnityEngine.UIElements.NavigationMoveEvent.Direction`, serialized to
  * lowercase strings by the C# bridge (see `QuickJSUIBridge.OnNavigationMove`
  * and `QuickJSBootstrap.__NAV_DIRECTION_NAMES`). `NavigationSubmitEvent` /
- * `NavigationCancelEvent` do not carry a direction — the field is only
+ * `NavigationCancelEvent` do not carry a direction - the field is only
  * populated for navigation-move.
  */
 export type NavigationDirection =

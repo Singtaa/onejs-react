@@ -303,7 +303,7 @@ import { toArray } from "onejs-react"
 // Convert a C# array
 const resolutions = toArray<Resolution>(Screen.resolutions)
 
-// Safe with null — returns []
+// Safe with null - returns []
 const npcs = toArray(currentPlace?.NPCs)
 ```
 

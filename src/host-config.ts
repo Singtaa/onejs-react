@@ -483,12 +483,12 @@ export function getPortalLayer(): VisualElement {
 // non-batched __cs.invoke path resolved these implicitly via __resolveValue;
 // the batched path JSON.stringifies the whole dict, so path proxies serialize
 // via toJSON to {__csTypeRef:...} which C# can't interpret as an enum value.
-// CS object proxies (with __csHandle) keep their toJSON shape — only path
+// CS object proxies (with __csHandle) keep their toJSON shape - only path
 // proxies need coercion.
 function resolveForBatch(value: unknown): unknown {
     // Path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center) have a
     // function as their underlying Proxy target so they can also be invoked
-    // as constructors — so typeof is "function", not "object". Just check the
+    // as constructors - so typeof is "function", not "object". Just check the
     // __csPathProxy sentinel and rely on truthy/property semantics.
     if (value && (value as any).__csPathProxy) {
         return Number(value)
@@ -1006,7 +1006,7 @@ function createInstance(type: string, props: BaseProps): Instance {
         element.focusable = props.focusable;
     }
 
-    // Apply disabled (inverted — SetEnabled(true) means "not disabled")
+    // Apply disabled (inverted - SetEnabled(true) means "not disabled")
     if (props.disabled !== undefined) {
         element.SetEnabled(!props.disabled);
     }
