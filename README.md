@@ -140,7 +140,7 @@ The layer ignores picking when empty, so a closed overlay never blocks the app.
 
 `<Portal>` is built on `createPortal(children, container, key?)` (the OneJS equivalent of `react-dom`'s `createPortal`), exported for when you need a specific target. With a custom target you own draw order, so prefer `<Portal>` for overlays.
 
-> Use the exports from `onejs-react`, not `react-dom` - the latter targets the browser DOM and will not work here.
+> Use the exports from `onejs-react`, not `react-dom`. The latter targets the browser DOM and will not work here.
 
 ## Key Concepts
 
@@ -207,25 +207,25 @@ function Circle() {
 ### Painter2D Methods
 
 Path operations:
-- `BeginPath()` - Start a new path
-- `ClosePath()` - Close the current subpath
-- `MoveTo(point)` - Move to point without drawing
-- `LineTo(point)` - Draw line to point
-- `Arc(center, radius, startAngle, endAngle, direction)` - Draw arc
-- `ArcTo(p1, p2, radius)` - Draw arc tangent to two lines
-- `BezierCurveTo(cp1, cp2, end)` - Cubic bezier curve
-- `QuadraticCurveTo(cp, end)` - Quadratic bezier curve
+- `BeginPath()`: Start a new path
+- `ClosePath()`: Close the current subpath
+- `MoveTo(point)`: Move to point without drawing
+- `LineTo(point)`: Draw line to point
+- `Arc(center, radius, startAngle, endAngle, direction)`: Draw arc
+- `ArcTo(p1, p2, radius)`: Draw arc tangent to two lines
+- `BezierCurveTo(cp1, cp2, end)`: Cubic bezier curve
+- `QuadraticCurveTo(cp, end)`: Quadratic bezier curve
 
 Rendering:
-- `Fill(fillRule)` - Fill the current path
-- `Stroke()` - Stroke the current path
+- `Fill(fillRule)`: Fill the current path
+- `Stroke()`: Stroke the current path
 
 Properties:
-- `fillColor` - Fill color (Unity Color)
-- `strokeColor` - Stroke color (Unity Color)
-- `lineWidth` - Stroke width in pixels
-- `lineCap` - Line cap style (Butt, Round, Square)
-- `lineJoin` - Line join style (Miter, Round, Bevel)
+- `fillColor`: Fill color (Unity Color)
+- `strokeColor`: Stroke color (Unity Color)
+- `lineWidth`: Stroke width in pixels
+- `lineCap`: Line cap style (Butt, Round, Square)
+- `lineJoin`: Line join style (Miter, Round, Bevel)
 
 ### Triggering Repaints
 
@@ -312,5 +312,5 @@ Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `
 ## Dependencies
 
 - `react-reconciler@0.31.x` (React 19 compatible)
-- `vitest` (dev) - Test runner
+- `vitest` (dev): Test runner
 - Peer: `react@18.x || 19.x`
