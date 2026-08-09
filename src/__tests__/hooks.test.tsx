@@ -33,7 +33,7 @@ function flushRaf() {
     }
 }
 
-/** Flush RAF then microtasks - simulates a full frame tick for the hook. */
+/** Flush RAF then microtasks: simulates a full frame tick for the hook. */
 async function advanceFrame() {
     flushRaf()
     await flushMicrotasks()

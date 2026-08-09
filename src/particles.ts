@@ -133,7 +133,7 @@ export interface EmitterConfig {
     lifetime?: ParticleRange
     /** Initial size in px. Default 8. */
     size?: ParticleRange
-    /** Quad width:height ratio - 1 is square, 0.2 a vertical streak. Default 1. */
+    /** Quad width:height ratio, 1 is square, 0.2 a vertical streak. Default 1. */
     aspect?: ParticleRange
     /**
      * Which point of the sprite sits on the particle position, in normalized quad

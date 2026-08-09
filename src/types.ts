@@ -356,19 +356,19 @@ export type TransitionEventHandler = (event: TransitionEventData) => void;
 // Vector Drawing Types: Re-export from unity-types (CS.* namespace)
 // These types are provided by the unity-types package and represent Unity's actual API
 
-/** Unity Vector2 - 2D point/vector. Use CS.UnityEngine.Vector2 at runtime. */
+/** Unity Vector2: 2D point/vector. Use CS.UnityEngine.Vector2 at runtime. */
 export type Vector2 = CS.UnityEngine.Vector2;
 
-/** Unity Color - RGBA color. Use CS.UnityEngine.Color at runtime. */
+/** Unity Color: RGBA color. Use CS.UnityEngine.Color at runtime. */
 export type Color = CS.UnityEngine.Color;
 
-/** Unity Angle - Represents an angle with unit. Use CS.UnityEngine.UIElements.Angle at runtime. */
+/** Unity Angle: Represents an angle with unit. Use CS.UnityEngine.UIElements.Angle at runtime. */
 export type Angle = CS.UnityEngine.UIElements.Angle;
 
-/** Unity ArcDirection - Direction for arc drawing. Use CS.UnityEngine.UIElements.ArcDirection at runtime. */
+/** Unity ArcDirection: Direction for arc drawing. Use CS.UnityEngine.UIElements.ArcDirection at runtime. */
 export type ArcDirection = CS.UnityEngine.UIElements.ArcDirection;
 
-/** Unity Painter2D - Vector drawing API. Accessed via mgc.painter2D in generateVisualContent. */
+/** Unity Painter2D: Vector drawing API. Accessed via mgc.painter2D in generateVisualContent. */
 export type Painter2D = CS.UnityEngine.UIElements.Painter2D;
 
 /**
