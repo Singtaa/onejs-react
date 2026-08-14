@@ -1,6 +1,8 @@
 import type {HostConfig} from 'react-reconciler';
 import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback} from './types';
 import {parseStyleValue, parseColor} from './style-parser';
+import {flattenTree} from './treeview';
+import type {TreeViewItem} from './types';
 
 // CSObject is an alias for VisualElement: they represent the same C# objects
 type CSObject = VisualElement & { pickingMode?: number };
@@ -45,6 +47,7 @@ declare const CS: {
             ScrollView: new () => CSObject;
             Image: new () => CSObject;
             ListView: new () => CSListView;
+            TreeView: new () => CSTreeView;
             // Enums
             ScrollViewMode: CSEnum;
             ScrollerVisibility: CSEnum;
@@ -82,6 +85,11 @@ declare const CS: {
             Add: (parentHandle: number, childHandle: number) => void;
             Insert: (parentHandle: number, index: number, childHandle: number) => void;
             RemoveFromHierarchy: (childHandle: number) => void;
+        };
+        TreeViewBridge: {
+            SetRootItems: (treeView: CSObject, ids: number[], parentIds: number[]) => void;
+            GetSelectedIds: (treeView: CSObject) => unknown;
+            GetSelectedIndices: (view: CSObject) => unknown;
         };
     };
 };
@@ -153,6 +161,25 @@ interface CSListView extends CSObject {
     Rebuild: () => void;
 }
 
+// TreeView-specific interface (see applyTreeViewProps; data flows through
+// CS.OneJS.TreeViewBridge because SetRootItems<T> is a generic method)
+interface CSTreeView extends CSObject {
+    makeItem: () => CSObject;
+    bindItem: (element: CSObject, index: number) => void;
+    unbindItem: (element: CSObject, index: number) => void;
+    destroyItem: (element: CSObject) => void;
+
+    fixedItemHeight: number;
+    virtualizationMethod: number;
+    autoExpand: boolean;
+    selectionType: number;
+    showBorder: boolean;
+    showAlternatingRowBackgrounds: number;
+
+    GetIdForIndex: (index: number) => number;
+    add_selectedIndicesChanged: (handler: (indices: unknown) => void) => void;
+}
+
 // Elements that merge text children into their text property instead of adding as visual children
 // This enables <Label>Hello {"World"}</Label> to render as single line, matching React Native behavior
 const TEXT_MERGE_TYPES = new Set(['ojs-label', 'ojs-text', 'ojs-button']);
@@ -191,6 +218,7 @@ const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-scrollview': () => new CS.UnityEngine.UIElements.ScrollView(),
     'ojs-image': () => new CS.UnityEngine.UIElements.Image(),
     'ojs-listview': () => new CS.UnityEngine.UIElements.ListView(),
+    'ojs-treeview': () => new CS.UnityEngine.UIElements.TreeView(),
     'ojs-frostedglass': () => new CS.OneJS.GPU.FrostedGlassElement(),
     'ojs-shaderfx': () => new CS.OneJS.ShaderFX.ShaderEffectElement(),
 };
@@ -886,8 +914,67 @@ function applyScrollViewProps(element: CSScrollView, props: Record<string, unkno
 }
 
 // Apply ListView-specific properties: skip unchanged values
+// Per-element state for collection views (ListView/TreeView). Delegate and
+// event wrappers are assigned ONCE per element and read the current callback
+// from here, so re-renders never re-register native callback slots (the
+// callback table is a fixed 4096 slots).
+interface CollectionState {
+    props: Record<string, unknown>;
+    dataById: Map<number, unknown> | null;
+}
+const collectionState = new WeakMap<object, CollectionState>();
+
+function getCollectionState(element: object): CollectionState {
+    let state = collectionState.get(element);
+    if (!state) {
+        state = { props: {}, dataById: null };
+        collectionState.set(element, state);
+    }
+    return state;
+}
+
+// C# int[] arrives as a proxy with Length + indexer; mocks hand back plain arrays
+function asNumberArray(value: unknown): number[] {
+    if (Array.isArray(value)) return value as number[];
+    const col = value as Record<string, unknown> | null;
+    const len = col && typeof col.Length === 'number' ? col.Length : 0;
+    const out: number[] = [];
+    for (let i = 0; i < len; i++) out.push((col as any)[i] as number);
+    return out;
+}
+
+// Hook a C# event once per element, at the first render that supplies the
+// callback prop. The stable handler reads the current callback from
+// collectionState, so later renders only need to update state.props.
+function hookOnce(element: CSObject, props: Record<string, unknown>, oldProps: Record<string, unknown> | undefined, propKey: string, subscribe: () => void) {
+    if (props[propKey] !== undefined && oldProps?.[propKey] === undefined) {
+        subscribe();
+    }
+}
+
 function applyListViewProps(element: CSListView, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const UIE = CS.UnityEngine.UIElements;
+
+    const state = getCollectionState(element);
+    state.props = props;
+
+    hookOnce(element, props, oldProps, 'onSelectionChange', () => {
+        (element as any).add_selectedIndicesChanged(() => {
+            const cb = getCollectionState(element).props.onSelectionChange as ((indices: number[]) => void) | undefined;
+            if (!cb) return;
+            cb(asNumberArray(CS.OneJS.TreeViewBridge.GetSelectedIndices(element)));
+        });
+    });
+    hookOnce(element, props, oldProps, 'onItemsChosen', () => {
+        (element as any).add_itemsChosen(() => {
+            const s = getCollectionState(element);
+            const cb = s.props.onItemsChosen as ((items: unknown[]) => void) | undefined;
+            if (!cb) return;
+            const indices = asNumberArray(CS.OneJS.TreeViewBridge.GetSelectedIndices(element));
+            const source = s.props.itemsSource as unknown[] | undefined;
+            cb(indices.map(i => source?.[i]));
+        });
+    });
 
     // Data binding callbacks
     setValueProp(element, 'itemsSource', props, 'itemsSource', oldProps);
@@ -917,6 +1004,73 @@ function applyListViewProps(element: CSListView, props: Record<string, unknown>,
     // Appearance
     setValueProp(element, 'showBorder', props, 'showBorder', oldProps);
     setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground, oldProps);
+}
+
+function applyTreeViewProps(element: CSTreeView, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
+    const UIE = CS.UnityEngine.UIElements;
+
+    const state = getCollectionState(element);
+    state.props = props;
+
+    // Delegates first so they are in place before the first data set. Each is a
+    // stable wrapper assigned once; bindItem/unbindItem also resolve the row's
+    // data (id via the non-generic GetIdForIndex, then the JS-side map).
+    hookOnce(element, props, oldProps, 'makeItem', () => {
+        element.makeItem = () => {
+            const cb = getCollectionState(element).props.makeItem as (() => CSObject) | undefined;
+            return cb ? cb() : new UIE.VisualElement();
+        };
+    });
+    hookOnce(element, props, oldProps, 'bindItem', () => {
+        element.bindItem = (item, index) => {
+            const s = getCollectionState(element);
+            const cb = s.props.bindItem as ((el: CSObject, i: number, data: unknown) => void) | undefined;
+            if (!cb) return;
+            cb(item, index, s.dataById?.get(element.GetIdForIndex(index)));
+        };
+    });
+    hookOnce(element, props, oldProps, 'unbindItem', () => {
+        element.unbindItem = (item, index) => {
+            const s = getCollectionState(element);
+            const cb = s.props.unbindItem as ((el: CSObject, i: number, data: unknown) => void) | undefined;
+            if (!cb) return;
+            cb(item, index, s.dataById?.get(element.GetIdForIndex(index)));
+        };
+    });
+    hookOnce(element, props, oldProps, 'destroyItem', () => {
+        element.destroyItem = (item) => {
+            const cb = getCollectionState(element).props.destroyItem as ((el: CSObject) => void) | undefined;
+            if (cb) cb(item);
+        };
+    });
+
+    hookOnce(element, props, oldProps, 'onSelectionChange', () => {
+        element.add_selectedIndicesChanged(() => {
+            const s = getCollectionState(element);
+            const cb = s.props.onSelectionChange as ((items: unknown[], ids: number[]) => void) | undefined;
+            if (!cb) return;
+            const ids = asNumberArray(CS.OneJS.TreeViewBridge.GetSelectedIds(element));
+            cb(ids.map(id => s.dataById?.get(id)), ids);
+        });
+    });
+
+    // Virtualization and behavior before data, so the first refresh already
+    // sees autoExpand and the item height
+    setValueProp(element, 'fixedItemHeight', props, 'fixedItemHeight', oldProps);
+    setEnumProp(element, 'virtualizationMethod', props, 'virtualizationMethod', UIE.CollectionVirtualizationMethod, oldProps);
+    setValueProp(element, 'autoExpand', props, 'autoExpand', oldProps);
+    setEnumProp(element, 'selectionType', props, 'selectionType', UIE.SelectionType, oldProps);
+
+    // Appearance
+    setValueProp(element, 'showBorder', props, 'showBorder', oldProps);
+    setEnumProp(element, 'showAlternatingRowBackgrounds', props, 'showAlternatingRowBackgrounds', UIE.AlternatingRowBackground, oldProps);
+
+    // Data: flatten to the parallel-array wire and keep the data map JS-side
+    if (props.rootItems !== undefined && props.rootItems !== oldProps?.rootItems) {
+        const flat = flattenTree(props.rootItems as TreeViewItem[]);
+        state.dataById = flat.dataById;
+        CS.OneJS.TreeViewBridge.SetRootItems(element, flat.ids, flat.parentIds);
+    }
 }
 
 // Props handled by the reconciler infrastructure, not forwarded to C# elements
@@ -963,6 +1117,8 @@ function applyComponentProps(element: CSObject, type: string, props: Record<stri
         applyScrollViewProps(element as CSScrollView, props, oldProps);
     } else if (type === 'ojs-listview') {
         applyListViewProps(element as CSListView, props, oldProps);
+    } else if (type === 'ojs-treeview') {
+        applyTreeViewProps(element as CSTreeView, props, oldProps);
     } else if (type === 'ojs-frostedglass') {
         const el = element as any;
         if (props.blurRadius !== undefined && props.blurRadius !== oldProps?.blurRadius) el.BlurRadius = props.blurRadius;

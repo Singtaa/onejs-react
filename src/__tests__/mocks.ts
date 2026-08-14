@@ -199,6 +199,7 @@ export class MockButton extends MockVisualElement {
  * Mock TextField element
  */
 export class MockTextField extends MockVisualElement {
+    textEdition: { placeholder: string };
     constructor() {
         super('UnityEngine.UIElements.TextField');
         this.value = '';
@@ -243,6 +244,70 @@ export class MockImage extends MockVisualElement {
     constructor() {
         super('UnityEngine.UIElements.Image');
     }
+}
+
+/**
+ * Mock ListView. Selection state and event firing are test-driven: set
+ * _selectedIndices, then call _fireSelectionChanged()/_fireItemsChosen().
+ */
+export class MockListView extends MockVisualElement {
+    itemsSource: unknown[] = [];
+    makeItem: (() => unknown) | null = null;
+    bindItem: ((el: unknown, i: number) => void) | null = null;
+    unbindItem: ((el: unknown, i: number) => void) | null = null;
+    destroyItem: ((el: unknown) => void) | null = null;
+    fixedItemHeight = 0;
+    virtualizationMethod = 0;
+    selectionType = 0;
+    selectedIndex = -1;
+    reorderable = false;
+    reorderMode = 0;
+    showFoldoutHeader = false;
+    headerTitle = '';
+    showAddRemoveFooter = false;
+    showBorder = false;
+    showAlternatingRowBackgrounds = 0;
+    _selectedIndices: number[] = [];
+    _selectionHandlers: Array<() => void> = [];
+    _chosenHandlers: Array<() => void> = [];
+    constructor() {
+        super('UnityEngine.UIElements.ListView');
+    }
+    add_selectedIndicesChanged(handler: () => void) { this._selectionHandlers.push(handler); }
+    add_itemsChosen(handler: () => void) { this._chosenHandlers.push(handler); }
+    _fireSelectionChanged() { this._selectionHandlers.forEach(h => h()); }
+    _fireItemsChosen() { this._chosenHandlers.forEach(h => h()); }
+    RefreshItems() {}
+    Rebuild() {}
+}
+
+/**
+ * Mock TreeView. The TreeViewBridge mock stashes the flattened arrays here;
+ * GetIdForIndex models the all-expanded view, where visible order equals the
+ * pre-order ids array.
+ */
+export class MockTreeView extends MockVisualElement {
+    makeItem: (() => unknown) | null = null;
+    bindItem: ((el: unknown, i: number) => void) | null = null;
+    unbindItem: ((el: unknown, i: number) => void) | null = null;
+    destroyItem: ((el: unknown) => void) | null = null;
+    fixedItemHeight = 0;
+    virtualizationMethod = 0;
+    autoExpand = false;
+    selectionType = 0;
+    showBorder = false;
+    showAlternatingRowBackgrounds = 0;
+    _flatIds: number[] = [];
+    _flatParents: number[] = [];
+    _setRootItemsCalls = 0;
+    _selectedIds: number[] = [];
+    _selectionHandlers: Array<() => void> = [];
+    constructor() {
+        super('UnityEngine.UIElements.TreeView');
+    }
+    GetIdForIndex(index: number): number { return this._flatIds[index] ?? -1; }
+    add_selectedIndicesChanged(handler: () => void) { this._selectionHandlers.push(handler); }
+    _fireSelectionChanged() { this._selectionHandlers.forEach(h => h()); }
 }
 
 /**
@@ -337,6 +402,8 @@ export function createMockCS() {
                 Slider: MockSlider,
                 ScrollView: MockScrollView,
                 Image: MockImage,
+                ListView: MockListView,
+                TreeView: MockTreeView,
                 // Style types
                 Length: MockLength,
                 LengthUnit: MockLengthUnit,
@@ -422,6 +489,19 @@ export function createMockCS() {
                 RemoveFromHierarchy: (childHandle: number) => {
                     findElementByHandle(childHandle)?.RemoveFromHierarchy();
                 },
+            },
+            // Mirrors the real CS.OneJS.TreeViewBridge: SetRootItems receives the
+            // flattened parallel arrays (stashed for GetIdForIndex to model the
+            // all-expanded view); the selection getters return plain arrays the
+            // way int[] marshals.
+            TreeViewBridge: {
+                SetRootItems: (tv: MockTreeView, ids: number[], parentIds: number[]) => {
+                    tv._flatIds = ids;
+                    tv._flatParents = parentIds;
+                    tv._setRootItemsCalls++;
+                },
+                GetSelectedIds: (tv: MockTreeView) => tv._selectedIds,
+                GetSelectedIndices: (view: MockListView) => view._selectedIndices,
             },
         },
     };

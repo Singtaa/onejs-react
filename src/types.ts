@@ -827,6 +827,52 @@ export interface ListViewProps extends BaseProps {
   showAlternatingRowBackgrounds?: 'None' | 'ContentOnly' | 'All';
 }
 
+// One node of a TreeView's data. Trees are plain nested objects; the wrapper
+// flattens them and keeps the data JS-side (see treeview.ts).
+export interface TreeViewItem<T = unknown> {
+  // Stable id, unique across the whole tree. Optional: omitted ids are
+  // auto-assigned, but provide them when selection or expansion state should
+  // survive data updates.
+  id?: number;
+  data: T;
+  children?: TreeViewItem<T>[];
+}
+
+export interface TreeViewProps extends BaseProps {
+  // Nested data. Reassign a new array/object reference to update the tree.
+  rootItems: TreeViewItem[];
+
+  // Element creation callback, called when the TreeView needs a new row element.
+  // Rows get the expand/collapse toggle and indentation for free; return only
+  // the content element (e.g., new CS.UnityEngine.UIElements.Label())
+  makeItem: () => VisualElement;
+
+  // Bind callback: populate a recycled row element. `data` is the matching
+  // TreeViewItem's data, resolved from the row's id
+  bindItem: (element: VisualElement, index: number, data: unknown) => void;
+
+  // Optional: called when a row element is about to be recycled
+  unbindItem?: (element: VisualElement, index: number, data: unknown) => void;
+
+  // Optional: called when a row element is being destroyed
+  destroyItem?: (element: VisualElement) => void;
+
+  // Virtualization settings
+  fixedItemHeight?: number;
+  virtualizationMethod?: 'FixedHeight' | 'DynamicHeight';
+
+  // Expand items automatically when data is set
+  autoExpand?: boolean;
+
+  // Selection
+  selectionType?: 'None' | 'Single' | 'Multiple';
+  onSelectionChange?: (items: unknown[], ids: number[]) => void;
+
+  // Appearance
+  showBorder?: boolean;
+  showAlternatingRowBackgrounds?: 'None' | 'ContentOnly' | 'All';
+}
+
 /**
  * A UI element whose background is generated each frame by a shader. The effect
  * is blitted into a RenderTexture and shown as the element's backgroundImage, so

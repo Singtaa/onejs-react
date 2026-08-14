@@ -10,6 +10,7 @@ export {
   ScrollView,
   Image,
   ListView,
+  TreeView,
   FrostedGlass,
   clearImageCache,
   createComponent,
@@ -117,6 +118,8 @@ export type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  TreeViewProps,
+  TreeViewItem,
   FrostedGlassProps,
   // Container type for render()
   RenderContainer,

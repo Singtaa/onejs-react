@@ -11,6 +11,7 @@ import type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  TreeViewProps,
   FrostedGlassProps,
   FrostedGlassIntrinsicProps,
   ShaderEffectProps,
@@ -163,6 +164,7 @@ declare module 'react/jsx-runtime' {
       'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
       'ojs-image': WithRef<ImageProps, ImageElement>;
       'ojs-listview': WithRef<ListViewProps, VisualElement>;
+      'ojs-treeview': WithRef<TreeViewProps, VisualElement>;
       'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
       'ojs-shaderfx': WithRef<ShaderEffectIntrinsicProps, VisualElement>;
     }
@@ -183,6 +185,7 @@ declare module 'react' {
       'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
       'ojs-image': WithRef<ImageProps, ImageElement>;
       'ojs-listview': WithRef<ListViewProps, VisualElement>;
+      'ojs-treeview': WithRef<TreeViewProps, VisualElement>;
       'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
     }
   }
@@ -260,6 +263,11 @@ export const ListView = forwardRef<VisualElement, ListViewProps>((props, ref) =>
   return <ojs-listview ref={ref} {...props} />;
 });
 ListView.displayName = 'ListView';
+
+export const TreeView = forwardRef<VisualElement, TreeViewProps>((props, ref) => {
+  return <ojs-treeview ref={ref} {...props} />;
+});
+TreeView.displayName = 'TreeView';
 
 export const FrostedGlass = forwardRef<FrostedGlassElement, FrostedGlassProps>(({ blur, tint, ...rest }, ref) => {
   const parsedTint = useMemo(() => {

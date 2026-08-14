@@ -27,6 +27,7 @@ React 19 reconciler for Unity's UI Toolkit.
 | `ScrollView` | ScrollView | Scrollable container |
 | `Image` | Image | Image display |
 | `ListView` | ListView | Virtualized list |
+| `TreeView` | TreeView | Virtualized tree (nested `rootItems`, data-resolving `bindItem`) |
 
 **Raw text in JSX** (e.g., `<View>Hello</View>`) creates a `TextElement`, providing semantic distinction from explicit `<Label>` components.
 
