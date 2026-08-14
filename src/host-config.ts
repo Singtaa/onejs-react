@@ -799,6 +799,11 @@ function setValueProp<T>(target: T, key: keyof T, props: Record<string, unknown>
 // Apply TextField-specific properties: skip unchanged values
 function applyTextFieldProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
+    // Unlike every other prop here, `placeholder` is not a TextField property:
+    // Unity only exposes it on the text edition interface.
+    if (props.placeholder !== undefined && props.placeholder !== oldProps?.placeholder) {
+        el.textEdition.placeholder = props.placeholder;
+    }
     if (props.readOnly !== undefined && props.readOnly !== oldProps?.readOnly) el.isReadOnly = props.readOnly;
     if (props.multiline !== undefined && props.multiline !== oldProps?.multiline) el.multiline = props.multiline;
     if (props.maxLength !== undefined && props.maxLength !== oldProps?.maxLength) el.maxLength = props.maxLength;

@@ -248,6 +248,30 @@ describe('components', () => {
                 handleChange
             );
         });
+
+        // Unity puts placeholder on ITextEdition, not on TextField, so it needs
+        // its own line in applyTextFieldProps. It was declared in TextFieldProps
+        // but never applied, which failed silently.
+        it('sets placeholder on textEdition', async () => {
+            const container = createMockContainer();
+            render(<TextField placeholder="Search" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.textEdition.placeholder).toBe('Search');
+        });
+
+        it('updates placeholder on re-render', async () => {
+            const container = createMockContainer();
+            render(<TextField placeholder="Search" />, container as any);
+            await flushMicrotasks();
+
+            render(<TextField placeholder="Filter by name" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.textEdition.placeholder).toBe('Filter by name');
+        });
     });
 
     describe('Toggle', () => {

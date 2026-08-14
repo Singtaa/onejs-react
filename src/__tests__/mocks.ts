@@ -202,6 +202,8 @@ export class MockTextField extends MockVisualElement {
     constructor() {
         super('UnityEngine.UIElements.TextField');
         this.value = '';
+        // Unity exposes placeholder on ITextEdition rather than on the field.
+        this.textEdition = { placeholder: '' };
     }
 }
 
