@@ -50,6 +50,15 @@ function _isUrlPath(path: string): boolean {
 }
 
 function _resolveAssetPath(src: string): string {
+    // URLs bypass resolution entirely. Without this a src of
+    // "https://example.com/a.png" is mangled into
+    // "{streamingAssets}/onejs/assets/https://example.com/a.png", which the
+    // loaders downstream can never fetch, and the only symptom is an image that
+    // does not appear. onejs-unity's own resolver has always had this check;
+    // this copy of it did not.
+    if (_isUrlPath(src)) {
+        return src
+    }
     const Path = CS.System.IO.Path
     // Absolute paths bypass asset resolution entirely
     if (Path.IsPathRooted(src)) {
