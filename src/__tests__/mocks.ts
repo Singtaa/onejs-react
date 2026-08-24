@@ -137,6 +137,16 @@ export class MockVisualElement {
         this.enabledSelf = value;
     }
 
+    /**
+     * Counts repaint requests, because whether one was made is the whole
+     * question for a drawing callback: UI Toolkit caches the mesh, so a new
+     * callback that is never marked dirty leaves the old picture on screen.
+     */
+    repaints = 0;
+    MarkDirtyRepaint(): void {
+        this.repaints += 1;
+    }
+
     // Class list methods
     AddToClassList(className: string): void {
         this._classList.add(className);

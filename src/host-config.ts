@@ -685,6 +685,15 @@ function applyVisualContentCallback(instance: Instance, props: BaseProps) {
         } else {
             instance.visualContentCallback = undefined;
         }
+
+        // A different drawing is only a different drawing once the element has
+        // been told. UI Toolkit caches the mesh a callback generated and will
+        // not call the new one until something invalidates it, so swapping the
+        // callback on its own leaves the OLD picture on screen indefinitely.
+        // The failure is confusing rather than obviously broken: text and
+        // styles beside it keep updating, so a card ends up showing one suit's
+        // rank next to another suit's pip.
+        instance.element.MarkDirtyRepaint();
     }
 }
 

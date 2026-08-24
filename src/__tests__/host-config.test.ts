@@ -853,3 +853,72 @@ describe('host-config', () => {
         });
     });
 });
+
+describe("onGenerateVisualContent", () => {
+    const draw = () => { /* a drawing */ };
+    const other = () => { /* a different drawing */ };
+
+    /** Builds an instance the way the reconciler does, with the given props. */
+    function make(props: BaseProps) {
+        return hostConfig.createInstance(
+            "ojs-view", props as never, null as never, null as never, null as never,
+        ) as Instance;
+    }
+
+    it("assigns the callback to the element", () => {
+        const instance = make({ onGenerateVisualContent: draw });
+        expect((instance.element as unknown as { generateVisualContent: unknown }).generateVisualContent)
+            .toBe(draw);
+    });
+
+    /**
+     * The bug this exists for. A card showed one suit's rank beside another
+     * suit's pip, because the pip was drawn by a callback that had been
+     * replaced and the element was never told to paint again.
+     */
+    it("asks for a repaint when the callback changes", () => {
+        const instance = make({ onGenerateVisualContent: draw });
+        const element = instance.element as unknown as { repaints: number };
+        const before = element.repaints;
+
+        hostConfig.commitUpdate(
+            instance, "ojs-view",
+            { onGenerateVisualContent: draw } as never,
+            { onGenerateVisualContent: other } as never,
+            null as never,
+        );
+
+        expect(element.repaints).toBeGreaterThan(before);
+    });
+
+    it("asks for a repaint when the callback is removed", () => {
+        const instance = make({ onGenerateVisualContent: draw });
+        const element = instance.element as unknown as { repaints: number };
+        const before = element.repaints;
+
+        hostConfig.commitUpdate(
+            instance, "ojs-view",
+            { onGenerateVisualContent: draw } as never,
+            {} as never,
+            null as never,
+        );
+
+        expect(element.repaints).toBeGreaterThan(before);
+    });
+
+    /** An unchanged callback must not repaint, or every frame redraws. */
+    it("does not repaint when the callback is the same", () => {
+        const instance = make({ onGenerateVisualContent: draw });
+        const element = instance.element as unknown as { repaints: number };
+        const before = element.repaints;
+
+        hostConfig.commitUpdate(
+            instance, "ojs-view",
+            { onGenerateVisualContent: draw } as never,
+            { onGenerateVisualContent: draw } as never,
+            null as never,
+        );
+
+        expect(element.repaints).toBe(before);
+    });
+});
