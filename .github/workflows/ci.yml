@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same ref makes an in-flight run redundant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Report both platforms rather than stopping at the first red one: a
+      # failure on one OS is usually the interesting result, not a reason to
+      # hide the other.
+      fail-fast: false
+      matrix:
+        # Windows is deliberate, not symmetry. Developers here work on Windows, so it has to be a gate and not an afterthought.
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      # --if-present: a package with no test script yet is not a failure here,
+      # so this workflow starts gating tests the day they are added.
+      - run: npm run test --if-present
