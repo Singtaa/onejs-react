@@ -7,7 +7,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# A newer push to the same ref makes an in-flight run redundant.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -25,13 +24,30 @@ jobs:
         # Windows is deliberate, not symmetry. Developers here work on Windows, so it has to be a gate and not an afterthought.
         os: [ubuntu-latest, windows-latest]
 
+    defaults:
+      run:
+        working-directory: onejs-react
+
     steps:
+      # Checked out into a named folder so the siblings below sit beside it.
+      # onejs-react depends on them through "file:../" specifiers, which is the layout
+      # the packages are developed in inside the container repo; a lone checkout
+      # resolves none of them and fails before any test runs.
       - uses: actions/checkout@v4
+        with:
+          path: onejs-react
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Singtaa/unity-types
+          ref: main
+          path: unity-types
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: onejs-react/package-lock.json
 
       - run: npm ci
 
