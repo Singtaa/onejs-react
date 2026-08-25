@@ -881,11 +881,10 @@ describe("onGenerateVisualContent", () => {
         const element = instance.element as unknown as { repaints: number };
         const before = element.repaints;
 
-        hostConfig.commitUpdate(
+        commitUpdate(
             instance, "ojs-view",
-            { onGenerateVisualContent: draw } as never,
-            { onGenerateVisualContent: other } as never,
-            null as never,
+            { onGenerateVisualContent: draw } as TestProps,
+            { onGenerateVisualContent: other } as TestProps,
         );
 
         expect(element.repaints).toBeGreaterThan(before);
@@ -896,11 +895,10 @@ describe("onGenerateVisualContent", () => {
         const element = instance.element as unknown as { repaints: number };
         const before = element.repaints;
 
-        hostConfig.commitUpdate(
+        commitUpdate(
             instance, "ojs-view",
-            { onGenerateVisualContent: draw } as never,
-            {} as never,
-            null as never,
+            { onGenerateVisualContent: draw } as TestProps,
+            {} as TestProps,
         );
 
         expect(element.repaints).toBeGreaterThan(before);
@@ -912,11 +910,10 @@ describe("onGenerateVisualContent", () => {
         const element = instance.element as unknown as { repaints: number };
         const before = element.repaints;
 
-        hostConfig.commitUpdate(
+        commitUpdate(
             instance, "ojs-view",
-            { onGenerateVisualContent: draw } as never,
-            { onGenerateVisualContent: draw } as never,
-            null as never,
+            { onGenerateVisualContent: draw } as TestProps,
+            { onGenerateVisualContent: draw } as TestProps,
         );
 
         expect(element.repaints).toBe(before);
