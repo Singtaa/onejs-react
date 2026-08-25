@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { Painter, batchedVisualContent } from "../painter"
 
-// Opcodes mirrored from painter.ts / PainterBridge.cs. These assertions are the
-// guard that the JS recorder and the C# replay engine stay in sync.
+// Opcodes mirrored from painter.ts. These assertions cover the JS recorder's own
+// output; they are NOT the guard that it agrees with C#, because this file never
+// reads PainterBridge.cs. That guard is PainterOpcodeContractTests in the
+// container repo, which is the only checkout holding both sides.
 const OP = {
     BeginPath: 1, ClosePath: 2, MoveTo: 3, LineTo: 4, Arc: 5, ArcTo: 6,
     Bezier: 7, Quad: 8, Fill: 9, Stroke: 10, LineWidth: 11, FillColor: 12,
