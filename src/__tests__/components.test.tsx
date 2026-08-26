@@ -518,7 +518,7 @@ describe('components', () => {
             expect((el.image as MockVectorImage).svgText).toBe("<svg>spin</svg>");
         });
 
-        it('keeps a null image and logs an error when the asset is missing', async () => {
+        it('keeps a null image and logs an error when the load produces nothing', async () => {
             const container = createMockContainer();
             render(<Image src="images/missing.png" />, container as any);
             await flushMicrotasks();
@@ -526,8 +526,23 @@ describe('components', () => {
             const el = container.children[0] as any;
             expect(el.image).toBeNull();
             expect(console.error).toHaveBeenCalledWith(
-                expect.stringContaining("Image src not found: images/missing.png")
+                expect.stringContaining("Image src loaded nothing: images/missing.png")
             );
+        });
+
+        it('does not claim the file is missing, because it cannot know that', async () => {
+            // A null from LoadTextureFromUrl means the request failed OR the
+            // bytes would not decode. An animated GIF takes the second path:
+            // it uploads, it returns 200, and it comes back as nothing. Saying
+            // "not found" about it sends the author to check the path, which is
+            // the one thing that cannot help. The C# logs which case it was.
+            const container = createMockContainer();
+            render(<Image src="images/walk.gif" />, container as any);
+            await flushMicrotasks();
+
+            const logged = (console.error as any).mock.calls.flat().join(" ");
+            expect(logged).toContain("images/walk.gif");
+            expect(logged).not.toContain("not found");
         });
 
         it('dedupes concurrent loads and serves later mounts from the cache', async () => {

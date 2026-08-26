@@ -124,7 +124,14 @@ function _loadImageAssetAsync(src: string, url: string): Promise<any> {
             } else {
                 const tex = await CS.OneJS.Network.LoadTextureFromUrl(url)
                 if (!tex) {
-                    console.error(`Image src not found: ${src} (resolved to ${url})`)
+                    // Not "not found". A null here means the request failed OR
+                    // the bytes arrived and would not decode, and this side
+                    // cannot tell which; the C# logs the difference. Claiming
+                    // "not found" for a file that returns 200 sends the author
+                    // to check the path, which is the one thing that will not
+                    // help them.
+                    console.error(`Image src loaded nothing: ${src} (resolved to ${url}). `
+                        + `Either the request failed or the format is one Unity does not decode; the preceding [Network] warning says which.`)
                     return null
                 }
                 tex.filterMode = CS.UnityEngine.FilterMode.Bilinear
