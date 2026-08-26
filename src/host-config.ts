@@ -207,6 +207,33 @@ export type ChildSet = never; // Not using persistent mode
 
 // Map React element types to UI Toolkit classes
 // Element types use 'ojs-' prefix to avoid conflicts with HTML/SVG in @types/react
+/**
+ * How far a ScrollView steps per wheel event, when something upstream is
+ * normalising the wheel.
+ *
+ * On WebGL the OneJS bootstrap accumulates pixel deltas and emits one event per
+ * notch of travel, because Unity's legacy input discards a wheel event's
+ * magnitude and only the count survives. That fixes how FAR a gesture goes and
+ * says nothing about how it gets there: the panel still jumps three ticks of
+ * mouseWheelScrollSize per event, 54px at the default 18, which is felt as
+ * stutter on a trackpad.
+ *
+ * The two are one setting, not two. Distance per gesture is
+ * (gesture / notch) x 3 x step, so holding it constant means step = 0.18 x
+ * notch, and deriving the step here rather than shipping a second constant is
+ * what stops them drifting apart: halve the notch and the step follows, and a
+ * gesture covers the same distance in twice as many, half-sized jumps.
+ *
+ * Returns null off WebGL, where __ojWheelNotch does not exist, nothing is
+ * normalising anything, and lowering this would only make scrolling slower.
+ * An explicit mouseWheelScrollSize prop still wins: this is a default, applied
+ * at construction, and applyScrollViewProps runs after it.
+ */
+function pairedWheelStep(): number | null {
+    const notch = (globalThis as unknown as { __ojWheelNotch?: unknown }).__ojWheelNotch;
+    return typeof notch === 'number' && notch > 0 ? notch * 0.18 : null;
+}
+
 const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-view': () => new CS.UnityEngine.UIElements.VisualElement(),
     'ojs-text': () => new CS.UnityEngine.UIElements.TextElement(),
@@ -215,7 +242,12 @@ const TYPE_MAP: Record<string, () => CSObject> = {
     'ojs-textfield': () => new CS.UnityEngine.UIElements.TextField(),
     'ojs-toggle': () => new CS.UnityEngine.UIElements.Toggle(),
     'ojs-slider': () => new CS.UnityEngine.UIElements.Slider(),
-    'ojs-scrollview': () => new CS.UnityEngine.UIElements.ScrollView(),
+    'ojs-scrollview': () => {
+        const view = new CS.UnityEngine.UIElements.ScrollView() as CSScrollView;
+        const step = pairedWheelStep();
+        if (step !== null) view.mouseWheelScrollSize = step;
+        return view;
+    },
     'ojs-image': () => new CS.UnityEngine.UIElements.Image(),
     'ojs-listview': () => new CS.UnityEngine.UIElements.ListView(),
     'ojs-treeview': () => new CS.UnityEngine.UIElements.TreeView(),

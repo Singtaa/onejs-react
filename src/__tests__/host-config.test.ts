@@ -919,3 +919,56 @@ describe("onGenerateVisualContent", () => {
         expect(element.repaints).toBe(before);
     });
 });
+
+/**
+ * The wheel step is half of a pair. The other half, the notch, lives in the
+ * WebGL bootstrap, and the two have to move together: distance per gesture is
+ * (gesture / notch) x 3 x step, so a step that does not follow the notch is a
+ * sensitivity change dressed up as a smoothness one.
+ */
+describe('ScrollView wheel step, paired with the WebGL notch', () => {
+    const globals = globalThis as unknown as { __ojWheelNotch?: unknown };
+    afterEach(() => { delete globals.__ojWheelNotch; });
+
+    it('leaves the step alone when nothing is normalising the wheel', () => {
+        // Off WebGL there is no notch, nothing is compensating, and lowering
+        // this would only make scrolling slower.
+        const instance = createInstance('ojs-scrollview', {});
+        expect((getMockElement(instance) as any).mouseWheelScrollSize).toBeUndefined();
+    });
+
+    it('derives the step from the notch', () => {
+        globals.__ojWheelNotch = 100;
+        expect((getMockElement(createInstance('ojs-scrollview', {})) as any).mouseWheelScrollSize).toBeCloseTo(18);
+        globals.__ojWheelNotch = 33;
+        expect((getMockElement(createInstance('ojs-scrollview', {})) as any).mouseWheelScrollSize).toBeCloseTo(5.94);
+    });
+
+    it('keeps distance per gesture constant as the notch changes', () => {
+        // The whole point, stated as the arithmetic rather than as a comment:
+        // a 300px gesture covers the same ground whatever the granularity.
+        const distance = (notch: number) => {
+            globals.__ojWheelNotch = notch;
+            const step = (getMockElement(createInstance('ojs-scrollview', {})) as any).mouseWheelScrollSize as number;
+            return Math.floor(300 / notch) * 3 * step;
+        };
+        // Within a couple of percent, not to the pixel: a gesture is a whole
+        // number of notches and 300 does not divide evenly by both, so the
+        // remainder differs. 160.4 against 162 here.
+        const [fine, coarse] = [distance(33), distance(100)];
+        expect(Math.abs(fine - coarse) / coarse).toBeLessThan(0.02);
+    });
+
+    it('lets an explicit prop win', () => {
+        globals.__ojWheelNotch = 33;
+        const instance = createInstance('ojs-scrollview', { mouseWheelScrollSize: 40 } as TestProps);
+        expect((getMockElement(instance) as any).mouseWheelScrollSize).toBe(40);
+    });
+
+    it('ignores a notch that is not a usable number', () => {
+        for (const bad of [0, -5, '33', null, undefined, NaN]) {
+            globals.__ojWheelNotch = bad;
+            expect((getMockElement(createInstance('ojs-scrollview', {})) as any).mouseWheelScrollSize).toBeUndefined();
+        }
+    });
+});
