@@ -94,3 +94,91 @@ describe("TextureFX scroll semantics", () => {
         expect(at(4) / 4).toBeCloseTo(at(8) / 8)
     })
 })
+
+/**
+ * SDF layers reuse _LScale for their transform and add _LParams2. If any of these
+ * change, sdfValue()/sdfDistance() in OneJS/TextureFX.shader change with them.
+ */
+describe("TextureFX SDF shapes", () => {
+    it("packs an sdf layer into the slots the shader reads", () => {
+        const c = buildTextureFX((fx) => {
+            fx.sdf("circle", { r: 0.4, x: 0.1, y: -0.2, rotation: 90, scale: 2,
+                               rounded: 0.03, onion: 0.01, softness: 0.05, amount: 3 })
+            fx.ramp(["#000", "#fff"])
+        })
+        // _LMode = (src, blend, rounded, onion); src 3 = sdf
+        expect(c.vectorArrays._LMode).toEqual([3, 0, 0.03, 0.01])
+        // _LScale = (x, y, rotation in radians, uniform scale)
+        expect(c.vectorArrays._LScale.slice(0, 2)).toEqual([0.1, -0.2])
+        expect(c.vectorArrays._LScale[2]).toBeCloseTo(Math.PI / 2)
+        expect(c.vectorArrays._LScale[3]).toBe(2)
+        // shape id in _LScroll.w, amount in .z, and never a scroll
+        expect(c.vectorArrays._LScroll).toEqual([0, 0, 3, 0])
+        expect(c.vectorArrays._LParams.slice(0, 4)).toEqual([0.4, 0, 0, 0])
+        // _LParams2 = (param5, param6, softness, fieldMode)
+        expect(c.vectorArrays._LParams2).toEqual([0, 0, 0.05, 0])
+    })
+
+    it("spends params 5 and 6 only on the shapes that need them", () => {
+        const c = buildTextureFX((fx) => {
+            fx.sdf("roundedBox", { w: 0.3, h: 0.4, corners: [0.1, 0.2, 0.3, 0.4] })
+            fx.ramp(["#000", "#fff"])
+        })
+        // corners are top-right, bottom-right in _LParams.zw and top-left,
+        // bottom-left in _LParams2.xy, which is IQ's r.xyzw order
+        expect(c.vectorArrays._LParams.slice(0, 4)).toEqual([0.3, 0.4, 0.1, 0.2])
+        expect(c.vectorArrays._LParams2.slice(0, 2)).toEqual([0.3, 0.4])
+    })
+
+    it("converts angles to the sin/cos pair each shape actually wants", () => {
+        const c = buildTextureFX((fx) => {
+            fx.sdf("pie", { aperture: 30, r: 0.4 })
+            fx.sdf("ring", { angle: 30, r: 0.3, thickness: 0.1 }).add()
+            fx.ramp(["#000", "#fff"])
+        })
+        const a = 30 * Math.PI / 180
+        // pie wants (sin, cos)
+        expect(c.vectorArrays._LParams[0]).toBeCloseTo(Math.sin(a))
+        expect(c.vectorArrays._LParams[1]).toBeCloseTo(Math.cos(a))
+        // ring wants (cos, sin): swapping these silently draws a different wedge
+        expect(c.vectorArrays._LParams[4]).toBeCloseTo(Math.cos(a))
+        expect(c.vectorArrays._LParams[5]).toBeCloseTo(Math.sin(a))
+    })
+
+    it("gives every shape a default that packs without NaN", () => {
+        const kinds = ["circle","roundedBox","box","orientedBox","segment","rhombus",
+            "trapezoid","parallelogram","equilateralTriangle","triangleIsosceles",
+            "triangle","unevenCapsule","pentagon","hexagon","octagon","hexagram",
+            "star5","star","pie","cutDisk","arc","ring","horseshoe","vesica",
+            "orientedVesica","moon","roundedCross","egg","heart","cross","roundedX",
+            "ellipse","parabola","parabolaSegment","bezier","blobbyCross","tunnel",
+            "stairs","quadraticCircle","hyperbola","coolS","circleWave"] as const
+        expect(kinds.length).toBe(42)
+        const seen = new Set<number>()
+        for (const k of kinds) {
+            const c = buildTextureFX((fx) => { fx.sdf(k); fx.ramp(["#000", "#fff"]) })
+            for (const v of [...c.vectorArrays._LParams, ...c.vectorArrays._LParams2,
+                             ...c.vectorArrays._LScale, ...c.vectorArrays._LMode])
+                expect(Number.isFinite(v)).toBe(true)
+            seen.add(c.vectorArrays._LScroll[3])
+        }
+        // ids must be unique and contiguous, since the shader switches on them
+        expect(seen.size).toBe(42)
+        expect(Math.min(...seen)).toBe(0)
+        expect(Math.max(...seen)).toBe(41)
+    })
+
+    it("keeps non-sdf layers out of the sdf slots", () => {
+        const c = buildTextureFX((fx) => {
+            fx.noise({ scale: 4, seed: 2 })
+            fx.shape("radial").multiply()
+            fx.ramp(["#000", "#fff"])
+        })
+        expect(c.vectorArrays._LParams2).toEqual([0, 0, 0, 0, 0, 0, 0, 0])
+        // rounded/onion stay zero, so _LMode.zw is untouched for old stacks
+        expect(c.vectorArrays._LMode.slice(2, 4)).toEqual([0, 0])
+        expect(c.vectorArrays._LMode.slice(6, 8)).toEqual([0, 0])
+        // a noise layer still gets scale/octaves/seed in _LScale
+        expect(c.vectorArrays._LScale.slice(0, 4)).toEqual([4, 4, 3, 2])
+    })
+})
