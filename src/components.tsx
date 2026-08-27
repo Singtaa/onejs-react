@@ -99,6 +99,15 @@ function _loadImageAsset(src: string): any | null {
         const tex = new CS.UnityEngine.Texture2D(2, 2)
         tex.LoadImage(bytes)
         tex.filterMode = CS.UnityEngine.FilterMode.Bilinear
+        // Clamp, not Unity's default Repeat. With Repeat a bilinear tap at the
+        // top edge of a scaled element reaches past it and wraps to the bottom
+        // row, so an image with a dark top and a light bottom grows a bright
+        // line that CHANGES as the element scales. Measured through the real
+        // UITK renderer: the top row reads 3.6x brighter under Repeat than
+        // Clamp and swings by 0.074 across an animation's size range, against
+        // 0.002 for Clamp. A synthetic Graphics.Blit does not show it, because
+        // it samples strictly inside [0,1] and never asks what lies past the edge.
+        tex.wrapMode = CS.UnityEngine.TextureWrapMode.Clamp
         result = tex
     }
 
@@ -135,6 +144,15 @@ function _loadImageAssetAsync(src: string, url: string): Promise<any> {
                     return null
                 }
                 tex.filterMode = CS.UnityEngine.FilterMode.Bilinear
+                // Clamp, not Unity's default Repeat. With Repeat a bilinear tap at the
+                // top edge of a scaled element reaches past it and wraps to the bottom
+                // row, so an image with a dark top and a light bottom grows a bright
+                // line that CHANGES as the element scales. Measured through the real
+                // UITK renderer: the top row reads 3.6x brighter under Repeat than
+                // Clamp and swings by 0.074 across an animation's size range, against
+                // 0.002 for Clamp. A synthetic Graphics.Blit does not show it, because
+                // it samples strictly inside [0,1] and never asks what lies past the edge.
+                tex.wrapMode = CS.UnityEngine.TextureWrapMode.Clamp
                 result = tex
             }
             _imageCache.set(src, result)

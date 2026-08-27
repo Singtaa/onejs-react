@@ -327,6 +327,9 @@ export class MockTexture2D {
     width: number
     height: number
     filterMode: number = 0
+    // Unity's default, deliberately. A mock that started at Clamp would let the
+    // fix pass without the code doing anything.
+    wrapMode: number = 0
     _loaded = false
 
     constructor(w: number, h: number) {
@@ -401,6 +404,9 @@ export function createMockCS() {
             },
             Texture2D: MockTexture2D,
             FilterMode: { Point: 0, Bilinear: 1, Trilinear: 2 },
+            // Unity's real values, so a test asserting Clamp asserts 1 rather
+            // than whatever a placeholder happened to be.
+            TextureWrapMode: { Repeat: 0, Clamp: 1, Mirror: 2, MirrorOnce: 3 },
             // UI Elements
             UIElements: {
                 VisualElement: MockVisualElement,

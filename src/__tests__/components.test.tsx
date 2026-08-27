@@ -504,6 +504,11 @@ describe('components', () => {
             expect(el.image).toBeInstanceOf(MockTexture2D);
             expect((el.image as MockTexture2D)._loaded).toBe(true);
             expect((el.image as MockTexture2D).filterMode).toBe(1); // Bilinear
+            // Clamp, not Unity's default Repeat. With Repeat a bilinear tap at
+            // the top edge of a scaled element wraps to the bottom row, which is
+            // a bright line that moves as the element scales. The mock starts at
+            // Repeat, so this fails if the code stops setting it.
+            expect((el.image as MockTexture2D).wrapMode).toBe(1); // Clamp
         });
 
         it('loads SVG asynchronously via fetch + SVGUtils', async () => {
