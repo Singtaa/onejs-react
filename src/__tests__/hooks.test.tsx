@@ -548,7 +548,8 @@ describe("useFrameSyncWith (deprecated)", () => {
     it("works with custom equality for new JS objects", async () => {
         // useFrameSyncWith works when the getter returns a NEW object each time
         // (not a cached proxy). This is its valid use case.
-        let x = 1, y = 2, z = 3
+        let x = 1
+        const y = 2, z = 3
         let capturedValue: { x: number; y: number; z: number } = undefined as any
 
         function TestComponent() {
@@ -566,7 +567,6 @@ describe("useFrameSyncWith (deprecated)", () => {
 
         // No change: should not update (custom equality says they're equal)
         await advanceFrame()
-        const stableValue = capturedValue
 
         await advanceFrame()
         // The reference may change (new object each getter call) but

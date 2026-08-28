@@ -7,8 +7,8 @@
  * Also provides useVectorContent hook for automatic repaint on dependency changes.
  */
 
-import { useRef, useEffect, useCallback, type DependencyList, type RefObject } from 'react'
-import type { Vector2, VisualElement, MeshGenerationContext, GenerateVisualContentCallback } from './types'
+import { useRef, useEffect, type DependencyList, type RefObject } from 'react'
+import type { Vector2, VisualElement, GenerateVisualContentCallback } from './types'
 
 // Global declarations for Unity interop
 declare const CS: {

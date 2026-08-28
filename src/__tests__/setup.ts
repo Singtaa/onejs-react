@@ -14,7 +14,6 @@ import { clearImageCache } from "../components";
 
 // Extend globalThis type for our mocks
 declare global {
-    // eslint-disable-next-line no-var
     var __eventAPI: {
         addEventListener: ReturnType<typeof vi.fn>;
         removeEventListener: ReturnType<typeof vi.fn>;

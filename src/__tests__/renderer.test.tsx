@@ -8,7 +8,7 @@
  * - Component lifecycle
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React, { useState, useEffect } from 'react';
 import { render, unmount, unmountAll, createPortal, getRoot } from '../renderer';
 import { View, Label, Button } from '../components';

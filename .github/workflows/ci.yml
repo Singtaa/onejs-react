@@ -53,6 +53,8 @@ jobs:
 
       - run: npm run typecheck
 
+      - run: npm run lint --if-present
+
       # --if-present: a package with no test script yet is not a failure here,
       # so this workflow starts gating tests the day they are added.
       - run: npm run test --if-present

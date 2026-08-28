@@ -1,4 +1,4 @@
-import { forwardRef, createElement, useEffect, useMemo, useState, type ReactElement, type Ref } from 'react';
+import { forwardRef, createElement, useEffect, useMemo, useState, type Ref } from 'react';
 import type {
   BaseProps,
   ViewProps,
@@ -35,7 +35,10 @@ declare function useExtensions(typeRef: any): void
 // Provided by the OneJS bootstrap (Network.cs) on native, by the browser on WebGL
 declare function fetch(url: string): Promise<{ ok: boolean; status: number; text(): Promise<string> }>
 
-// Register ImageConversion extension methods so tex.LoadImage(bytes) works
+// Register ImageConversion extension methods so tex.LoadImage(bytes) works.
+// useExtensions is OneJS's C# extension-method registrar, not a React hook;
+// module level is exactly where it belongs (it mirrors a C# using).
+// eslint-disable-next-line react-hooks/rules-of-hooks
 useExtensions(CS.UnityEngine.ImageConversion)
 
 // Module-level image cache shared across all Image instances

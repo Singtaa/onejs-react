@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useReducer } from "react"
 
 // QuickJS environment declarations
 declare function requestAnimationFrame(callback: (time: number) => void): number;
-declare function cancelAnimationFrame(id: number): void;
 
 /**
  * Syncs a value from C# (or any external source) to React state, checking every frame.
@@ -55,9 +54,15 @@ export function useFrameSync<T>(
     const select = hasSelector ? selectOrDeps as (value: T) => readonly unknown[] : undefined
     const effectDeps = hasSelector ? (deps ?? []) : (selectOrDeps as readonly unknown[] ?? [])
 
+    // Safe despite the conditional: a given call site always passes the same
+    // overload shape, so the branch (and the hooks inside it) never changes
+    // between renders of that component. Flipping shapes at one call site at
+    // runtime is the one thing this API does not support.
     if (select) {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         return useFrameSyncSelect(getter, select, effectDeps)
     } else {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         return useFrameSyncSimple(getter, effectDeps)
     }
 }
@@ -432,7 +437,11 @@ export function useEventSync<T>(
     propOrEvents: string | EventSource[],
     depsOrNothing?: readonly unknown[]
 ): T {
+    // Safe despite the conditional: a call site is written against one of the
+    // two overloads and never switches shape between renders, and both
+    // branches call the same hook with the same internal hook order anyway.
     if (typeof sourceOrGetter === "function") {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         return useEventSyncImpl(
             sourceOrGetter as () => T,
             propOrEvents as EventSource[],
@@ -442,6 +451,7 @@ export function useEventSync<T>(
 
     const source = sourceOrGetter
     const propName = propOrEvents as string
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     return useEventSyncImpl(
         () => source ? (source as any)[propName] : undefined,
         source ? [[source, `On${propName}Changed`]] : [],

@@ -15,12 +15,10 @@ declare function clearTimeout(id: number): void;
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
 
-// Priority constants from react-reconciler/constants
-// These match React's internal lane priorities
-const DiscreteEventPriority = 2;
-const ContinuousEventPriority = 8;
+// Priority constant from react-reconciler/constants, matching React's
+// internal lane priorities. Only the default lane is used here; for
+// reference the others are Discrete=2, Continuous=8, Idle=536870912.
 const DefaultEventPriority = 32;
-const IdleEventPriority = 536870912;
 
 // Current update priority: used by React's scheduler
 let currentUpdatePriority = DefaultEventPriority;
@@ -106,9 +104,6 @@ declare const __eventAPI: {
 // pass to render(), so it is the natural home for a shared overlay layer.
 declare const __root: CSObject;
 
-interface CSStyle {
-    [key: string]: unknown;
-}
 
 // ScrollView-specific interface
 interface CSScrollView extends CSObject {

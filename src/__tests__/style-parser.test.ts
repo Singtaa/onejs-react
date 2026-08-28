@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from "vitest"
 import { parseLength, parseColor, parseStyleValue } from "../style-parser"
-import { MockLength, MockColor, MockLengthUnit, MockStyleKeyword } from "./mocks"
+import { MockLength, MockColor, MockStyleKeyword } from "./mocks"
 
 describe("style-parser", () => {
     describe("parseLength", () => {

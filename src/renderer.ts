@@ -1,7 +1,7 @@
 import Reconciler from 'react-reconciler';
 import type { ReactNode, ReactPortal } from 'react';
 import { hostConfig, type Container } from './host-config';
-import type { RenderContainer, VisualElement } from './types';
+import type { RenderContainer } from './types';
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 

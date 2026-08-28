@@ -162,8 +162,6 @@ describe("collection sync: parent/child pattern", () => {
         expect(childRenders[2]).toBeGreaterThanOrEqual(1)
 
         const parentRendersAfterInit = parentRenders
-        const child1RendersAfterInit = childRenders[1]
-        const child2RendersAfterInit = childRenders[2]
 
         // Add a new item
         items.push(createMockItem(3, "Potion", 1))
@@ -368,7 +366,7 @@ describe("collection sync: parent/child pattern", () => {
 
             return (
                 <>
-                    {toArray<{ Name: string; Dialogue: string }>(place.NPCs).map((npc, i) => (
+                    {toArray<{ Name: string; Dialogue: string }>(place.NPCs).map((npc) => (
                         <NPCView key={npc.Name} npc={npc} />
                     ))}
                 </>
@@ -411,7 +409,7 @@ describe("collection sync: parent/child pattern", () => {
         let renderCount = 0
 
         function ItemView() {
-            const data = useFrameSync(
+            useFrameSync(
                 () => item,
                 (i) => [i.Name, i.Durability, i.StackCount, i.Version]
             )

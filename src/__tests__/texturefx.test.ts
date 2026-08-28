@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { TextureFXBuilder, buildTextureFX, MAX_TEXTUREFX_LAYERS } from "../texturefx"
+import { buildTextureFX, MAX_TEXTUREFX_LAYERS } from "../texturefx"
 
 /**
  * The builder's compiled output is the C#-JS contract: uniform names and the
