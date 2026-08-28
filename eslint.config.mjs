@@ -86,7 +86,7 @@ export default tseslint.config(
             // the element silently renders unstyled. Whole class names per
             // branch are scanned; truly dynamic names belong in the safelist.
             "no-restricted-syntax": ["error", {
-                selector: "JSXAttribute[name.name='className'] BinaryExpression[operator='+']",
+                selector: "JSXAttribute[name.name='className'] > JSXExpressionContainer > BinaryExpression[operator='+']",
                 message: "Assembled class names are invisible to the Tailwind scanner. Use whole class names in each branch, or add the assembled names to the safelist.",
             }],
         },
