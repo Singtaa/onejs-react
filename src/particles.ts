@@ -24,7 +24,13 @@
  *         }],
  *     })
  *     // ...
- *     <View ref={ref} onPointerDown={(e) => fx.burst({ x: e.localX, y: e.localY, count: 30 })} />
+ *     <View ref={ref} onPointerDown={(e) => {
+ *         // A pointer event carries panel coordinates. There is no localX or
+ *         // localY: reaching for them yields undefined and bursts at NaN,
+ *         // which draws nothing and looks like a broken emitter.
+ *         const box = ref.current.worldBound
+ *         fx.burst({ x: e.x - box.x, y: e.y - box.y, count: 30 })
+ *     }} />
  *
  * The wire schema (toWire's output) is the C#-JS contract: it must match
  * ParticleWire.cs, kept in sync by particles.test.ts and ParticleTests.cs.
