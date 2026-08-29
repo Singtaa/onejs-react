@@ -576,6 +576,14 @@ export interface TextFieldProps extends BaseProps {
   hideMobileInput?: boolean;
   autoCorrection?: boolean;
   onChange?: ChangeEventHandler<string>;
+  /**
+   * Classes for the inner input element, where the visible box (border,
+   * background, padding) actually lives. `className` lands on the outer
+   * field and cannot reach it.
+   */
+  inputClassName?: string;
+  /** Inline styles for the inner input element. See `inputClassName`. */
+  inputStyle?: ViewStyle;
 }
 
 export interface ToggleProps extends BaseProps {

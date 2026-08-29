@@ -272,6 +272,62 @@ describe('components', () => {
             const el = container.children[0] as any;
             expect(el.textEdition.placeholder).toBe('Filter by name');
         });
+
+        // The visible box of a TextField (border, background, padding) lives on
+        // an inner TextInput child, so className/style on the field cannot reach
+        // it. inputClassName/inputStyle exist for exactly that element.
+        const innerInput = (container: ReturnType<typeof createMockContainer>) =>
+            (container.children[0] as MockVisualElement).children[0] as MockVisualElement;
+
+        it('applies inputClassName to the inner input, not the field', async () => {
+            const container = createMockContainer();
+            render(<TextField className="outer" inputClassName="bg-gray-900 border-none" />, container as any);
+            await flushMicrotasks();
+
+            const field = container.children[0] as MockVisualElement;
+            expect(field.classList.has('outer')).toBe(true);
+            expect(field.classList.has('bg-gray-900')).toBe(false);
+            expect(innerInput(container).classList.has('bg-gray-900')).toBe(true);
+            expect(innerInput(container).classList.has('border-none')).toBe(true);
+            expect(innerInput(container).classList.has('outer')).toBe(false);
+        });
+
+        it('applies inputStyle to the inner input', async () => {
+            const container = createMockContainer();
+            render(<TextField inputStyle={{ paddingLeft: 12 }} />, container as any);
+            await flushMicrotasks();
+
+            expect(innerInput(container).style.paddingLeft).toEqual(new MockLength(12));
+        });
+
+        it('updates inputClassName selectively on re-render', async () => {
+            const container = createMockContainer();
+            render(<TextField inputClassName="a b" />, container as any);
+            await flushMicrotasks();
+
+            render(<TextField inputClassName="b c" />, container as any);
+            await flushMicrotasks();
+
+            const input = innerInput(container);
+            expect(input.classList.has('a')).toBe(false);
+            expect(input.classList.has('b')).toBe(true);
+            expect(input.classList.has('c')).toBe(true);
+            // The classes Unity itself put there must survive the diff
+            expect(input.classList.has('unity-text-field__input')).toBe(true);
+        });
+
+        it('clears a removed inputStyle property on re-render', async () => {
+            const container = createMockContainer();
+            render(<TextField inputStyle={{ paddingLeft: 12, opacity: 0.5 }} />, container as any);
+            await flushMicrotasks();
+
+            render(<TextField inputStyle={{ paddingLeft: 12 }} />, container as any);
+            await flushMicrotasks();
+
+            const input = innerInput(container);
+            expect(input.style.paddingLeft).toEqual(new MockLength(12));
+            expect(input.style.opacity).toBeUndefined();
+        });
     });
 
     describe('Toggle', () => {

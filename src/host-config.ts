@@ -58,6 +58,11 @@ declare const CS: {
             DisplayStyle: CSEnum;
             PickingMode: CSEnum;
             SliderDirection: CSEnum;
+            // Q is an extension method, which is just a static method: calling it
+            // through the static class needs no useExtensions() registration.
+            UQueryExtensions: {
+                Q: (element: CSObject, name: string | null, className: string | null) => CSObject | null;
+            };
         };
         ScaleMode: CSEnum;
         Rect: new (...args: any[]) => any;
@@ -194,6 +199,11 @@ export interface Instance {
     hasMixedContent?: boolean;
     // For vector drawing: track the current generateVisualContent callback
     visualContentCallback?: GenerateVisualContentCallback;
+    // For TextField: the inner input element, resolved once and cached.
+    // undefined = never looked up; null = looked up and not found.
+    inputElement?: CSObject | null;
+    // For TextField: which inputStyle properties are currently applied
+    appliedInputStyleKeys?: Set<string>;
 }
 
 export type TextInstance = Instance; // For Label elements with text content
@@ -880,6 +890,47 @@ function applyTextFieldProps(element: CSObject, props: Record<string, unknown>, 
     if (props.autoCorrection !== undefined && props.autoCorrection !== oldProps?.autoCorrection) el.autoCorrection = props.autoCorrection;
 }
 
+// A TextField is a composite control: the visible box (border, background,
+// padding) lives on an inner TextInput child, not on the field itself, so
+// `className`/`style` on the outer element cannot reach it. `inputClassName`
+// and `inputStyle` land on that inner element. Resolved through the public
+// UQuery API by the input's USS class and cached: the inner element is created
+// in the TextField constructor and never replaced.
+function getTextFieldInput(instance: Instance): CSObject | null {
+    if (instance.inputElement === undefined) {
+        instance.inputElement = CS.UnityEngine.UIElements.UQueryExtensions.Q(
+            instance.element, null, 'unity-text-field__input') ?? null;
+    }
+    return instance.inputElement;
+}
+
+function applyTextFieldInputProps(instance: Instance, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
+    const inputStyle = props.inputStyle as ViewStyle | undefined;
+    const oldInputStyle = oldProps?.inputStyle as ViewStyle | undefined;
+    if (oldProps ? (oldInputStyle !== inputStyle && !shallowEqual(oldInputStyle as any, inputStyle as any)) : inputStyle !== undefined) {
+        const input = getTextFieldInput(instance);
+        if (input) {
+            if (oldProps) {
+                clearRemovedStyles(input, instance.appliedInputStyleKeys ?? new Set(), getExpandedStyleKeys(inputStyle));
+            }
+            instance.appliedInputStyleKeys = applyStyle(input, inputStyle);
+        }
+    }
+
+    const inputClassName = props.inputClassName as string | undefined;
+    const oldInputClassName = oldProps?.inputClassName as string | undefined;
+    if (oldProps ? oldInputClassName !== inputClassName : inputClassName !== undefined) {
+        const input = getTextFieldInput(instance);
+        if (input) {
+            if (oldProps) {
+                updateClassNames(input, oldInputClassName, inputClassName);
+            } else {
+                applyClassName(input, inputClassName);
+            }
+        }
+    }
+}
+
 // Apply Slider-specific properties: skip unchanged values
 function applySliderProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
@@ -1185,6 +1236,9 @@ function createInstance(type: string, props: BaseProps): Instance {
     applyEvents(instance, props);
     applyVisualContentCallback(instance, props);
     applyComponentProps(element, type, props as Record<string, unknown>);
+    if (type === 'ojs-textfield') {
+        applyTextFieldInputProps(instance, props as Record<string, unknown>);
+    }
 
     // Apply name (VisualElement.name). Drives USS #id selectors and the label
     // shown in the UI Toolkit Debugger. Universal to every VisualElement, so
@@ -1236,6 +1290,9 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
 
     // Update component-specific props: pass oldProps to skip unchanged values
     applyComponentProps(element, instance.type, newProps as Record<string, unknown>, oldProps as Record<string, unknown>);
+    if (instance.type === 'ojs-textfield') {
+        applyTextFieldInputProps(instance, newProps as Record<string, unknown>, oldProps as Record<string, unknown>);
+    }
 
     // Update name. Unity defaults VisualElement.name to "", so removing the prop
     // resets it to empty rather than leaving the stale value behind.

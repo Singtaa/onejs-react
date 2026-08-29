@@ -215,6 +215,12 @@ export class MockTextField extends MockVisualElement {
         this.value = '';
         // Unity exposes placeholder on ITextEdition rather than on the field.
         this.textEdition = { placeholder: '' };
+        // Unity's TextField constructs an inner TextInput child carrying these
+        // USS classes; inputClassName/inputStyle resolve it through UQuery.
+        const input = new MockVisualElement('UnityEngine.UIElements.TextField+TextInput');
+        input.AddToClassList('unity-base-text-field__input');
+        input.AddToClassList('unity-text-field__input');
+        this.Add(input);
     }
 }
 
@@ -439,6 +445,25 @@ export function createMockCS() {
                 OverflowClipBox: { PaddingBox: 0, ContentBox: 1 },
                 PickingMode: { Position: 0, Ignore: 1 },
                 SliderDirection: { Horizontal: 0, Vertical: 1 },
+                // Mirrors UQueryExtensions.Q(e, name, className): first depth-first
+                // descendant matching both selectors, or null. Extension methods
+                // are static methods, so host-config calls it through the class.
+                UQueryExtensions: {
+                    Q: (element: MockVisualElement, name: string | null, className: string | null): MockVisualElement | null => {
+                        const matches = (el: MockVisualElement): boolean =>
+                            (name == null || el.name === name) &&
+                            (className == null || el.classList.has(className));
+                        const walk = (el: MockVisualElement): MockVisualElement | null => {
+                            for (const child of el.children) {
+                                if (matches(child)) return child;
+                                const found = walk(child);
+                                if (found) return found;
+                            }
+                            return null;
+                        };
+                        return matches(element) ? element : walk(element);
+                    },
+                },
                 // ScrollView enums
                 ScrollViewMode: { Vertical: 0, Horizontal: 1, VerticalAndHorizontal: 2 },
                 ScrollerVisibility: { Auto: 0, AlwaysVisible: 1, Hidden: 2 },
