@@ -86,6 +86,9 @@ export default tseslint.config(
             // the element silently renders unstyled. Whole class names per
             // branch are scanned; truly dynamic names belong in the safelist.
             "no-restricted-syntax": ["error", {
+                selector: "CallExpression[callee.name='useKeyDown']",
+                message: "Deprecated: useKeyDown fires every frame while held, not once on the press. Use useKeyHeld (held) or useKeyPress (edge).",
+            }, {
                 selector: "JSXAttribute[name.name='className'] > JSXExpressionContainer > BinaryExpression[operator='+']",
                 message: "Assembled class names are invisible to the Tailwind scanner. Use whole class names in each branch, or add the assembled names to the safelist.",
             }],
