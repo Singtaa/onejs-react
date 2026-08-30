@@ -1638,6 +1638,17 @@ const shaderShallowEq = (a: any, b: any) => {
 function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     if (props.shader !== undefined && props.shader !== oldProps?.shader) el.SetShader(props.shader);
 
+    // A recorded program, encoded once and handed over by hash. Compared by
+    // hash rather than by identity because a program is usually built inline in
+    // a component body, so a fresh object arrives on every render while the
+    // program itself has not changed. Comparing identity would rebuild the
+    // material, drop the render target and restart the clock sixty times a
+    // second.
+    if (props.program !== undefined && props.program?.hash !== oldProps?.program?.hash) {
+        const p = props.program;
+        el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister, p.hash);
+    }
+
     if (props.resolution !== undefined || oldProps?.resolution !== undefined) {
         const r = props.resolution;
         const o = oldProps?.resolution;
@@ -1649,6 +1660,15 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
 
     if (props.floats && !shaderShallowEq(props.floats, oldProps?.floats)) {
         for (const k in props.floats) el.SetFloat(k, props.floats[k]);
+    }
+    // A program's uniforms bind by the name the emitter gives them, which is the
+    // same name on both backends so nothing here needs to know which one ran.
+    if (props.uniforms && !shaderShallowEq(props.uniforms, oldProps?.uniforms)) {
+        for (const k in props.uniforms) {
+            const v = props.uniforms[k];
+            if (typeof v === 'number') el.SetVector('_u_' + k, v, 0, 0, 0);
+            else el.SetVector('_u_' + k, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 0);
+        }
     }
     if (props.vectors && !shaderShallowEq(props.vectors, oldProps?.vectors)) {
         for (const k in props.vectors) {

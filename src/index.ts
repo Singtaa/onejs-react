@@ -70,11 +70,11 @@ export type {
 } from './particles';
 
 // Shader-driven procedural effects (C#-owned blit; see OneJS Runtime/ShaderFX)
-export { ShaderEffect, TextureFX, Flame } from './components';
+export { ShaderEffect, ShaderProgram, TextureFX, Flame } from './components';
 export type { FlameProps, TextureFXProps } from './components';
 export { TextureFXBuilder, buildTextureFX, MAX_TEXTUREFX_LAYERS } from './texturefx';
 export type { TextureFXBuild, LayerHandle, NoiseOptions, ShapeOptions, BlendMode, ShapeKind, SDFKind, SDFParams, SDFCommonOptions } from './texturefx';
-export type { ShaderEffectProps } from './types';
+export type { ShaderEffectProps, ShaderProgramProps, EncodedProgram } from './types';
 
 // Sync Hooks & C# Interop Utilities
 export { useFrameSync, useFrameSyncWith, useThrottledSync, useEventSync, toArray } from './hooks';

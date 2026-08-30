@@ -15,6 +15,7 @@ import type {
   FrostedGlassProps,
   FrostedGlassIntrinsicProps,
   ShaderEffectProps,
+  ShaderProgramProps,
   ShaderEffectIntrinsicProps,
   VisualElement,
   TextElement,
@@ -374,6 +375,26 @@ export const ShaderEffect = forwardRef<any, ShaderEffectProps>((props, ref) => {
   return <ojs-shaderfx {...(props as any)} ref={ref} />;
 });
 ShaderEffect.displayName = 'ShaderEffect';
+
+/**
+ * Runs a shader language program into an element's background.
+ *
+ *     const plasma = encode(sl.program(({ uv, time }) => {
+ *         const q = uv.mul(8).add(time.mul(0.4))
+ *         const v = sl.sin(q.x).add(sl.sin(q.y))
+ *         return sl.ramp(v.mul(0.25).add(0.5), ["#000018", "#0080ff", "#ffffff"])
+ *     }))
+ *
+ *     <ShaderProgram program={plasma} style={{ width: 200, height: 200 }} />
+ *
+ * Record the program at module scope, not in the component body. Recording is
+ * cheap but not free, and a program is a constant: nothing about it depends on
+ * props or state.
+ */
+export const ShaderProgram = forwardRef<any, ShaderProgramProps>((props, ref) => {
+  return createElement('ojs-shaderfx', { ...props, ref });
+});
+ShaderProgram.displayName = 'ShaderProgram';
 
 /** Warm fire, transparent at the cool end so the flame sits on any background. */
 const FIRE_RAMP = ['#00000000', '#4a060088', '#c22200dd', '#ff6a10ff', '#ffc23cff', '#fff4d2ff'];

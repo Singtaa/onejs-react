@@ -890,6 +890,27 @@ export interface TreeViewProps extends BaseProps {
  * Property names are the shader's own (`_Speed`, `_Ramp`, ...). Effects are a
  * shader plus a thin wrapper component, so adding one needs no C#.
  */
+/** An encoded shader language program, as `encode()` produces. */
+export interface EncodedProgram {
+  data: ArrayLike<number>;
+  instructions: number;
+  resultRegister: number;
+  hash: string;
+}
+
+export interface ShaderProgramProps extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {
+  /**
+   * The program to run, from `encode(sl.program(...))`.
+   *
+   * Which backend runs it is not your concern: a project with generated shaders
+   * uses the compiled one, and everywhere else interprets. The picture is the
+   * same either way, which is what makes a Play game eject without changing.
+   */
+  program: EncodedProgram;
+  /** Uniform values by the name they were declared with. */
+  uniforms?: Record<string, number | [number, number, number, number]>;
+}
+
 export interface ShaderEffectProps extends BaseProps {
   /** Shader to run, resolved through Resources (e.g. "OneJS/Fire"). */
   shader: string;
