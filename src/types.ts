@@ -895,6 +895,15 @@ export interface EncodedProgram {
   data: ArrayLike<number>;
   instructions: number;
   resultRegister: number;
+  /**
+   * Uniform names in slot order.
+   *
+   * The VM addresses a uniform by slot, so this is how a name in `uniforms`
+   * becomes something it can write. Optional because a program encoded by an
+   * older onejs-unity will not carry it; those set no uniforms rather than
+   * setting the wrong ones.
+   */
+  uniforms?: readonly string[];
   hash: string;
 }
 

@@ -1646,7 +1646,11 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     // second.
     if (props.program !== undefined && props.program?.hash !== oldProps?.program?.hash) {
         const p = props.program;
-        el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister, p.hash);
+        // The names go with the program, because the native backend binds its
+        // uniforms as per name material properties and only the program knows
+        // which name owns which slot.
+        el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister, p.hash,
+            p.uniforms ?? []);
     }
 
     if (props.resolution !== undefined || oldProps?.resolution !== undefined) {
@@ -1661,13 +1665,26 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     if (props.floats && !shaderShallowEq(props.floats, oldProps?.floats)) {
         for (const k in props.floats) el.SetFloat(k, props.floats[k]);
     }
-    // A program's uniforms bind by the name the emitter gives them, which is the
-    // same name on both backends so nothing here needs to know which one ran.
+    /**
+     * A program's uniforms go by SLOT, which is the only thing the VM reads.
+     *
+     * This used to set a material property called `_u_<name>`, on the reasoning
+     * that the emitter names them the same on both backends. It does, but only
+     * the GENERATED shader has such a property. The interpreter reads one array
+     * indexed by slot and never looks at a name, so in the Play container every
+     * uniform stayed at zero: a game could not change its own picture, and
+     * nothing errored. The element resolves the slot through the names handed
+     * over with the program, and the bridge behind it writes to whichever
+     * backend is live.
+     */
     if (props.uniforms && !shaderShallowEq(props.uniforms, oldProps?.uniforms)) {
+        const names = props.program?.uniforms;
         for (const k in props.uniforms) {
+            const slot = names ? names.indexOf(k) : -1;
+            if (slot < 0) continue;
             const v = props.uniforms[k];
-            if (typeof v === 'number') el.SetVector('_u_' + k, v, 0, 0, 0);
-            else el.SetVector('_u_' + k, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 0);
+            if (typeof v === 'number') el.SetUniform(slot, v, 0, 0, 0);
+            else el.SetUniform(slot, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 0);
         }
     }
     if (props.vectors && !shaderShallowEq(props.vectors, oldProps?.vectors)) {
