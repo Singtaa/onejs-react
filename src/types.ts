@@ -34,6 +34,21 @@ export type StyleColor = string;
  * - RGB: "rgb(255, 0, 0)", "rgba(255, 0, 0, 0.5)"
  * - Named: "red", "blue", "transparent", etc.
  */
+/**
+ * Something an element can draw: a Texture2D, Sprite, VectorImage or
+ * RenderTexture proxy, or the texture an `fx` chain or `useTexture` hands back.
+ *
+ * Deliberately opaque. Code that holds one passes it to `backgroundImage`,
+ * `<Image src>` or a particle emitter and never calls anything on it, so the
+ * type says "a texture" without naming which C# class is behind it. That is
+ * also why it is not `unknown`: `unknown` made every use a cast, and a cast at
+ * every call site is a type that is not doing its job.
+ *
+ * Structurally the same as the `Texture` onejs-unity's `fx` declares, on
+ * purpose, since neither package imports the other.
+ */
+export type Texture = object & { readonly __textureBrand?: never };
+
 export interface ViewStyle {
   // Layout: dimensions
   /** Width in pixels or percentage. Examples: 100, "100px", "50%", "auto" */
@@ -98,7 +113,7 @@ export interface ViewStyle {
    * const rt = compute.renderTexture({ width: 100, height: 100 })
    * <View style={{ backgroundImage: rt }} />
    */
-  backgroundImage?: object | null;
+  backgroundImage?: Texture | null;
 
   // Border
   /** Border color for all sides. Examples: "#ccc", "rgba(0,0,0,0.1)" */
@@ -234,8 +249,19 @@ export interface ViewStyle {
 // Event types
 export interface PointerEventData {
   type: string;
+  /** Panel x, measured from the top left of the whole panel. */
   x: number;
+  /** Panel y. */
   y: number;
+  /**
+   * x relative to the element the handler is on (`currentTarget`), so a
+   * handler can hit test or normalise against its own box without reading
+   * `worldBound` itself. Computed on first read from the element's bounds,
+   * which costs one crossing; `x` and `y` are free.
+   */
+  localX: number;
+  /** y relative to the element the handler is on. */
+  localY: number;
   button: number;
   pointerId: number;
   modifiers?: number;
@@ -243,8 +269,12 @@ export interface PointerEventData {
 
 export interface MouseEventData {
   type: string;
+  /** Panel x. See PointerEventData. */
   x: number;
   y: number;
+  /** x relative to the element the handler is on. */
+  localX: number;
+  localY: number;
   button: number;
   modifiers?: number;
 }

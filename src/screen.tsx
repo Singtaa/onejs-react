@@ -82,6 +82,8 @@ function calculateBreakpoints(width: number, height: number): ScreenContextValue
  * Apply breakpoint classes to root element (mobile-first cascading)
  */
 function applyBreakpointClasses(screen: ScreenContextValue) {
+    // No panel root outside a OneJS context (a unit test, a server render).
+    if (typeof __root === "undefined") return
     // Remove all breakpoint classes first
     __root.RemoveFromClassList("sm")
     __root.RemoveFromClassList("md")
@@ -101,6 +103,16 @@ export interface ScreenProviderProps {
     children: ReactNode
     /** Custom breakpoints (optional) */
     breakpoints?: Partial<typeof BREAKPOINTS>
+    /**
+     * The size to derive breakpoints from, instead of the panel root's.
+     *
+     * A host that fits the app into a box of its own (OneJS Play's stage, a
+     * game laid out at 960 by 540 inside whatever window it got) wants the
+     * breakpoints to describe that box, not the panel around it. With this
+     * set, no viewport listener is installed and the provider follows the
+     * prop.
+     */
+    size?: { width: number; height: number }
 }
 
 /**
@@ -118,22 +130,27 @@ export interface ScreenProviderProps {
  * )
  * ```
  */
-export function ScreenProvider({ children }: ScreenProviderProps) {
+export function ScreenProvider({ children, size }: ScreenProviderProps) {
     // Initialize with current viewport size
-    const [screen, setScreen] = useState<ScreenContextValue>(() => {
-        const width = __root.resolvedStyle?.width || 0
-        const height = __root.resolvedStyle?.height || 0
+    const [measured, setMeasured] = useState<ScreenContextValue>(() => {
+        const root = typeof __root === "undefined" ? undefined : __root
+        const width = root?.resolvedStyle?.width || 0
+        const height = root?.resolvedStyle?.height || 0
         return calculateBreakpoints(width, height)
     })
+    const screen = size ? calculateBreakpoints(size.width, size.height) : measured
 
     useEffect(() => {
         // Apply initial breakpoint classes
         applyBreakpointClasses(screen)
+        // A controlled size has no viewport to listen to; the effect above
+        // reruns when the prop changes and that is the whole update path.
+        if (size) return
 
         // Handle viewport change events from C#
         const handleViewportChange = (evt: { width: number; height: number }) => {
             const newScreen = calculateBreakpoints(evt.width, evt.height)
-            setScreen(newScreen)
+            setMeasured(newScreen)
             applyBreakpointClasses(newScreen)
         }
 
@@ -143,7 +160,10 @@ export function ScreenProvider({ children }: ScreenProviderProps) {
         return () => {
             __eventAPI.removeEventListener(__root, "viewportchange", handleViewportChange)
         }
-    }, [])
+        // A controlled size reapplies its classes when it changes; the
+        // measured path listens once and never needs to rerun.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [size?.width, size?.height])
 
     return (
         <ScreenContext.Provider value={screen}>

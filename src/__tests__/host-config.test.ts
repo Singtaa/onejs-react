@@ -972,3 +972,37 @@ describe('ScrollView wheel step, paired with the WebGL notch', () => {
         }
     });
 });
+
+describe('ShaderProgram uniforms', () => {
+    const program = (uniforms: string[], hash = 'abc') => ({
+        data: [], instructions: [], resultRegister: 0, hash, uniforms,
+    });
+
+    it('sets a declared uniform by its slot', () => {
+        const instance = createInstance('ojs-shaderfx',
+            { program: program(['warp', 'hue']), uniforms: { hue: 0.25 } } as any,
+            null as any, null, null);
+        const el = instance.element as any;
+        expect(el.SetUniform).toHaveBeenCalledWith(1, 0.25, 0, 0, 0);
+        expect(console.warn).not.toHaveBeenCalled();
+    });
+
+    it('warns once about a name the program never declared, and names the ones it did', () => {
+        const instance = createInstance('ojs-shaderfx',
+            { program: program(['warp', 'hue'], 'typo-once'), uniforms: { wrap: 1 } } as any,
+            null as any, null, null);
+        const el = instance.element as any;
+        expect(el.SetUniform).not.toHaveBeenCalled();
+        expect(console.warn).toHaveBeenCalledTimes(1);
+        const message = String((console.warn as any).mock.calls[0][0]);
+        expect(message).toContain('"wrap"');
+        expect(message).toContain('"warp", "hue"');
+
+        // The same typo on the next render is the same bug, not a new one.
+        commitUpdate(instance, 'ojs-shaderfx',
+            { program: program(['warp', 'hue'], 'typo-once'), uniforms: { wrap: 1 } } as any,
+            { program: program(['warp', 'hue'], 'typo-once'), uniforms: { wrap: 2 } } as any,
+            null as any);
+        expect(console.warn).toHaveBeenCalledTimes(1);
+    });
+});

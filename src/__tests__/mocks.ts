@@ -498,6 +498,9 @@ export function createMockCS() {
                     ClearElementBackgroundImage: () => {},
                 },
             },
+            ShaderFX: {
+                ShaderEffectElement: MockShaderEffectElement,
+            },
             // Mirrors the real CS.OneJS.StyleBridge batched path: ApplyStyles writes
             // each parsed style value onto element.style; AddClassesBatch adds each
             // class. host-config sends pre-parsed values (MockLength/MockColor/etc.),
@@ -574,6 +577,29 @@ export function resetAllMocks(): void {
 /**
  * Create a mock container for render() tests
  */
+/**
+ * The element behind ShaderEffect and ShaderProgram. Every setter is a spy, so
+ * a test can assert which slot a uniform went to and that nothing was set for
+ * a name the program never declared.
+ */
+export class MockShaderEffectElement extends MockVisualElement {
+    SetShader = vi.fn();
+    SetProgram = vi.fn();
+    SetResolution = vi.fn();
+    SetFloat = vi.fn();
+    SetUniform = vi.fn();
+    SetVector = vi.fn();
+    SetVectorArray = vi.fn();
+    SetColor = vi.fn();
+    SetRamp = vi.fn();
+    SetTexture = vi.fn();
+    SetBuiltinTexture = vi.fn();
+
+    constructor() {
+        super('OneJS.ShaderFX.ShaderEffectElement');
+    }
+}
+
 export function createMockContainer(): MockVisualElement {
     return new MockVisualElement('Container');
 }

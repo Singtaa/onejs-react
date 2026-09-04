@@ -12,7 +12,7 @@ declare function setTimeout(callback: () => void, ms?: number): number;
 
 declare function clearTimeout(id: number): void;
 
-declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
+declare const console: { log: (...args: unknown[]) => void; warn: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
 
 // Priority constant from react-reconciler/constants, matching React's
@@ -1621,6 +1621,22 @@ function shaderHexToRgba(c: string): [number, number, number, number] {
     return [n(0), n(2), n(4), h.length === 8 ? n(6) : 1];
 }
 
+/**
+ * A uniform name the program never declared, warned once per program.
+ *
+ * Names are strings on both sides, so a typo in `uniforms={{ wrap: v }}` type
+ * checks, sets nothing and draws the default forever. Dropping it silently
+ * turned that into "the slider does nothing" with no line to look at.
+ */
+const warnedUniforms = new Set<string>();
+function warnUnknownUniform(hash: string | undefined, name: string, declared: readonly string[] | undefined) {
+    const key = `${hash ?? ''}:${name}`;
+    if (warnedUniforms.has(key)) return;
+    warnedUniforms.add(key);
+    const known = declared && declared.length > 0 ? declared.map((n) => `"${n}"`).join(', ') : 'none';
+    console.warn(`[onejs-react] ShaderProgram: no uniform named "${name}" in this program (declared: ${known}). Check the name passed to sl.uniform.`);
+}
+
 const shaderShallowEq = (a: any, b: any) => {
     if (a === b) return true;
     if (!a || !b) return false;
@@ -1681,7 +1697,10 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         const names = props.program?.uniforms;
         for (const k in props.uniforms) {
             const slot = names ? names.indexOf(k) : -1;
-            if (slot < 0) continue;
+            if (slot < 0) {
+                warnUnknownUniform(props.program?.hash, k, names);
+                continue;
+            }
             const v = props.uniforms[k];
             if (typeof v === 'number') el.SetUniform(slot, v, 0, 0, 0);
             else el.SetUniform(slot, v[0] ?? 0, v[1] ?? 0, v[2] ?? 0, v[3] ?? 0);
