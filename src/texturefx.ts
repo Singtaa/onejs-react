@@ -166,7 +166,7 @@ export interface SDFParams {
     orientedVesica: { a?: [number, number]; b?: [number, number]; w?: number };
     moon: { d?: number; r?: number; rCut?: number };
     roundedCross: { h?: number };
-    egg: { r?: number; rTop?: number };
+    egg: { h?: number; r?: number; rTop?: number; bulge?: number };
     heart: {};
     cross: { w?: number; h?: number; r?: number };
     roundedX: { w?: number; r?: number };
@@ -290,7 +290,7 @@ function packSDF(kind: SDFKind, o: any): [Quad, Pair] {
         }
         case "moon": return [q(o.d ?? 0.15, o.r ?? 0.35, o.rCut ?? 0.32), none];
         case "roundedCross": return [q(o.h ?? 0.5), none];
-        case "egg": return [q(o.r ?? 0.3, o.rTop ?? 0.12), none];
+        case "egg": return [q(o.h ?? 0.4, o.r ?? 0.2, o.rTop ?? 0.1, o.bulge ?? 0.7), none];
         case "heart": return [q(), none];
         case "cross": return [q(o.w ?? 0.35, o.h ?? 0.12, o.r ?? 0.03), none];
         case "roundedX": return [q(o.w ?? 0.5, o.r ?? 0.08), none];
