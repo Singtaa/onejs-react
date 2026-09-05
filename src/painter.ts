@@ -69,6 +69,20 @@ const OP_DASH_PATTERN = 18
  *   p.arc(..., Painter.ArcDirection.CounterClockwise)
  *   p.fill(Painter.FillRule.OddEven)
  */
+/** "#rgb", "#rrggbb" or "#rrggbbaa" to 0..1 components; opacity overrides the alpha. */
+export function paintColor(c: string | number, g?: number, b?: number, a = 1): [number, number, number, number] {
+    if (typeof c === "number") return [c, g ?? 0, b ?? 0, a]
+    const m = /^#([0-9a-fA-F]{3,8})$/.exec(c.trim())
+    if (m === null) throw new Error(`[onejs-react] Painter: "${c}" is not a colour; use #rgb, #rrggbb or #rrggbbaa`)
+    const h = m[1]!
+    const grab = (i: number, n: number) => parseInt(n === 1 ? h[i]! + h[i]! : h.slice(i * 2, i * 2 + 2), 16) / 255
+    const opacity = g
+    if (h.length === 3) return [grab(0, 1), grab(1, 1), grab(2, 1), opacity ?? 1]
+    if (h.length === 6) return [grab(0, 2), grab(1, 2), grab(2, 2), opacity ?? 1]
+    if (h.length === 8) return [grab(0, 2), grab(1, 2), grab(2, 2), opacity ?? grab(3, 2)]
+    throw new Error(`[onejs-react] Painter: "${c}" is not a colour; use #rgb, #rrggbb or #rrggbbaa`)
+}
+
 export class Painter {
     /** Stroke cap style. Values are the buffer contract, not Unity enum values. */
     static readonly LineCap = { Butt: 0, Round: 1 } as const
@@ -103,6 +117,10 @@ export class Painter {
         return this
     }
 
+    /** A full circle, added to the current path. The common case of arc. */
+    circle(cx: number, cy: number, radius: number): this {
+        return this.arc(cx, cy, radius, 0, Math.PI * 2)
+    }
     arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): this {
         this._buf.push(OP_ARC_TO, x1, y1, x2, y2, radius)
         return this
@@ -123,8 +141,29 @@ export class Painter {
     stroke(): this { this._buf.push(OP_STROKE); return this }
 
     lineWidth(w: number): this { this._buf.push(OP_LINE_WIDTH, w); return this }
-    fillColor(r: number, g: number, b: number, a: number = 1): this { this._buf.push(OP_FILL_COLOR, r, g, b, a); return this }
-    strokeColor(r: number, g: number, b: number, a: number = 1): this { this._buf.push(OP_STROKE_COLOR, r, g, b, a); return this }
+    /**
+     * Fill colour: a hex string with an optional opacity, or four 0..1 floats.
+     *
+     *     p.fillColor("#ff9e33")          p.fillColor("#ff9e33", 0.5)
+     *     p.fillColor(1, 0.62, 0.2, 1)
+     *
+     * The string form is the one to write; every other colour in OneJS is a
+     * hex string, and four positional floats were the least readable line in
+     * every painter game.
+     */
+    fillColor(color: string, opacity?: number): this
+    fillColor(r: number, g: number, b: number, a?: number): this
+    fillColor(c: string | number, g?: number, b?: number, a: number = 1): this {
+        const [r, gg, bb, aa] = paintColor(c, g, b, a)
+        this._buf.push(OP_FILL_COLOR, r, gg, bb, aa); return this
+    }
+    /** Stroke colour, written like fillColor. */
+    strokeColor(color: string, opacity?: number): this
+    strokeColor(r: number, g: number, b: number, a?: number): this
+    strokeColor(c: string | number, g?: number, b?: number, a: number = 1): this {
+        const [r, gg, bb, aa] = paintColor(c, g, b, a)
+        this._buf.push(OP_STROKE_COLOR, r, gg, bb, aa); return this
+    }
     lineCap(cap: number): this { this._buf.push(OP_LINE_CAP, cap); return this }
     lineJoin(join: number): this { this._buf.push(OP_LINE_JOIN, join); return this }
     miterLimit(limit: number): this { this._buf.push(OP_MITER_LIMIT, limit); return this }

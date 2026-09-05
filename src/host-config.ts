@@ -934,8 +934,12 @@ function applyTextFieldInputProps(instance: Instance, props: Record<string, unkn
 // Apply Slider-specific properties: skip unchanged values
 function applySliderProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
-    if (props.lowValue !== undefined && props.lowValue !== oldProps?.lowValue) el.lowValue = props.lowValue;
-    if (props.highValue !== undefined && props.highValue !== oldProps?.highValue) el.highValue = props.highValue;
+    // min and max are the words; lowValue and highValue are UI Toolkit's and
+    // still accepted. The word wins when both are given.
+    const low = props.min ?? props.lowValue, high = props.max ?? props.highValue;
+    const oldLow = oldProps?.min ?? oldProps?.lowValue, oldHigh = oldProps?.max ?? oldProps?.highValue;
+    if (low !== undefined && low !== oldLow) el.lowValue = low;
+    if (high !== undefined && high !== oldHigh) el.highValue = high;
     if (props.showInputField !== undefined && props.showInputField !== oldProps?.showInputField) el.showInputField = props.showInputField;
     if (props.inverted !== undefined && props.inverted !== oldProps?.inverted) el.inverted = props.inverted;
     if (props.pageSize !== undefined && props.pageSize !== oldProps?.pageSize) el.pageSize = props.pageSize;

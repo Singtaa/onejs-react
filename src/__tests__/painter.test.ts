@@ -103,3 +103,28 @@ describe("Painter command buffer", () => {
         expect(second).toEqual(first)
     })
 })
+
+describe("Painter colours as hex", () => {
+    it("records a hex fill the same as its four floats", () => {
+        const a = new Painter(); a.fillColor("#ff8040")
+        const b = new Painter(); b.fillColor(1, 128 / 255, 64 / 255, 1)
+        expect((a as any)._buf).toEqual((b as any)._buf)
+    })
+
+    it("takes an opacity beside a six digit colour, or reads it from eight digits", () => {
+        const a = new Painter(); a.strokeColor("#ff8040", 0.5)
+        const b = new Painter(); b.strokeColor("#ff804080")
+        expect((a as any)._buf[4]).toBe(0.5)
+        expect((b as any)._buf[4]).toBeCloseTo(128 / 255, 5)
+    })
+
+    it("names a colour it cannot read", () => {
+        expect(() => new Painter().fillColor("red")).toThrow(/not a colour/)
+    })
+
+    it("draws a circle as a full arc", () => {
+        const a = new Painter(); a.circle(10, 20, 5)
+        const b = new Painter(); b.arc(10, 20, 5, 0, Math.PI * 2)
+        expect((a as any)._buf).toEqual((b as any)._buf)
+    })
+})

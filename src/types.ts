@@ -627,6 +627,10 @@ export interface ToggleProps extends BaseProps {
 export interface SliderProps extends BaseProps {
   value?: number;
   label?: string;
+  /** Smallest value. `lowValue` is UI Toolkit's name for the same thing and still works. */
+  min?: number;
+  /** Largest value. `highValue` is UI Toolkit's name for the same thing and still works. */
+  max?: number;
   lowValue?: number;
   highValue?: number;
   direction?: 'Horizontal' | 'Vertical';

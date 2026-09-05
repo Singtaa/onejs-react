@@ -277,3 +277,17 @@ describe("createParticles handle", () => {
         }
     })
 })
+
+describe("the emitter's plain names", () => {
+    it("reads glow, spin and position, and still the old names", () => {
+        const plain = toWire({ emitters: [{ glow: 0.7, spin: [10, 20], position: [5, 6], attract: { position: [1, 2] } }] }).emitters[0]
+        expect(plain).toMatchObject({ additiveness: 0.7, angVelMin: 10, angVelMax: 20, x: 5, y: 6, attractX: 1, attractY: 2 })
+        const old = toWire({ emitters: [{ additiveness: 0.7, angularVel: [10, 20], pos: [5, 6], attract: { pos: [1, 2] } }] }).emitters[0]
+        expect(old).toMatchObject({ additiveness: 0.7, angVelMin: 10, angVelMax: 20, x: 5, y: 6, attractX: 1, attractY: 2 })
+    })
+
+    it("lets the plain name win when both are given", () => {
+        const w = toWire({ emitters: [{ glow: 1, additiveness: 0, position: [9, 9], pos: [0, 0] }] }).emitters[0]
+        expect(w).toMatchObject({ additiveness: 1, x: 9, y: 9 })
+    })
+})

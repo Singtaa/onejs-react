@@ -1006,3 +1006,20 @@ describe('ShaderProgram uniforms', () => {
         expect(console.warn).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('Slider range words', () => {
+    it('accepts min and max, and applies them before value', () => {
+        const instance = createInstance('ojs-slider', { min: 10, max: 50, value: 30 } as any, null as any, null, null);
+        const el = instance.element as any;
+        expect(el.lowValue).toBe(10);
+        expect(el.highValue).toBe(50);
+        expect(el.value).toBe(30);
+    });
+
+    it('still accepts lowValue and highValue, and lets the word win when both are given', () => {
+        const instance = createInstance('ojs-slider', { lowValue: 1, highValue: 9, min: 2 } as any, null as any, null, null);
+        const el = instance.element as any;
+        expect(el.lowValue).toBe(2);
+        expect(el.highValue).toBe(9);
+    });
+});

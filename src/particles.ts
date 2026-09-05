@@ -87,8 +87,10 @@ export type AttractEase = "linear" | "in" | "out"
  * and initial velocity still apply; the pull progressively wins over them.
  */
 export interface AttractConfig {
-    /** Target in emitter-local px (transformed like `pos` in panel space). */
-    pos: [number, number]
+    /** Target in emitter-local px (transformed like the emitter's `position`). */
+    position?: [number, number]
+    /** The old name for `position`. */
+    pos?: [number, number]
     /** 0..1 - how completely the pull wins by end of life. 1 = exact arrival. Default 1. */
     strength?: number
     /** Default "in": particles hold their spread, then whoosh in. */
@@ -128,6 +130,8 @@ export interface EmitterConfig {
     /** Whether continuous emission starts enabled. Default true. */
     emitting?: boolean
     /** Emitter position in element-local pixels. Default [0, 0]. */
+    position?: [number, number]
+    /** The old name for `position`. */
     pos?: [number, number]
     /** Spawn area. Default point. */
     shape?: EmitterShape
@@ -154,9 +158,17 @@ export interface EmitterConfig {
     drag?: number
     /** Initial rotation in degrees. Default 0. */
     rotation?: ParticleRange
-    /** Angular velocity in deg/s. Default 0. */
+    /** How fast a particle turns, in degrees per second. Default 0. */
+    spin?: ParticleRange
+    /** The old name for `spin`. */
     angularVel?: ParticleRange
-    /** 0 = normal alpha blend, 1 = pure additive, values between mix. Default 0. */
+    /**
+     * How much a particle adds light rather than covering what is behind it:
+     * 0 blends like normal UI (smoke, confetti), 1 is pure additive (sparks,
+     * glows, fire), values between mix the two. Default 0.
+     */
+    glow?: number
+    /** The old name for `glow`. */
     additiveness?: number
     /**
      * Color over normalized lifetime. Shorthand array entries are spaced
@@ -308,7 +320,7 @@ export function toWire(config: ParticlesConfig): WireDoc {
         const [sizeMin, sizeMax] = range(e.size, 8, 8)
         const [aspectMin, aspectMax] = range(e.aspect, 1, 1)
         const [rotMin, rotMax] = range(e.rotation, 0, 0)
-        const [angVelMin, angVelMax] = range(e.angularVel, 0, 0)
+        const [angVelMin, angVelMax] = range(e.spin ?? e.angularVel, 0, 0)
 
         const colorSrc = e.colorOverLife ?? []
         const colorKeys: WireColorKey[] = colorSrc.length === 0
@@ -333,8 +345,8 @@ export function toWire(config: ParticlesConfig): WireDoc {
         return {
             rate: e.rate ?? 0,
             emitting: e.emitting ?? true,
-            x: e.pos?.[0] ?? 0,
-            y: e.pos?.[1] ?? 0,
+            x: (e.position ?? e.pos)?.[0] ?? 0,
+            y: (e.position ?? e.pos)?.[1] ?? 0,
             shape: SHAPE_IDS[shape.type],
             shapeW: shape.type === "circle" ? shape.radius
                 : shape.type === "rect" ? shape.width
@@ -350,9 +362,9 @@ export function toWire(config: ParticlesConfig): WireDoc {
             drag: e.drag ?? 0,
             rotMin, rotMax,
             angVelMin, angVelMax,
-            additiveness: e.additiveness ?? 0,
-            attractX: e.attract?.pos[0] ?? 0,
-            attractY: e.attract?.pos[1] ?? 0,
+            additiveness: e.glow ?? e.additiveness ?? 0,
+            attractX: (e.attract?.position ?? e.attract?.pos)?.[0] ?? 0,
+            attractY: (e.attract?.position ?? e.attract?.pos)?.[1] ?? 0,
             attractStrength: e.attract ? e.attract.strength ?? 1 : 0,
             attractEase: enumId(ATTRACT_EASE_IDS, e.attract?.ease, 1, "attract ease"),
             edge: enumId(EDGE_IDS, e.edge, 0, "edge mode"),
