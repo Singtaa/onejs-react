@@ -957,6 +957,15 @@ export interface EncodedProgram<Names extends string = string> {
    * start at zero as they always did.
    */
   defaults?: readonly number[];
+  /**
+   * Texture names in slot order.
+   *
+   * The same reason the uniform names are here: both backends address a
+   * texture as `_Tex0` to `_Tex3`, so a host handed the name an author wrote
+   * had nothing to set. Optional, and a program encoded without it binds no
+   * textures rather than binding the wrong ones.
+   */
+  textures?: readonly string[];
   hash: string;
   /**
    * The program as HLSL, read only when the host asks for it.

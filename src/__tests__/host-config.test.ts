@@ -1030,6 +1030,30 @@ describe('ShaderProgram uniforms', () => {
         expect((instance.element as any).SetUniform).not.toHaveBeenCalled();
     });
 
+    it('binds a texture by the slot the program gave it, not by its name', () => {
+        // Both backends declare _Tex0 to _Tex3, so a material property named
+        // "grain" reached neither and the picture came out of an unbound
+        // sampler, quietly, in the browser and after an eject alike.
+        const p = { ...program(['warp'], 'tex'), textures: ['grain', 'mask'] };
+        const tex = {};
+        const instance = createInstance('ojs-shaderfx',
+            { program: p, textures: { mask: tex, grain: 'noise' } } as any, null as any, null, null);
+        const el = instance.element as any;
+        expect(el.SetProgramTexture).toHaveBeenCalledWith(1, tex);
+        expect(el.SetProgramBuiltinTexture).toHaveBeenCalledWith(0, 'noise');
+        // The by-name path belongs to ShaderEffect, which has real property names.
+        expect(el.SetTexture).not.toHaveBeenCalled();
+    });
+
+    it('warns once about a texture name the program never declared', () => {
+        const p = { ...program([], 'tex-typo'), textures: ['grain'] };
+        const instance = createInstance('ojs-shaderfx',
+            { program: p, textures: { grian: {} } } as any, null as any, null, null);
+        expect((instance.element as any).SetProgramTexture).not.toHaveBeenCalled();
+        expect(console.warn).toHaveBeenCalledTimes(1);
+        expect(String((console.warn as any).mock.calls[0][0])).toContain('"grain"');
+    });
+
     it('warns once about a name the program never declared, and names the ones it did', () => {
         const instance = createInstance('ojs-shaderfx',
             { program: program(['warp', 'hue'], 'typo-once'), uniforms: { wrap: 1 } } as any,

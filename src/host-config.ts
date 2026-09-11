@@ -1641,6 +1641,15 @@ function warnUnknownUniform(hash: string | undefined, name: string, declared: re
     console.warn(`[onejs-react] ShaderProgram: no uniform named "${name}" in this program (declared: ${known}). Check the name passed to sl.uniform.`);
 }
 
+const warnedTextures = new Set<string>();
+function warnUnknownTexture(hash: string | undefined, name: string, declared: readonly string[] | undefined) {
+    const key = `${hash ?? ''}:${name}`;
+    if (warnedTextures.has(key)) return;
+    warnedTextures.add(key);
+    const known = declared && declared.length > 0 ? declared.map((n) => `"${n}"`).join(', ') : 'none';
+    console.warn(`[onejs-react] ShaderProgram: no texture named "${name}" in this program (declared: ${known}). Check the name in the texture2D declaration.`);
+}
+
 const shaderShallowEq = (a: any, b: any) => {
     if (a === b) return true;
     if (!a || !b) return false;
@@ -1758,9 +1767,29 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         }
     }
     if (props.textures && !shaderShallowEq(props.textures, oldProps?.textures)) {
+        /**
+         * A program's textures go by SLOT, the way its uniforms do.
+         *
+         * Both backends declare _Tex0 to _Tex3, so a material property named
+         * after what the author wrote ("grain") reached neither: the picture
+         * came out as whatever an unbound sampler is, in the browser and after
+         * an eject alike, with nothing said about it. The names ride with the
+         * program because only the program knows which slot owns which.
+         */
+        const slots = props.program?.textures;
         for (const k in props.textures) {
             const t = props.textures[k];
-            // A string names a built-in procedural texture; anything else is a CS Texture.
+            if (slots) {
+                const slot = slots.indexOf(k);
+                if (slot < 0) {
+                    warnUnknownTexture(props.program?.hash, k, slots);
+                    continue;
+                }
+                // A string names a built-in procedural texture; anything else is a CS Texture.
+                if (typeof t === 'string') el.SetProgramBuiltinTexture(slot, t);
+                else if (t) el.SetProgramTexture(slot, t);
+                continue;
+            }
             if (typeof t === 'string') el.SetBuiltinTexture(k, t);
             else if (t) el.SetTexture(k, t);
         }

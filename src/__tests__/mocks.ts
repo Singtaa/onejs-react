@@ -589,6 +589,8 @@ export class MockShaderEffectElement extends MockVisualElement {
     SetResolution = vi.fn();
     SetFloat = vi.fn();
     SetUniform = vi.fn();
+    SetProgramTexture = vi.fn();
+    SetProgramBuiltinTexture = vi.fn();
     SetVector = vi.fn();
     SetVectorArray = vi.fn();
     SetColor = vi.fn();
