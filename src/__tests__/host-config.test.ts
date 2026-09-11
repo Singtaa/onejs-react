@@ -1008,6 +1008,28 @@ describe('ShaderProgram uniforms', () => {
         expect(emitted).toHaveBeenCalledTimes(1);
     });
 
+    it('seeds the declared defaults before anything the caller passes', () => {
+        // The generated shader starts at its Properties block; the VM's uniform
+        // array starts at zero. Seeding here is what stops the same program
+        // rendering one way in the browser and another after an eject.
+        const p = { ...program(['warp', 'hue'], 'seeded'), defaults: [0.5, 0, 0, 1, 0.25, 0, 0, 1] };
+        const instance = createInstance('ojs-shaderfx',
+            { program: p, uniforms: { hue: 0.9 } } as any, null as any, null, null);
+        const el = instance.element as any;
+        expect(el.SetUniform.mock.calls).toEqual([
+            [0, 0.5, 0, 0, 1],
+            [1, 0.25, 0, 0, 1],
+            // The caller's own value lands last, so it wins.
+            [1, 0.9, 0, 0, 0],
+        ]);
+    });
+
+    it('starts a program encoded before defaults existed at zero, as it always did', () => {
+        const instance = createInstance('ojs-shaderfx',
+            { program: program(['warp'], 'older') } as any, null as any, null, null);
+        expect((instance.element as any).SetUniform).not.toHaveBeenCalled();
+    });
+
     it('warns once about a name the program never declared, and names the ones it did', () => {
         const instance = createInstance('ojs-shaderfx',
             { program: program(['warp', 'hue'], 'typo-once'), uniforms: { wrap: 1 } } as any,

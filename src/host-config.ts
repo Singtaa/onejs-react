@@ -1671,6 +1671,24 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         // which name owns which slot.
         const wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
             p.hash, p.uniforms ?? []);
+        /**
+         * The declared defaults, seeded before anything the caller passes.
+         *
+         * The generated shader carries them in its Properties block, so a
+         * compiled material starts at them; the VM's uniform array starts at
+         * zero. Without this an unset uniform was its declared default after an
+         * eject and zero in the browser, from one program, with nothing to see
+         * in either. `props.uniforms` is applied further down and writes over
+         * whatever it names.
+         */
+        const defaults = p.defaults;
+        if (defaults) {
+            for (let slot = 0; slot * 4 < defaults.length; slot++) {
+                const at = slot * 4;
+                el.SetUniform(slot, defaults[at] ?? 0, defaults[at + 1] ?? 0,
+                    defaults[at + 2] ?? 0, defaults[at + 3] ?? 0);
+            }
+        }
         // True only from an editor that has no compiled shader for this hash.
         // It records the HLSL and generates one, so the next run is native; the
         // getter is lazy, so a game in Play never emits a line of it.

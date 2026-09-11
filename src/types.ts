@@ -925,7 +925,16 @@ export interface TreeViewProps extends BaseProps {
  * shader plus a thin wrapper component, so adding one needs no C#.
  */
 /** An encoded shader language program, as `encode()` produces. */
-export interface EncodedProgram {
+/**
+ * A program, encoded once and handed to `<ShaderProgram>`.
+ *
+ * `Names` is the set of uniform names the program declares. A program built by
+ * `encode(sl.program(...))` leaves it as `string`, because the EDSL cannot know
+ * the names at the type level. A `.sl` file's generated `.d.ts` fills it in, so
+ * `uniforms={{ wrap: 1 }}` is a type error at the call site rather than a
+ * console warning on a frame nobody is looking at.
+ */
+export interface EncodedProgram<Names extends string = string> {
   data: ArrayLike<number>;
   instructions: number;
   resultRegister: number;
@@ -937,7 +946,17 @@ export interface EncodedProgram {
    * older onejs-unity will not carry it; those set no uniforms rather than
    * setting the wrong ones.
    */
-  uniforms?: readonly string[];
+  uniforms?: readonly Names[];
+  /**
+   * Declared uniform defaults, four floats per slot in slot order.
+   *
+   * The generated shader writes these into its Properties block, so a compiled
+   * material starts at them while the VM's uniform array starts at zero. The
+   * host seeds them on upload so both backends begin at the same picture.
+   * Optional: a program encoded by an older onejs-unity carries none, and those
+   * start at zero as they always did.
+   */
+  defaults?: readonly number[];
   hash: string;
   /**
    * The program as HLSL, read only when the host asks for it.
@@ -949,7 +968,7 @@ export interface EncodedProgram {
   readonly hlsl?: string;
 }
 
-export interface ShaderProgramProps extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {
+export interface ShaderProgramProps<Names extends string = string> extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {
   /**
    * The program to run, from `encode(sl.program(...))`.
    *
@@ -957,9 +976,9 @@ export interface ShaderProgramProps extends Omit<ShaderEffectProps, 'shader' | '
    * uses the compiled one, and everywhere else interprets. The picture is the
    * same either way, which is what makes a Play game eject without changing.
    */
-  program: EncodedProgram;
+  program: EncodedProgram<Names>;
   /** Uniform values by the name they were declared with. */
-  uniforms?: Record<string, number | [number, number, number, number]>;
+  uniforms?: Partial<Record<Names, number | [number, number, number, number]>>;
 }
 
 export interface ShaderEffectProps extends BaseProps {

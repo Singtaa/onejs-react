@@ -1,4 +1,4 @@
-import { forwardRef, createElement, useEffect, useMemo, useState, type Ref } from 'react';
+import { forwardRef, createElement, useEffect, useMemo, useState, type ReactElement, type Ref } from 'react';
 import type {
   BaseProps,
   ViewProps,
@@ -391,10 +391,24 @@ ShaderEffect.displayName = 'ShaderEffect';
  * cheap but not free, and a program is a constant: nothing about it depends on
  * props or state.
  */
-export const ShaderProgram = forwardRef<any, ShaderProgramProps>((props, ref) => {
+const ShaderProgramImpl = forwardRef<any, ShaderProgramProps>((props, ref) => {
   return createElement('ojs-shaderfx', { ...props, ref });
 });
-ShaderProgram.displayName = 'ShaderProgram';
+ShaderProgramImpl.displayName = 'ShaderProgram';
+
+/**
+ * Generic in its uniform names, which `forwardRef` cannot express on its own.
+ *
+ * The cast is the whole trick: the runtime component is the one above and does
+ * not change, while the type is a generic function so `Names` is inferred from
+ * the program handed in. A program from `encode(sl.program(...))` leaves Names
+ * as `string` and nothing tightens; a program from a `.sl` file's generated
+ * `.d.ts` carries its names, and a misspelled uniform is a call site error.
+ */
+export const ShaderProgram = ShaderProgramImpl as unknown as
+  <Names extends string = string>(
+    props: ShaderProgramProps<Names> & { ref?: Ref<any> },
+  ) => ReactElement;
 
 /** Warm fire, transparent at the cool end so the flame sits on any background. */
 const FIRE_RAMP = ['#00000000', '#4a060088', '#c22200dd', '#ff6a10ff', '#ffc23cff', '#fff4d2ff'];
