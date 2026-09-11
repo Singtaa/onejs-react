@@ -939,6 +939,14 @@ export interface EncodedProgram {
    */
   uniforms?: readonly string[];
   hash: string;
+  /**
+   * The program as HLSL, read only when the host asks for it.
+   *
+   * An editor with no compiled shader for `hash` records this and generates
+   * one. `encode()` defines it as a lazy getter, so nothing is emitted unless
+   * a host wants it; Play never does.
+   */
+  readonly hlsl?: string;
 }
 
 export interface ShaderProgramProps extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {

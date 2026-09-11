@@ -987,6 +987,27 @@ describe('ShaderProgram uniforms', () => {
         expect(console.warn).not.toHaveBeenCalled();
     });
 
+    it('hands the HLSL to a host that asks for it, and never emits it otherwise', () => {
+        const emitted = vi.fn(() => 'Shader "x"');
+        const withSource = (hash: string) => {
+            const p = program(['k'], hash);
+            Object.defineProperty(p, 'hlsl', { enumerable: false, get: emitted });
+            return p;
+        };
+        // Play: the host has nothing to compile with, and the getter is not touched.
+        const quiet = createInstance('ojs-shaderfx', { program: withSource('play') } as any, null as any, null, null);
+        expect((quiet.element as any).RecordProgram).not.toHaveBeenCalled();
+        expect(emitted).not.toHaveBeenCalled();
+        // An editor with no generated shader for this hash asks for the source.
+        const instance = createInstance('ojs-shaderfx', { program: withSource('editor') } as any, null as any, null, null);
+        const el = instance.element as any;
+        el.SetProgram.mockReturnValue(true);
+        commitUpdate(instance, 'ojs-shaderfx', { program: withSource('editor') } as any,
+            { program: withSource('editor-2') } as any, null as any);
+        expect(el.RecordProgram).toHaveBeenCalledWith('editor-2', 'Shader "x"');
+        expect(emitted).toHaveBeenCalledTimes(1);
+    });
+
     it('warns once about a name the program never declared, and names the ones it did', () => {
         const instance = createInstance('ojs-shaderfx',
             { program: program(['warp', 'hue'], 'typo-once'), uniforms: { wrap: 1 } } as any,

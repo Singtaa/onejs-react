@@ -1669,8 +1669,15 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         // The names go with the program, because the native backend binds its
         // uniforms as per name material properties and only the program knows
         // which name owns which slot.
-        el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister, p.hash,
-            p.uniforms ?? []);
+        const wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
+            p.hash, p.uniforms ?? []);
+        // True only from an editor that has no compiled shader for this hash.
+        // It records the HLSL and generates one, so the next run is native; the
+        // getter is lazy, so a game in Play never emits a line of it.
+        if (wantsSource === true) {
+            const hlsl = p.hlsl;
+            if (typeof hlsl === 'string') el.RecordProgram(p.hash, hlsl);
+        }
     }
 
     if (props.resolution !== undefined || oldProps?.resolution !== undefined) {
