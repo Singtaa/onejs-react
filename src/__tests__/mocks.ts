@@ -160,6 +160,16 @@ export class MockVisualElement {
         this._classList.clear();
     }
 
+    ClassListContains(className: string): boolean {
+        return this._classList.has(className);
+    }
+
+    ElementAt(index: number): MockVisualElement {
+        const child = this._children[index];
+        if (child === undefined) throw new RangeError(`ElementAt(${index}) on ${this._children.length} children`);
+        return child;
+    }
+
     // Test helpers (not in real API)
     get children(): readonly MockVisualElement[] {
         return this._children;
@@ -445,30 +455,14 @@ export function createMockCS() {
                 OverflowClipBox: { PaddingBox: 0, ContentBox: 1 },
                 PickingMode: { Position: 0, Ignore: 1 },
                 SliderDirection: { Horizontal: 0, Vertical: 1 },
-                // Mirrors UQueryExtensions.Q(e, name, className): first depth-first
-                // descendant matching both selectors, or null. Extension methods
-                // are static methods, so host-config calls it through the class.
-                UQueryExtensions: {
-                    Q: (element: MockVisualElement, name: string | null, className: string | null): MockVisualElement | null => {
-                        const matches = (el: MockVisualElement): boolean =>
-                            (name == null || el.name === name) &&
-                            (className == null || el.classList.has(className));
-                        const walk = (el: MockVisualElement): MockVisualElement | null => {
-                            for (const child of el.children) {
-                                if (matches(child)) return child;
-                                const found = walk(child);
-                                if (found) return found;
-                            }
-                            return null;
-                        };
-                        return matches(element) ? element : walk(element);
-                    },
-                },
-                // ScrollView enums
+                // ScrollView enums. The last two are nested in ScrollView and
+                // keyed by their CLR name, as the runtime exposes them; a
+                // top-level TouchScrollBehavior here once let host-config read
+                // a namespace path that names nothing in Unity.
                 ScrollViewMode: { Vertical: 0, Horizontal: 1, VerticalAndHorizontal: 2 },
                 ScrollerVisibility: { Auto: 0, AlwaysVisible: 1, Hidden: 2 },
-                TouchScrollBehavior: { Unrestricted: 0, Elastic: 1, Clamped: 2 },
-                NestedInteractionKind: { Default: 0, StopScrolling: 1, ForwardScrolling: 2 },
+                "ScrollView+TouchScrollBehavior": { Unrestricted: 0, Elastic: 1, Clamped: 2 },
+                "ScrollView+NestedInteractionKind": { Default: 0, StopScrolling: 1, ForwardScrolling: 2 },
                 // ListView enums
                 SelectionType: { None: 0, Single: 1, Multiple: 2 },
                 ListViewReorderMode: { Simple: 0, Animated: 1 },

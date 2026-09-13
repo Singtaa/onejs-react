@@ -719,6 +719,7 @@ export interface VisualElement extends RenderContainer {
   RemoveFromHierarchy: () => void;
   Clear: () => void;
   IndexOf: (child: VisualElement) => number;
+  ElementAt: (index: number) => VisualElement;
   childCount: number;
   parent: VisualElement | null;
 

@@ -408,6 +408,21 @@ describe('components', () => {
             expect(container.children[0].__csType).toBe('UnityEngine.UIElements.ScrollView');
         });
 
+        // Both enums are nested in ScrollView. Read through the namespace
+        // instead they are an empty proxy whose members are all 0, which set
+        // every touchScrollBehavior to Unrestricted and was invisible on
+        // nestedInteractionKind, whose Default is 0. So the assertions are on
+        // the non-zero members.
+        it('sets the nested ScrollView enums by name', async () => {
+            const container = createMockContainer();
+            render(<ScrollView touchScrollBehavior="Elastic" nestedInteractionKind="ForwardScrolling" />, container as any);
+            await flushMicrotasks();
+
+            const el = container.children[0] as any;
+            expect(el.touchScrollBehavior).toBe(1);
+            expect(el.nestedInteractionKind).toBe(2);
+        });
+
         it('renders children', async () => {
             const container = createMockContainer();
             render(

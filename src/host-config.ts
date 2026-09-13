@@ -58,11 +58,13 @@ declare const CS: {
             DisplayStyle: CSEnum;
             PickingMode: CSEnum;
             SliderDirection: CSEnum;
-            // Q is an extension method, which is just a static method: calling it
-            // through the static class needs no useExtensions() registration.
-            UQueryExtensions: {
-                Q: (element: CSObject, name: string | null, className: string | null) => CSObject | null;
-            };
+            // Nested in ScrollView, so reached by the CLR nested name. The
+            // namespace path (UIE.TouchScrollBehavior) names no type: it reads
+            // as an empty proxy whose members are all 0, so every value set
+            // Unrestricted. The dotted path (UIE.ScrollView.TouchScrollBehavior)
+            // resolves on OneJS 3.4.2+ only; the CLR name works on every runtime.
+            "ScrollView+TouchScrollBehavior": CSEnum;
+            "ScrollView+NestedInteractionKind": CSEnum;
         };
         ScaleMode: CSEnum;
         Rect: new (...args: any[]) => any;
@@ -893,13 +895,25 @@ function applyTextFieldProps(element: CSObject, props: Record<string, unknown>, 
 // A TextField is a composite control: the visible box (border, background,
 // padding) lives on an inner TextInput child, not on the field itself, so
 // `className`/`style` on the outer element cannot reach it. `inputClassName`
-// and `inputStyle` land on that inner element. Resolved through the public
-// UQuery API by the input's USS class and cached: the inner element is created
-// in the TextField constructor and never replaced.
+// and `inputStyle` land on that inner element. Found among the field's direct
+// children by the input's USS class and cached: the inner element is created
+// in the TextField constructor and never replaced. Not through
+// UQueryExtensions.Q: its generic Q<T> twin has the same parameters, and a
+// runtime that picks the twin (OneJS 3.4.1 on Unity 6000.5) throws inside
+// React's commit, taking the whole tree down with it. A child walk needs no
+// overload resolution. Index is not fixed: a label, when there is one, sits
+// before the input.
 function getTextFieldInput(instance: Instance): CSObject | null {
     if (instance.inputElement === undefined) {
-        instance.inputElement = CS.UnityEngine.UIElements.UQueryExtensions.Q(
-            instance.element, null, 'unity-text-field__input') ?? null;
+        instance.inputElement = null;
+        const field = instance.element as unknown as VisualElement;
+        for (let i = 0, n = field.childCount; i < n; i++) {
+            const child = field.ElementAt(i);
+            if (child.ClassListContains('unity-text-field__input')) {
+                instance.inputElement = child as unknown as CSObject;
+                break;
+            }
+        }
     }
     return instance.inputElement;
 }
@@ -994,8 +1008,8 @@ function applyScrollViewProps(element: CSScrollView, props: Record<string, unkno
     setEnumProp(element, 'mode', props, 'mode', UIE.ScrollViewMode, oldProps);
     setEnumProp(element, 'horizontalScrollerVisibility', props, 'horizontalScrollerVisibility', UIE.ScrollerVisibility, oldProps);
     setEnumProp(element, 'verticalScrollerVisibility', props, 'verticalScrollerVisibility', UIE.ScrollerVisibility, oldProps);
-    setEnumProp(element, 'touchScrollBehavior', props, 'touchScrollBehavior', UIE.TouchScrollBehavior, oldProps);
-    setEnumProp(element, 'nestedInteractionKind', props, 'nestedInteractionKind', UIE.NestedInteractionKind, oldProps);
+    setEnumProp(element, 'touchScrollBehavior', props, 'touchScrollBehavior', UIE["ScrollView+TouchScrollBehavior"], oldProps);
+    setEnumProp(element, 'nestedInteractionKind', props, 'nestedInteractionKind', UIE["ScrollView+NestedInteractionKind"], oldProps);
     setValueProp(element, 'elasticity', props, 'elasticity', oldProps);
     setValueProp(element, 'elasticAnimationIntervalMs', props, 'elasticAnimationIntervalMs', oldProps);
     setValueProp(element, 'scrollDecelerationRate', props, 'scrollDecelerationRate', oldProps);
