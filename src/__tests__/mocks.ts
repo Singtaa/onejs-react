@@ -226,11 +226,31 @@ export class MockTextField extends MockVisualElement {
         // Unity exposes placeholder on ITextEdition rather than on the field.
         this.textEdition = { placeholder: '' };
         // Unity's TextField constructs an inner TextInput child carrying these
-        // USS classes; inputClassName/inputStyle resolve it through UQuery.
+        // USS classes; inputClassName/inputStyle resolve it among the children.
         const input = new MockVisualElement('UnityEngine.UIElements.TextField+TextInput');
         input.AddToClassList('unity-base-text-field__input');
         input.AddToClassList('unity-text-field__input');
         this.Add(input);
+
+        // Setting a label inserts a Label BEFORE the input, so the input is at
+        // index 0 without one and index 1 with one (measured on 6000.5.2f1).
+        // An own accessor, because the base declares `label` as a class field
+        // and an ES2022 field would shadow a prototype accessor here.
+        let labelText = '';
+        let labelElement: MockVisualElement | null = null;
+        Object.defineProperty(this, 'label', {
+            get: () => labelText,
+            set: (v: string) => {
+                labelText = v ?? '';
+                if (labelText && labelElement === null) {
+                    labelElement = new MockVisualElement('UnityEngine.UIElements.Label');
+                    labelElement.AddToClassList('unity-text-field__label');
+                    this.Insert(0, labelElement);
+                }
+            },
+            enumerable: true,
+            configurable: true,
+        });
     }
 }
 

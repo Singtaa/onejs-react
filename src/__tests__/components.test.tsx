@@ -300,6 +300,21 @@ describe('components', () => {
             expect(innerInput(container).style.paddingLeft).toEqual(new MockLength(12));
         });
 
+        // A label is inserted before the input, so the input is not at a fixed
+        // index. Finding it by position instead of by class styles the label.
+        it('applies inputStyle to the input of a labelled field', async () => {
+            const container = createMockContainer();
+            render(<TextField label="Name" inputStyle={{ paddingLeft: 12 }} />, container as any);
+            await flushMicrotasks();
+
+            const field = container.children[0] as MockVisualElement;
+            const label = field.children[0] as MockVisualElement;
+            const input = field.children[1] as MockVisualElement;
+            expect(input.ClassListContains('unity-text-field__input')).toBe(true);
+            expect(input.style.paddingLeft).toEqual(new MockLength(12));
+            expect(label.style.paddingLeft).toBeUndefined();
+        });
+
         it('updates inputClassName selectively on re-render', async () => {
             const container = createMockContainer();
             render(<TextField inputClassName="a b" />, container as any);
