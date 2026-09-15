@@ -7,7 +7,7 @@ import { createMockContainer, flushMicrotasks } from "./mocks"
 /**
  * A provider handed a size follows it instead of the panel root.
  *
- * OneJS Play fits a game into a stage inside the window, so the breakpoints a
+ * OJPlay fits a game into a stage inside the window, so the breakpoints a
  * game reads have to describe the stage. There is no panel root at all in this
  * harness, which is also the case the guards in the provider exist for.
  */

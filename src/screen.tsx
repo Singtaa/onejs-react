@@ -106,7 +106,7 @@ export interface ScreenProviderProps {
     /**
      * The size to derive breakpoints from, instead of the panel root's.
      *
-     * A host that fits the app into a box of its own (OneJS Play's stage, a
+     * A host that fits the app into a box of its own (OJPlay's stage, a
      * game laid out at 960 by 540 inside whatever window it got) wants the
      * breakpoints to describe that box, not the panel around it. With this
      * set, no viewport listener is installed and the provider follows the
