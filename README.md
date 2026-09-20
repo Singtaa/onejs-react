@@ -313,5 +313,7 @@ Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `
 ## Dependencies
 
 - `react-reconciler@0.31.x` (React 19 compatible)
+- `@types/react-reconciler@0.31.x`: this package ships raw TypeScript, so a consumer compiles these sources and needs the types too. 0.32 changed `HostConfig`'s arity and does not typecheck against 0.31.
 - `vitest` (dev): Test runner
 - Peer: `react@18.x || 19.x`
+- Peer: `unity-types@6000.3.x` or newer, which declares the global `CS` namespace the exported `Vector2`, `Color` and `Angle` aliases are built from. npm installs it for you.
