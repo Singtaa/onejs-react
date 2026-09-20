@@ -1,3 +1,11 @@
+/// <reference types="unity-types" />
+//
+// The CS.* aliases below are part of this package's public type surface, and CS
+// is an ambient global from unity-types rather than an import. A consumer who
+// does not list unity-types in their tsconfig "types" array would otherwise
+// compile these sources and get TS2503 for a namespace they never asked about.
+// Declaring the dependency here means the package carries its own requirement.
+
 import type { ReactNode } from 'react';
 
 /**
