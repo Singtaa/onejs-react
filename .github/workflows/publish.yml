@@ -1,0 +1,104 @@
+# Publishes onejs-react to npm through trusted publishing (OIDC), so no npm
+# token exists anywhere: not in repository secrets, not on a laptop. GitHub
+# mints a short-lived token for this one workflow, npm verifies it against the
+# trusted publisher registered in the package settings, and provenance is
+# attached automatically.
+#
+# The filename matters. npm matches "publish.yml" literally against the trusted
+# publisher entry, so renaming this file breaks publishing until the entry on
+# npmjs.com is deleted and recreated (entries cannot be edited).
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  # The OIDC token npm authenticates with. Without this the publish fails with
+  # ENEEDAUTH and nothing else in the file matters.
+  id-token: write
+  contents: read
+
+concurrency:
+  # Deliberately not cancel-in-progress: cancelling a half-finished publish is
+  # worse than letting two tags queue behind each other.
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish to npm
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: onejs-react
+
+    steps:
+      # Same two-checkout layout as ci.yml: onejs-react depends on unity-types
+      # through a "file:../" specifier, so a lone checkout fails npm ci before
+      # any gate runs.
+      - uses: actions/checkout@v4
+        with:
+          path: onejs-react
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Singtaa/unity-types
+          ref: main
+          path: unity-types
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24 rather than ci.yml's 20: trusted publishing needs Node
+          # >= 22.14.0 and an npm that speaks OIDC.
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+          # No dependency cache in a release build. A publish should read what
+          # the lockfile says, not what a cache key happened to restore.
+
+      # Node's bundled npm drifts, and the floor here is exact: 11.5.1 for
+      # trusted publishing, 11.15.0 for `npm stage publish`. A floor, not a
+      # pin: ">=" keeps taking new majors, where "^11.15.0" would quietly hold
+      # the workflow on npm 11 for as long as nobody reread this line.
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g "npm@>=11.15.0"
+
+      # The tag is the only thing a human types during a release, so it is the
+      # only thing that can disagree with package.json. Catch it here rather
+      # than discovering v0.1.55 on the registry as 0.1.54.
+      - name: Check the tag matches package.json
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "Tag $GITHUB_REF_NAME is version $tag_version, package.json is $pkg_version." >&2
+            exit 1
+          fi
+          echo "Publishing $pkg_version"
+
+      - run: npm ci
+
+      # Every gate is --if-present, so the set of scripts a package happens to
+      # have today never decides whether a release can go out, and a script
+      # added later starts gating without anyone editing this file.
+      - run: npm run typecheck --if-present
+
+      - run: npm run lint --if-present
+
+      - run: npm run build --if-present
+
+      - run: npm run test --if-present
+
+      # No --provenance flag and no NODE_AUTH_TOKEN: npm detects the OIDC
+      # environment, authenticates with it, and attaches provenance by itself
+      # for a public package from a public repo.
+      #
+      # This needs the trusted publisher on npmjs.com to allow the "npm publish"
+      # action. Entries created since 3 September 2026 allow only "npm stage
+      # publish" unless direct publishing is ticked; with a stage-only entry
+      # this step fails with E_STAGE_REQUIRED. To take the safer route instead,
+      # change this one line to `npm stage publish` and approve each release
+      # with 2FA from the Staged Packages tab on npmjs.com.
+      - run: npm publish
