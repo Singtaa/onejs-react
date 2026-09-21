@@ -835,23 +835,9 @@ export interface FrostedGlassElement extends VisualElement {
   tintColor: any;
 }
 
-export interface ListViewProps extends BaseProps {
+export interface ListViewCommonProps extends BaseProps {
   // Data source: the array of items to display
   itemsSource: unknown[];
-
-  // Element creation callback: called when ListView needs a new visual element
-  // Return a VisualElement (e.g., new CS.UnityEngine.UIElements.Label())
-  makeItem: () => VisualElement;
-
-  // Bind callback: called to populate an element with data at the given index
-  // The element is recycled, so clear/set all relevant properties
-  bindItem: (element: VisualElement, index: number) => void;
-
-  // Optional: called when an element is about to be recycled
-  unbindItem?: (element: VisualElement, index: number) => void;
-
-  // Optional: called when an element is being destroyed
-  destroyItem?: (element: VisualElement) => void;
 
   // Virtualization settings
   fixedItemHeight?: number;
@@ -878,6 +864,61 @@ export interface ListViewProps extends BaseProps {
   showAlternatingRowBackgrounds?: 'None' | 'ContentOnly' | 'All';
 }
 
+/**
+ * Imperative rows: you create the row element and fill it yourself.
+ *
+ * The element is pooled and recycled, so `bindItem` must set every property it
+ * cares about rather than assuming a fresh element.
+ */
+export interface ListViewImperativeProps extends ListViewCommonProps {
+  // Element creation callback: called when ListView needs a new visual element
+  // Return a VisualElement (e.g., new CS.UnityEngine.UIElements.Label())
+  makeItem: () => VisualElement;
+
+  // Bind callback: called to populate an element with data at the given index
+  // The element is recycled, so clear/set all relevant properties
+  bindItem: (element: VisualElement, index: number) => void;
+
+  // Optional: called when an element is about to be recycled
+  unbindItem?: (element: VisualElement, index: number) => void;
+
+  // Optional: called when an element is being destroyed
+  destroyItem?: (element: VisualElement) => void;
+
+  renderItem?: never;
+}
+
+/**
+ * JSX rows: React renders each visible row, the ListView keeps virtualizing.
+ *
+ * Only the rows on screen are rendered, exactly as with makeItem/bindItem, and
+ * a recycled row is re-rendered in place rather than rebuilt. Hooks, context
+ * and event props all work inside a row.
+ *
+ * @example
+ * <ListView
+ *     itemsSource={items}
+ *     fixedItemHeight={38}
+ *     renderItem={(item: Item, index) => (
+ *         <View style={{ flexDirection: "row", alignItems: "center", flexGrow: 1 }}>
+ *             <Label text={item.name} style={{ flexGrow: 1 }} />
+ *             <Button text="Buy" onClick={() => buy(index)} />
+ *         </View>
+ *     )}
+ * />
+ */
+export interface ListViewRenderProps extends ListViewCommonProps {
+  // Render callback: returns the JSX for the item at `index`.
+  renderItem: (item: any, index: number) => ReactNode;
+
+  makeItem?: never;
+  bindItem?: never;
+  unbindItem?: never;
+  destroyItem?: never;
+}
+
+export type ListViewProps = ListViewImperativeProps | ListViewRenderProps;
+
 // One node of a TreeView's data. Trees are plain nested objects; the wrapper
 // flattens them and keeps the data JS-side (see treeview.ts).
 export interface TreeViewItem<T = unknown> {
@@ -889,24 +930,9 @@ export interface TreeViewItem<T = unknown> {
   children?: TreeViewItem<T>[];
 }
 
-export interface TreeViewProps extends BaseProps {
+export interface TreeViewCommonProps extends BaseProps {
   // Nested data. Reassign a new array/object reference to update the tree.
   rootItems: TreeViewItem[];
-
-  // Element creation callback, called when the TreeView needs a new row element.
-  // Rows get the expand/collapse toggle and indentation for free; return only
-  // the content element (e.g., new CS.UnityEngine.UIElements.Label())
-  makeItem: () => VisualElement;
-
-  // Bind callback: populate a recycled row element. `data` is the matching
-  // TreeViewItem's data, resolved from the row's id
-  bindItem: (element: VisualElement, index: number, data: unknown) => void;
-
-  // Optional: called when a row element is about to be recycled
-  unbindItem?: (element: VisualElement, index: number, data: unknown) => void;
-
-  // Optional: called when a row element is being destroyed
-  destroyItem?: (element: VisualElement) => void;
 
   // Virtualization settings
   fixedItemHeight?: number;
@@ -923,6 +949,51 @@ export interface TreeViewProps extends BaseProps {
   showBorder?: boolean;
   showAlternatingRowBackgrounds?: 'None' | 'ContentOnly' | 'All';
 }
+
+/** Imperative rows: you create the row element and fill it yourself. */
+export interface TreeViewImperativeProps extends TreeViewCommonProps {
+  // Element creation callback, called when the TreeView needs a new row element.
+  // Rows get the expand/collapse toggle and indentation for free; return only
+  // the content element (e.g., new CS.UnityEngine.UIElements.Label())
+  makeItem: () => VisualElement;
+
+  // Bind callback: populate a recycled row element. `data` is the matching
+  // TreeViewItem's data, resolved from the row's id
+  bindItem: (element: VisualElement, index: number, data: unknown) => void;
+
+  // Optional: called when a row element is about to be recycled
+  unbindItem?: (element: VisualElement, index: number, data: unknown) => void;
+
+  // Optional: called when a row element is being destroyed
+  destroyItem?: (element: VisualElement) => void;
+
+  renderItem?: never;
+}
+
+/**
+ * JSX rows: React renders each visible row, the TreeView keeps virtualizing.
+ *
+ * The row's expand/collapse toggle and indentation still come from the
+ * TreeView, so `renderItem` returns only the row's content.
+ *
+ * @example
+ * <TreeView
+ *     rootItems={tree}
+ *     fixedItemHeight={24}
+ *     renderItem={(data: Node) => <Label text={data.name} />}
+ * />
+ */
+export interface TreeViewRenderProps extends TreeViewCommonProps {
+  // Render callback: returns the JSX for the row showing `data`.
+  renderItem: (data: any, index: number) => ReactNode;
+
+  makeItem?: never;
+  bindItem?: never;
+  unbindItem?: never;
+  destroyItem?: never;
+}
+
+export type TreeViewProps = TreeViewImperativeProps | TreeViewRenderProps;
 
 /**
  * A UI element whose background is generated each frame by a shader. The effect

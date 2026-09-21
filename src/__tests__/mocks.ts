@@ -323,8 +323,100 @@ export class MockListView extends MockVisualElement {
     add_itemsChosen(handler: () => void) { this._chosenHandlers.push(handler); }
     _fireSelectionChanged() { this._selectionHandlers.forEach(h => h()); }
     _fireItemsChosen() { this._chosenHandlers.forEach(h => h()); }
-    RefreshItems() {}
-    Rebuild() {}
+
+    // MARK: virtualization model
+    //
+    // UI Toolkit keeps a pool of row elements and moves the visible window over
+    // the data, so a row element that showed index 3 is later rebound to index
+    // 40 without being rebuilt. Tests drive that window explicitly, because the
+    // recycling step (unbind then bind on the SAME element) is the part a
+    // renderItem implementation has to survive.
+    _pool: MockVisualElement[] = [];
+    _boundIndex = new Map<MockVisualElement, number>();
+    _windowStart = 0;
+    _windowCount = 0;
+
+    /** Move the visible window. Grows the pool as needed; never shrinks it (nor does Unity). */
+    _setVisibleRange(start: number, count: number) {
+        this._windowStart = start;
+        this._windowCount = count;
+        const visible = Math.max(0, Math.min(count, this.itemsSource.length - start));
+
+        while (this._pool.length < visible) {
+            const el = this.makeItem!() as MockVisualElement;
+            this._pool.push(el);
+            this.Add(el);
+            this._boundIndex.set(el, -1);
+        }
+
+        // Pooled rows past the end of the window go idle, keeping the element.
+        for (let i = visible; i < this._pool.length; i++) {
+            const el = this._pool[i];
+            const bound = this._boundIndex.get(el) ?? -1;
+            if (bound >= 0) {
+                this.unbindItem?.(el, bound);
+                this._boundIndex.set(el, -1);
+            }
+        }
+
+        for (let i = 0; i < visible; i++) {
+            const el = this._pool[i];
+            const bound = this._boundIndex.get(el) ?? -1;
+            const next = start + i;
+            if (bound === next) continue;
+            if (bound >= 0) this.unbindItem?.(el, bound);
+            this.bindItem?.(el, next);
+            this._boundIndex.set(el, next);
+        }
+    }
+
+    /** What each pooled row element is currently showing, in pool order. */
+    _boundIndices(): number[] {
+        return this._pool.map(el => this._boundIndex.get(el) ?? -1);
+    }
+
+    /** Unity's RefreshItems: rebind the visible window against the current source. */
+    RefreshItems() {
+        // A shrunken source unbinds the rows that fell off the end; the rest
+        // rebind in place, which is a bind with an unchanged index.
+        const visible = Math.max(0, Math.min(this._windowCount, this.itemsSource.length - this._windowStart));
+        for (let i = this._pool.length - 1; i >= visible; i--) {
+            const el = this._pool[i];
+            const bound = this._boundIndex.get(el) ?? -1;
+            if (bound >= 0) {
+                this.unbindItem?.(el, bound);
+                this._boundIndex.set(el, -1);
+            }
+        }
+        for (let i = 0; i < visible; i++) {
+            const el = this._pool[i];
+            this.bindItem?.(el, this._windowStart + i);
+            this._boundIndex.set(el, this._windowStart + i);
+        }
+    }
+
+    /** Unity's Rebuild: retire every pooled element, then refill the window. */
+    Rebuild() {
+        for (const el of this._pool) {
+            const bound = this._boundIndex.get(el) ?? -1;
+            if (bound >= 0) this.unbindItem?.(el, bound);
+            this.destroyItem?.(el);
+            this.Remove(el);
+        }
+        this._pool = [];
+        this._boundIndex = new Map();
+        this._setVisibleRange(this._windowStart, this._windowCount);
+    }
+
+    /** Shrink the pool the way Unity does when fewer rows fit: destroyItem, no unbind. */
+    _destroyPooledRows(count: number) {
+        const doomed = this._pool.splice(this._pool.length - count, count);
+        for (const el of doomed) {
+            this.destroyItem?.(el);
+            this._boundIndex.delete(el);
+            this.Remove(el);
+        }
+    }
 }
 
 /**

@@ -119,7 +119,13 @@ export type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  ListViewCommonProps,
+  ListViewImperativeProps,
+  ListViewRenderProps,
   TreeViewProps,
+  TreeViewCommonProps,
+  TreeViewImperativeProps,
+  TreeViewRenderProps,
   TreeViewItem,
   FrostedGlassProps,
   // Container type for render()

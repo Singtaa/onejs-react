@@ -11,7 +11,11 @@ import type {
   ScrollViewProps,
   ImageProps,
   ListViewProps,
+  ListViewImperativeProps,
+  ListViewRenderProps,
   TreeViewProps,
+  TreeViewImperativeProps,
+  TreeViewRenderProps,
   FrostedGlassProps,
   FrostedGlassIntrinsicProps,
   ShaderEffectProps,
@@ -30,6 +34,7 @@ import type {
 } from './types';
 
 import { TextureFXBuilder, buildTextureFX, type TextureFXBuild } from './texturefx';
+import { useRowPortals } from './rows';
 
 declare const CS: any
 declare function useExtensions(typeRef: any): void
@@ -201,8 +206,8 @@ declare module 'react/jsx-runtime' {
       'ojs-slider': WithRef<SliderProps, SliderElement>;
       'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
       'ojs-image': WithRef<ImageProps, ImageElement>;
-      'ojs-listview': WithRef<ListViewProps, VisualElement>;
-      'ojs-treeview': WithRef<TreeViewProps, VisualElement>;
+      'ojs-listview': WithRef<ListViewImperativeProps, VisualElement>;
+      'ojs-treeview': WithRef<TreeViewImperativeProps, VisualElement>;
       'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
       'ojs-shaderfx': WithRef<ShaderEffectIntrinsicProps, VisualElement>;
     }
@@ -222,8 +227,8 @@ declare module 'react' {
       'ojs-slider': WithRef<SliderProps, SliderElement>;
       'ojs-scrollview': WithRef<ScrollViewProps, ScrollViewElement>;
       'ojs-image': WithRef<ImageProps, ImageElement>;
-      'ojs-listview': WithRef<ListViewProps, VisualElement>;
-      'ojs-treeview': WithRef<TreeViewProps, VisualElement>;
+      'ojs-listview': WithRef<ListViewImperativeProps, VisualElement>;
+      'ojs-treeview': WithRef<TreeViewImperativeProps, VisualElement>;
       'ojs-frostedglass': WithRef<FrostedGlassIntrinsicProps, FrostedGlassElement>;
     }
   }
@@ -298,12 +303,53 @@ export const Image = forwardRef<ImageElement, ImageProps>(({ src, image, ...rest
 Image.displayName = 'Image';
 
 export const ListView = forwardRef<VisualElement, ListViewProps>((props, ref) => {
-  return <ojs-listview ref={ref} {...props} />;
+  const { renderItem, itemsSource, ...rest } = props as ListViewRenderProps;
+  // `index` can outlive its item by one render: the collection view unbinds a
+  // row that fell off the end of a shrunken source, and React renders the
+  // removal a beat later. Render nothing rather than handing renderItem an
+  // undefined item.
+  const rows = useRowPortals(
+    renderItem ? (index) => (index < itemsSource.length ? renderItem(itemsSource[index], index) : null) : undefined
+  );
+
+  if (!renderItem) return <ojs-listview ref={ref} {...(props as ListViewImperativeProps)} />;
+
+  return (
+    <ojs-listview
+      ref={ref}
+      {...(rest as Omit<ListViewImperativeProps, 'makeItem' | 'bindItem'>)}
+      itemsSource={itemsSource}
+      makeItem={rows.makeItem}
+      bindItem={rows.bindItem}
+      unbindItem={rows.unbindItem}
+      destroyItem={rows.destroyItem}
+    >
+      {rows.portals}
+    </ojs-listview>
+  );
 });
 ListView.displayName = 'ListView';
 
 export const TreeView = forwardRef<VisualElement, TreeViewProps>((props, ref) => {
-  return <ojs-treeview ref={ref} {...props} />;
+  const { renderItem, ...rest } = props as TreeViewRenderProps;
+  // TreeView resolves a row's data from its id at bind time, so the row
+  // carries its own data rather than an index into a source array.
+  const rows = useRowPortals(renderItem ? (index, data) => renderItem(data, index) : undefined);
+
+  if (!renderItem) return <ojs-treeview ref={ref} {...(props as TreeViewImperativeProps)} />;
+
+  return (
+    <ojs-treeview
+      ref={ref}
+      {...(rest as Omit<TreeViewImperativeProps, 'makeItem' | 'bindItem'>)}
+      makeItem={rows.makeItem}
+      bindItem={rows.bindItem}
+      unbindItem={rows.unbindItem}
+      destroyItem={rows.destroyItem}
+    >
+      {rows.portals}
+    </ojs-treeview>
+  );
 });
 TreeView.displayName = 'TreeView';
 
