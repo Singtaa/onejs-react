@@ -131,6 +131,25 @@ export interface ScreenProviderProps {
  * ```
  */
 export function ScreenProvider({ children, size }: ScreenProviderProps) {
+    /*
+     * A provider nested inside another follows it instead of measuring the
+     * panel again.
+     *
+     * Without this, wrapping a game in its own <ScreenProvider>, which is
+     * exactly what the OneJS Tailwind guide tells a OneJS user to write,
+     * silently undoes the stage sizing OJPlay's mount() set up. Measured in a
+     * 960x540 letterboxed game at a 1600x400 window: the stage provider alone
+     * reports md, and one nested plain provider inside it reports 2xl, because
+     * the panel root is the window divided by the stage scale. The breakpoint
+     * classes on the root go with it, so Tailwind's lg: and xl: prefixes flip
+     * with the window while nothing else in the game's layout moves.
+     *
+     * Re-measuring was never what nesting wanted. A provider that really does
+     * describe a smaller box says so with `size`, which still wins here.
+     */
+    const outer = useContext(ScreenContext)
+    const given = size ?? (outer === null ? undefined : { width: outer.width, height: outer.height })
+
     // Initialize with current viewport size
     const [measured, setMeasured] = useState<ScreenContextValue>(() => {
         const root = typeof __root === "undefined" ? undefined : __root
@@ -138,14 +157,14 @@ export function ScreenProvider({ children, size }: ScreenProviderProps) {
         const height = root?.resolvedStyle?.height || 0
         return calculateBreakpoints(width, height)
     })
-    const screen = size ? calculateBreakpoints(size.width, size.height) : measured
+    const screen = given ? calculateBreakpoints(given.width, given.height) : measured
 
     useEffect(() => {
         // Apply initial breakpoint classes
         applyBreakpointClasses(screen)
         // A controlled size has no viewport to listen to; the effect above
         // reruns when the prop changes and that is the whole update path.
-        if (size) return
+        if (given) return
 
         // Handle viewport change events from C#
         const handleViewportChange = (evt: { width: number; height: number }) => {
@@ -163,7 +182,7 @@ export function ScreenProvider({ children, size }: ScreenProviderProps) {
         // A controlled size reapplies its classes when it changes; the
         // measured path listens once and never needs to rerun.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [size?.width, size?.height])
+    }, [given?.width, given?.height])
 
     return (
         <ScreenContext.Provider value={screen}>
