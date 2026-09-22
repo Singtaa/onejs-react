@@ -1,4 +1,4 @@
-import { Fragment, createElement, isValidElement, type ReactNode, useCallback, useState } from 'react';
+import { Fragment, createElement, type ReactNode, useCallback, useState } from 'react';
 import { createPortal } from './renderer';
 import type { VisualElement } from './types';
 
@@ -17,7 +17,7 @@ declare const CS: any;
  *
  * A portal is keyed by its container's C# handle, so a recycled container keeps
  * its portal across binds and React never tears the target down. What goes
- * inside is keyed separately, by the row's identity: see renderPortal.
+ * inside is keyed separately, by the row's index: see renderPortal.
  */
 
 /** One pooled row element that the collection view currently has bound. */
@@ -103,22 +103,17 @@ export function useRowPortals(renderRow: ((index: number, data: unknown) => Reac
  * One row's portal: React's contents, UI Toolkit's container.
  *
  * Two keys are at work, and they answer different questions. The portal's key
- * is the container's handle, so the portal itself survives recycling and React
- * never tears the target down. The content's key is the row's identity, so the
- * contents do NOT survive being pointed at a different item: a component with
- * state (an expanded row, an editing flag) remounts instead of carrying state
+ * is the container's handle rather than the row's index, because the handle is
+ * unique by construction: two pooled elements briefly holding the same index
+ * during a refresh would be a duplicate key, and a container never collides
+ * with itself. The contents are keyed by the row's index, so
+ * they do NOT survive being pointed at a different row: a component with state
+ * (an expanded row, an editing flag) is rebuilt rather than carrying state over
  * from the item that scrolled away.
- *
- * Identity is the key on the node `renderItem` returned when there is one, and
- * the index otherwise. That is the usual React escape hatch: returning a root
- * keyed by the item's own id keeps a row's state across a reorder or an
- * insertion, where the index alone would move it to the wrong row.
  */
 function renderPortal(row: BoundRow, renderRow: (index: number, data: unknown) => ReactNode): ReactNode {
-    const content = renderRow(row.index, row.data);
-    const identity = isValidElement(content) && content.key != null ? content.key : String(row.index);
     return createPortal(
-        createElement(Fragment, { key: identity }, content),
+        createElement(Fragment, { key: String(row.index) }, renderRow(row.index, row.data)),
         row.element,
         String(handleOf(row.element))
     );

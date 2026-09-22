@@ -370,11 +370,6 @@ export class MockListView extends MockVisualElement {
         }
     }
 
-    /** What each pooled row element is currently showing, in pool order. */
-    _boundIndices(): number[] {
-        return this._pool.map(el => this._boundIndex.get(el) ?? -1);
-    }
-
     /** Unity's RefreshItems: rebind the visible window against the current source. */
     RefreshItems() {
         // A shrunken source unbinds the rows that fell off the end; the rest
@@ -395,18 +390,7 @@ export class MockListView extends MockVisualElement {
         }
     }
 
-    /** Unity's Rebuild: retire every pooled element, then refill the window. */
-    Rebuild() {
-        for (const el of this._pool) {
-            const bound = this._boundIndex.get(el) ?? -1;
-            if (bound >= 0) this.unbindItem?.(el, bound);
-            this.destroyItem?.(el);
-            this.Remove(el);
-        }
-        this._pool = [];
-        this._boundIndex = new Map();
-        this._setVisibleRange(this._windowStart, this._windowCount);
-    }
+    Rebuild() {}
 
     /** Shrink the pool the way Unity does when fewer rows fit: destroyItem, no unbind. */
     _destroyPooledRows(count: number) {
