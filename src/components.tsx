@@ -312,12 +312,18 @@ export const ListView = forwardRef<VisualElement, ListViewProps>((props, ref) =>
     renderItem ? (index) => (index < itemsSource.length ? renderItem(itemsSource[index], index) : null) : undefined
   );
 
+  // itemsSource is omitted from the spread cast below and passed explicitly:
+  // it is destructured out of `rest`, so a cast that still required it
+  // described a value `rest` never holds. The declaration build rejects that
+  // cast, which is how it reached PlaySite's type generation rather than any
+  // test here.
+
   if (!renderItem) return <ojs-listview ref={ref} {...(props as ListViewImperativeProps)} />;
 
   return (
     <ojs-listview
       ref={ref}
-      {...(rest as Omit<ListViewImperativeProps, 'makeItem' | 'bindItem'>)}
+      {...(rest as Omit<ListViewImperativeProps, 'makeItem' | 'bindItem' | 'itemsSource'>)}
       itemsSource={itemsSource}
       makeItem={rows.makeItem}
       bindItem={rows.bindItem}
