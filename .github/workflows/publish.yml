@@ -85,6 +85,12 @@ jobs:
       # added later starts gating without anyone editing this file.
       - run: npm run typecheck --if-present
 
+      # Checks src the way a consumer compiles it rather than the way this
+      # repo's tsconfig does. Named explicitly because the --if-present list
+      # only picks up scripts it already knows by name, and a release is the
+      # last place that distinction should be discovered.
+      - run: npm run typecheck:consumer --if-present
+
       - run: npm run lint --if-present
 
       - run: npm run build --if-present

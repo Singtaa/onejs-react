@@ -53,6 +53,16 @@ jobs:
 
       - run: npm run typecheck
 
+      # The gate above checks these sources under this repo's tsconfig, which
+      # sets strict and emits nothing. No consumer compiles them that way: this
+      # package ships raw TypeScript, so the compiler that reads it belongs to
+      # somebody else and is configured by them. This step checks src the way
+      # PlaySite's gen-oj-types actually does, non-strict and emitting
+      # declarations, which is a genuinely different set of errors and not a
+      # slower repeat of the line above. 0.1.56 passed typecheck, lint and 328
+      # tests while being unusable by the one consumer that reads it.
+      - run: npm run typecheck:consumer
+
       - run: npm run lint --if-present
 
       # --if-present: a package with no test script yet is not a failure here,

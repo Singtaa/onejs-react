@@ -155,10 +155,21 @@ The layer ignores picking when empty, so a closed overlay never blocks the app.
 ## Build & Test
 
 ```bash
-npm run typecheck  # TypeScript check (no build output - consumed directly by App)
-npm test           # Run test suite
-npm run test:watch # Run tests in watch mode
+npm run typecheck           # TypeScript check (no build output: consumed directly by App)
+npm run typecheck:consumer  # Check src the way a consumer compiles it (see below)
+npm test                    # Run test suite
+npm run test:watch          # Run tests in watch mode
 ```
+
+This package ships raw TypeScript, so the compiler that reads these sources
+belongs to whoever consumes them, and it is configured by them. `typecheck`
+uses this repo's `tsconfig.json`, which sets `strict` and emits nothing;
+`typecheck:consumer` instead mirrors how PlaySite's `gen-oj-types` compiles
+`src/index.ts`, non-strict and emitting declarations. Those find different
+errors, and the non-strict one is not the weaker of the two: without
+`strictNullChecks` an optional property loses its `undefined`, so casts that
+strict mode accepts can fail. Both gates run in CI. `typecheck:consumer` needs
+`unity-types` checked out as a sibling directory.
 
 ## Testing
 

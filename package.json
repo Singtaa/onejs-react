@@ -22,6 +22,7 @@
   "author": "Singtaa",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "typecheck:consumer": "node scripts/typecheck-consumer.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
