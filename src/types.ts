@@ -1055,6 +1055,13 @@ export interface EncodedProgram<Names extends string = string> {
    * a host wants it; Play never does.
    */
   readonly hlsl?: string;
+  /**
+   * The program as WGSL and as GLSL ES 3.00, for a WebGL player to compile and
+   * draw in place of the interpreter. Carried by a `.sl` import (printed at
+   * build time); lazy on an `encode()` result, like `hlsl`.
+   */
+  readonly wgsl?: string;
+  readonly glsl?: string;
 }
 
 export interface ShaderProgramProps<Names extends string = string> extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {
@@ -1068,6 +1075,11 @@ export interface ShaderProgramProps<Names extends string = string> extends Omit<
   program: EncodedProgram<Names>;
   /** Uniform values by the name they were declared with. */
   uniforms?: Partial<Record<Names, number | [number, number, number, number]>>;
+  /**
+   * False keeps the program on the interpreter where a WebGL player could run
+   * it compiled. For comparing the two; the picture is meant to be the same.
+   */
+  compiled?: boolean;
 }
 
 export interface ShaderEffectProps extends BaseProps {
