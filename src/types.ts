@@ -1078,6 +1078,8 @@ export interface ShaderProgramProps<Names extends string = string> extends Omit<
   /**
    * False keeps the program on the interpreter where a WebGL player could run
    * it compiled. For comparing the two; the picture is meant to be the same.
+   * Ignored in a WebGL player built without the interpreter, which is every
+   * one but the comparison harness's.
    */
   compiled?: boolean;
 }
