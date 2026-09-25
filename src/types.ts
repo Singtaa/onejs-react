@@ -1038,6 +1038,11 @@ export interface EncodedProgram<Names extends string = string> {
    */
   defaults?: readonly number[];
   /**
+   * The lowest VM encoding that can run `data`. Optional: a program encoded
+   * by an older onejs-unity carries none, and reads as 1.
+   */
+  wire?: number;
+  /**
    * Texture names in slot order.
    *
    * The same reason the uniform names are here: both backends address a

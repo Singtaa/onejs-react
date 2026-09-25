@@ -1692,42 +1692,61 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         // The names go with the program, because the native backend binds its
         // uniforms as per name material properties and only the program knows
         // which name owns which slot.
-        const wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
-            p.hash, p.uniforms ?? []);
-        /**
-         * The declared defaults, seeded before anything the caller passes.
-         *
-         * The generated shader carries them in its Properties block, so a
-         * compiled material starts at them; the VM's uniform array starts at
-         * zero. Without this an unset uniform was its declared default after an
-         * eject and zero in the browser, from one program, with nothing to see
-         * in either. `props.uniforms` is applied further down and writes over
-         * whatever it names.
-         */
-        const defaults = p.defaults;
-        if (defaults) {
-            for (let slot = 0; slot * 4 < defaults.length; slot++) {
-                const at = slot * 4;
-                el.SetUniform(slot, defaults[at] ?? 0, defaults[at + 1] ?? 0,
-                    defaults[at + 2] ?? 0, defaults[at + 3] ?? 0);
-            }
-        }
-        // True only from an editor that has no compiled shader for this hash.
-        // It records the HLSL and generates one, so the next run is native; the
-        // getter is lazy, so a game in Play never emits a line of it.
-        if (wantsSource === true) {
-            const hlsl = p.hlsl;
-            if (typeof hlsl === 'string') el.RecordProgram(p.hash, hlsl);
-        }
-        // A WebGL player that can compile the program draws it compiled in
-        // place of the VM. Asked first, so nowhere else pays for the strings
-        // (or, for an encode() result, for printing them). Guarded because a
-        // OneJS older than the web path has neither member.
-        // `in`, not a read: on an encode() result these are lazy getters.
-        if ('wgsl' in p || 'glsl' in p) {
+        // The wire only goes across when the program needs more than 1, so an
+        // older OneJS, whose SetProgram has no such parameter, keeps working
+        // for everything it can run. A program it cannot run fails to bind
+        // there rather than drawing wrong, and says why.
+        const wire = typeof p.wire === 'number' ? p.wire : 1;
+        let wantsSource: unknown;
+        let bound = true;
+        if (wire > 1) {
             try {
-                if (el.WantsWebSource === true) el.SetProgramWeb(p.wgsl ?? '', p.glsl ?? '');
-            } catch { /* an older OneJS: the VM draws, as it always has */ }
+                wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
+                    p.hash, p.uniforms ?? [], wire);
+            } catch {
+                console.warn(`[onejs-react] shader program ${p.hash} needs a newer OneJS (VM wire ${wire}) and will not draw.`);
+                bound = false;
+            }
+        } else {
+            wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
+                p.hash, p.uniforms ?? []);
+        }
+        if (bound) {
+            /**
+             * The declared defaults, seeded before anything the caller passes.
+             *
+             * The generated shader carries them in its Properties block, so a
+             * compiled material starts at them; the VM's uniform array starts at
+             * zero. Without this an unset uniform was its declared default after an
+             * eject and zero in the browser, from one program, with nothing to see
+             * in either. `props.uniforms` is applied further down and writes over
+             * whatever it names.
+             */
+            const defaults = p.defaults;
+            if (defaults) {
+                for (let slot = 0; slot * 4 < defaults.length; slot++) {
+                    const at = slot * 4;
+                    el.SetUniform(slot, defaults[at] ?? 0, defaults[at + 1] ?? 0,
+                        defaults[at + 2] ?? 0, defaults[at + 3] ?? 0);
+                }
+            }
+            // True only from an editor that has no compiled shader for this hash.
+            // It records the HLSL and generates one, so the next run is native; the
+            // getter is lazy, so a game in Play never emits a line of it.
+            if (wantsSource === true) {
+                const hlsl = p.hlsl;
+                if (typeof hlsl === 'string') el.RecordProgram(p.hash, hlsl);
+            }
+            // A WebGL player that can compile the program draws it compiled in
+            // place of the VM. Asked first, so nowhere else pays for the strings
+            // (or, for an encode() result, for printing them). Guarded because a
+            // OneJS older than the web path has neither member.
+            // `in`, not a read: on an encode() result these are lazy getters.
+            if ('wgsl' in p || 'glsl' in p) {
+                try {
+                    if (el.WantsWebSource === true) el.SetProgramWeb(p.wgsl ?? '', p.glsl ?? '');
+                } catch { /* an older OneJS: the VM draws, as it always has */ }
+            }
         }
     }
 

@@ -1029,6 +1029,32 @@ describe('ShaderProgram uniforms', () => {
         expect(el.SetProgramWeb).toHaveBeenCalledWith('@fragment fn sl_fs() {}', '#version 300 es');
     });
 
+    it('passes the wire only when a program needs more than 1, and refuses it on a OneJS without it', () => {
+        const withWire = (hash: string, wire?: number) => ({ ...program(['k'], hash), defaults: [1, 0, 0, 1], ...(wire ? { wire } : {}) });
+        // Wire 1, or none (an older onejs-unity): the call every OneJS has.
+        const instance = createInstance('ojs-shaderfx', { program: withWire('w1') } as any, null as any, null, null);
+        const el = instance.element as any;
+        expect(el.SetProgram.mock.calls[0]).toHaveLength(5);
+        // Wire 2 goes across as the sixth argument.
+        commitUpdate(instance, 'ojs-shaderfx', { program: withWire('w1') } as any, { program: withWire('w2', 2) } as any, null as any);
+        expect(el.SetProgram.mock.calls[1]).toHaveLength(6);
+        expect(el.SetProgram.mock.calls[1][5]).toBe(2);
+        // A OneJS whose SetProgram has no such parameter throws on the call: the
+        // program is not bound (no defaults seeded onto a program that is not
+        // there), it says why, and the element's other props still apply.
+        el.SetProgram.mockImplementation((...args: unknown[]) => {
+            if (args.length > 5) throw new Error('no overload takes 6 arguments');
+        });
+        el.SetUniform.mockClear();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        commitUpdate(instance, 'ojs-shaderfx', { program: withWire('w2', 2) } as any,
+            { program: withWire('w3', 2), compiled: false } as any, null as any);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('needs a newer OneJS (VM wire 2)'));
+        expect(el.SetUniform).not.toHaveBeenCalled();
+        expect(el.SetCompiled).toHaveBeenCalledWith(false);
+        warn.mockRestore();
+    });
+
     it('forwards compiled={false} and leaves the element alone without it', () => {
         const plain = createInstance('ojs-shaderfx', { program: program([], 'c1') } as any, null as any, null, null);
         expect((plain.element as any).SetCompiled).not.toHaveBeenCalled();
