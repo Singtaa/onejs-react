@@ -1008,6 +1008,34 @@ describe('ShaderProgram uniforms', () => {
         expect(emitted).toHaveBeenCalledTimes(1);
     });
 
+    it('hands WGSL and GLSL only to a player that can compile them', () => {
+        const wgsl = vi.fn(() => '@fragment fn sl_fs() {}');
+        const withWeb = (hash: string) => {
+            const p = program(['k'], hash);
+            Object.defineProperty(p, 'wgsl', { enumerable: false, get: wgsl });
+            Object.defineProperty(p, 'glsl', { enumerable: false, get: () => '#version 300 es' });
+            return p;
+        };
+        // No web compiler (the editor, a native player): the getters are not touched.
+        const quiet = createInstance('ojs-shaderfx', { program: withWeb('native') } as any, null as any, null, null);
+        expect((quiet.element as any).SetProgramWeb).not.toHaveBeenCalled();
+        expect(wgsl).not.toHaveBeenCalled();
+        // A WebGL player that can.
+        const instance = createInstance('ojs-shaderfx', { program: withWeb('web') } as any, null as any, null, null);
+        const el = instance.element as any;
+        el.WantsWebSource = true;
+        commitUpdate(instance, 'ojs-shaderfx', { program: withWeb('web') } as any,
+            { program: withWeb('web-2') } as any, null as any);
+        expect(el.SetProgramWeb).toHaveBeenCalledWith('@fragment fn sl_fs() {}', '#version 300 es');
+    });
+
+    it('forwards compiled={false} and leaves the element alone without it', () => {
+        const plain = createInstance('ojs-shaderfx', { program: program([], 'c1') } as any, null as any, null, null);
+        expect((plain.element as any).SetCompiled).not.toHaveBeenCalled();
+        const forced = createInstance('ojs-shaderfx', { program: program([], 'c2'), compiled: false } as any, null as any, null, null);
+        expect((forced.element as any).SetCompiled).toHaveBeenCalledWith(false);
+    });
+
     it('seeds the declared defaults before anything the caller passes', () => {
         // The generated shader starts at its Properties block; the VM's uniform
         // array starts at zero. Seeding here is what stops the same program

@@ -1719,6 +1719,20 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
             const hlsl = p.hlsl;
             if (typeof hlsl === 'string') el.RecordProgram(p.hash, hlsl);
         }
+        // A WebGL player that can compile the program draws it compiled in
+        // place of the VM. Asked first, so nowhere else pays for the strings
+        // (or, for an encode() result, for printing them). Guarded because a
+        // OneJS older than the web path has neither member.
+        // `in`, not a read: on an encode() result these are lazy getters.
+        if ('wgsl' in p || 'glsl' in p) {
+            try {
+                if (el.WantsWebSource === true) el.SetProgramWeb(p.wgsl ?? '', p.glsl ?? '');
+            } catch { /* an older OneJS: the VM draws, as it always has */ }
+        }
+    }
+
+    if (props.compiled !== oldProps?.compiled) {
+        try { el.SetCompiled(props.compiled !== false); } catch { /* an older OneJS has only the VM */ }
     }
 
     if (props.resolution !== undefined || oldProps?.resolution !== undefined) {
