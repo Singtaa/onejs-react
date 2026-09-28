@@ -974,11 +974,11 @@ describe('ScrollView wheel step, paired with the WebGL notch', () => {
 });
 
 describe('ShaderProgram uniforms', () => {
-    /** What compile() gives: no VM buffer. */
+    /** What compile() gives. */
     const program = (uniforms: string[], hash = 'abc') => ({ hash, uniforms });
-    /** What a Play bundle published before compile() carries: a buffer. */
+    /** What a bundle built before onejs-unity 0.6 carries: the removed VM's buffer. */
     const encoded = (uniforms: string[], hash = 'abc') => ({
-        ...program(uniforms, hash), data: [1, 0, 0, 0, 0, 0, 0, 0], instructions: 1, resultRegister: 0,
+        ...program(uniforms, hash), data: [1, 0, 0, 0, 0, 0, 0, 0], instructions: 1, resultRegister: 0, wire: 2,
     });
 
     it('sends a compiled program across with an empty buffer', () => {
@@ -989,11 +989,13 @@ describe('ShaderProgram uniforms', () => {
         expect([instructions, result, hash, names]).toEqual([0, 0, 'c', ['warp']]);
     });
 
-    it('still sends the buffer a published bundle carries', () => {
+    it('ignores the buffer an older bundle carries, and sends the program as a compiled one', () => {
         const instance = createInstance('ojs-shaderfx', { program: encoded(['warp'], 'e') } as any, null as any, null, null);
-        const [data, instructions] = (instance.element as any).SetProgram.mock.calls[0];
-        expect(Array.from(data)).toEqual([1, 0, 0, 0, 0, 0, 0, 0]);
-        expect(instructions).toBe(1);
+        const call = (instance.element as any).SetProgram.mock.calls[0];
+        expect(call).toHaveLength(5);
+        const [data, instructions, result, hash, names] = call;
+        expect(data.length).toBe(0);
+        expect([instructions, result, hash, names]).toEqual([0, 0, 'e', ['warp']]);
     });
 
     /**
@@ -1019,9 +1021,10 @@ describe('ShaderProgram uniforms', () => {
                 expect(lines).toHaveLength(1);
                 expect(String(lines[0]![0])).toContain('needs OneJS 3.7 or newer');
             }
-            // A buffer still goes to an old OneJS, which draws it on its VM.
+            // A program carrying a buffer is no exception: onejs-react 0.2 needs OneJS 3.7.
             const old = createInstance('ojs-shaderfx', { program: encoded([], 'buffered') } as any, null as any, null, null);
-            expect((old.element as any).SetProgram).toHaveBeenCalledWith(expect.anything(), 1, 0, 'buffered', []);
+            expect((old.element as any).SetProgram).not.toHaveBeenCalled();
+            expect(error.mock.calls.filter((c) => String(c[0]).includes('buffered'))).toHaveLength(1);
         } finally {
             MockShaderEffectElement.accepts = true;
             error.mockRestore();
@@ -1079,37 +1082,9 @@ describe('ShaderProgram uniforms', () => {
         expect(el.SetProgramWeb).toHaveBeenCalledWith('@fragment fn sl_fs() {}', '#version 300 es');
     });
 
-    it('passes the wire only when a program needs more than 1, and refuses it on a OneJS without it', () => {
-        const withWire = (hash: string, wire?: number) => ({ ...encoded(['k'], hash), defaults: [1, 0, 0, 1], ...(wire ? { wire } : {}) });
-        // Wire 1, or none (an older onejs-unity): the call every OneJS has.
-        const instance = createInstance('ojs-shaderfx', { program: withWire('w1') } as any, null as any, null, null);
-        const el = instance.element as any;
-        expect(el.SetProgram.mock.calls[0]).toHaveLength(5);
-        // Wire 2 goes across as the sixth argument.
-        commitUpdate(instance, 'ojs-shaderfx', { program: withWire('w1') } as any, { program: withWire('w2', 2) } as any, null as any);
-        expect(el.SetProgram.mock.calls[1]).toHaveLength(6);
-        expect(el.SetProgram.mock.calls[1][5]).toBe(2);
-        // A OneJS whose SetProgram has no such parameter throws on the call: the
-        // program is not bound (no defaults seeded onto a program that is not
-        // there), it says why, and the element's other props still apply.
-        el.SetProgram.mockImplementation((...args: unknown[]) => {
-            if (args.length > 5) throw new Error('no overload takes 6 arguments');
-        });
-        el.SetUniform.mockClear();
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        commitUpdate(instance, 'ojs-shaderfx', { program: withWire('w2', 2) } as any,
-            { program: withWire('w3', 2), compiled: false } as any, null as any);
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('needs a newer OneJS (VM wire 2)'));
-        expect(el.SetUniform).not.toHaveBeenCalled();
-        expect(el.SetCompiled).toHaveBeenCalledWith(false);
-        warn.mockRestore();
-    });
-
-    it('forwards compiled={false} and leaves the element alone without it', () => {
-        const plain = createInstance('ojs-shaderfx', { program: program([], 'c1') } as any, null as any, null, null);
-        expect((plain.element as any).SetCompiled).not.toHaveBeenCalled();
-        const forced = createInstance('ojs-shaderfx', { program: program([], 'c2'), compiled: false } as any, null as any, null, null);
-        expect((forced.element as any).SetCompiled).toHaveBeenCalledWith(false);
+    it('never calls SetCompiled, whatever a program or its props say', () => {
+        const instance = createInstance('ojs-shaderfx', { program: encoded([], 'c1'), compiled: false } as any, null as any, null, null);
+        expect((instance.element as any).SetCompiled).not.toHaveBeenCalled();
     });
 
     it('seeds the declared defaults before anything the caller passes', () => {

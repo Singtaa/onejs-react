@@ -1665,26 +1665,26 @@ function warnUnknownTexture(hash: string | undefined, name: string, declared: re
 }
 
 /**
- * Whether the element draws a program that carries no VM buffer: OneJS 3.7 and
- * newer say so. Read in a try, since how a missing member reads depends on the
- * interop, and an older OneJS has none.
+ * Whether the element draws a compiled program: OneJS 3.7 and newer say so.
+ * Read in a try, since how a missing member reads depends on the interop, and
+ * an older OneJS has none.
  */
 function acceptsCompiledPrograms(el: any): boolean {
     try { return el.AcceptsCompiledPrograms === true; } catch { return false; }
 }
 
 /**
- * A compiled program on a OneJS too old to take one, said once per program.
+ * A program on a OneJS too old to take one, said once per program.
  *
- * onejs-unity and OneJS update separately, so a project can bump the npm side
- * past the Unity side. The alternative to this line is an empty element and a
- * message about the VM's instruction count, which points at neither package.
+ * The npm packages and OneJS update separately, so a project can bump the npm
+ * side past the Unity side. The alternative to this line is an empty element
+ * that points at neither package.
  */
 const reportedOldOneJS = new Set<string>();
 function reportOldOneJS(hash: string) {
     if (reportedOldOneJS.has(hash)) return;
     reportedOldOneJS.add(hash);
-    console.error(`[onejs-react] shader program ${hash} needs OneJS 3.7 or newer, which draws programs without a VM encoding. Update OneJS, or keep onejs-unity below 0.6.`);
+    console.error(`[onejs-react] shader program ${hash} needs OneJS 3.7 or newer. Update OneJS, or keep onejs-react below 0.2 and onejs-unity below 0.6.`);
 }
 
 const shaderShallowEq = (a: any, b: any) => {
@@ -1704,7 +1704,7 @@ const shaderShallowEq = (a: any, b: any) => {
 function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     if (props.shader !== undefined && props.shader !== oldProps?.shader) el.SetShader(props.shader);
 
-    // A recorded program, encoded once and handed over by hash. Compared by
+    // A compiled program, handed over by hash. Compared by
     // hash rather than by identity because a program is usually built inline in
     // a component body, so a fresh object arrives on every render while the
     // program itself has not changed. Comparing identity would rebuild the
@@ -1716,46 +1716,22 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         // uniforms as per name material properties and only the program knows
         // which name owns which slot.
         //
-        // A program from compile() carries no VM buffer, and an empty one goes
-        // across in its place. Only a OneJS that says it accepts that gets it:
-        // an older one validates the buffer for the VM and throws, which a user
-        // would see as a blank element and a line about instructions.
-        const encoded = p.data !== undefined && (p.instructions ?? 0) > 0;
+        // SetProgram keeps the removed VM's three leading arguments, which
+        // every OneJS since 3.7 ignores; an empty buffer and two zeros fill
+        // them. A buffer an older bundle still carries is never sent.
         let wantsSource: unknown;
-        let bound = true;
-        if (!encoded && !acceptsCompiledPrograms(el)) {
-            reportOldOneJS(p.hash);
-            bound = false;
-        } else if (!encoded) {
-            wantsSource = el.SetProgram(new Float32Array(0), 0, 0, p.hash, p.uniforms ?? []);
-        } else {
-            // The wire only goes across when the program needs more than 1, so
-            // an older OneJS, whose SetProgram has no such parameter, keeps
-            // working for everything it can run. A program it cannot run fails
-            // to bind there rather than drawing wrong, and says why.
-            const wire = typeof p.wire === 'number' ? p.wire : 1;
-            if (wire > 1) {
-                try {
-                    wantsSource = el.SetProgram(Float32Array.from(p.data!), p.instructions, p.resultRegister ?? 0,
-                        p.hash, p.uniforms ?? [], wire);
-                } catch {
-                    console.warn(`[onejs-react] shader program ${p.hash} needs a newer OneJS (VM wire ${wire}) and will not draw.`);
-                    bound = false;
-                }
-            } else {
-                wantsSource = el.SetProgram(Float32Array.from(p.data!), p.instructions, p.resultRegister ?? 0,
-                    p.hash, p.uniforms ?? []);
-            }
-        }
+        const bound = acceptsCompiledPrograms(el);
+        if (!bound) reportOldOneJS(p.hash);
+        else wantsSource = el.SetProgram(new Float32Array(0), 0, 0, p.hash, p.uniforms ?? []);
         if (bound) {
             /**
              * The declared defaults, seeded before anything the caller passes.
              *
              * The generated shader carries them in its Properties block, so a
-             * compiled material starts at them; the VM's uniform array starts at
-             * zero. Without this an unset uniform was its declared default after an
-             * eject and zero in the browser, from one program, with nothing to see
-             * in either. `props.uniforms` is applied further down and writes over
+             * compiled material starts at them; the web host's uniform array
+             * starts at zero. Without this an unset uniform was its declared
+             * default in the editor and zero in the browser, from one program,
+             * with nothing to see in either. `props.uniforms` is applied further down and writes over
              * whatever it names.
              */
             const defaults = p.defaults;
@@ -1773,21 +1749,14 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
                 const hlsl = p.hlsl;
                 if (typeof hlsl === 'string') el.RecordProgram(p.hash, hlsl);
             }
-            // A WebGL player that can compile the program draws it compiled in
-            // place of the VM. Asked first, so nowhere else pays for the strings
-            // (or, for a compile() result, for printing them). Guarded because a
-            // OneJS older than the web path has neither member.
+            // A WebGL player compiles the program itself. Asked first, so nowhere
+            // else pays for the strings (or, for a compile() result, for printing
+            // them).
             // `in`, not a read: on a compile() result these are lazy getters.
             if ('wgsl' in p || 'glsl' in p) {
-                try {
-                    if (el.WantsWebSource === true) el.SetProgramWeb(p.wgsl ?? '', p.glsl ?? '');
-                } catch { /* an older OneJS: the VM draws, as it always has */ }
+                if (el.WantsWebSource === true) el.SetProgramWeb(p.wgsl ?? '', p.glsl ?? '');
             }
         }
-    }
-
-    if (props.compiled !== oldProps?.compiled) {
-        try { el.SetCompiled(props.compiled !== false); } catch { /* an older OneJS has only the VM */ }
     }
 
     if (props.resolution !== undefined || oldProps?.resolution !== undefined) {
@@ -1803,16 +1772,10 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         for (const k in props.floats) el.SetFloat(k, props.floats[k]);
     }
     /**
-     * A program's uniforms go by SLOT, which is the only thing the VM reads.
-     *
-     * This used to set a material property called `_u_<name>`, on the reasoning
-     * that the emitter names them the same on both backends. It does, but only
-     * the GENERATED shader has such a property. The interpreter reads one array
-     * indexed by slot and never looks at a name, so in the Play container every
-     * uniform stayed at zero: a game could not change its own picture, and
-     * nothing errored. The element resolves the slot through the names handed
-     * over with the program, and the bridge behind it writes to whichever
-     * backend is live.
+     * A program's uniforms go by SLOT. The element resolves the slot through
+     * the names handed over with the program, and the bridge behind it writes
+     * to whichever backend is live: a material property on a generated shader,
+     * the uniform array in a browser.
      */
     if (props.uniforms && !shaderShallowEq(props.uniforms, oldProps?.uniforms)) {
         const names = props.program?.uniforms;

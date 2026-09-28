@@ -676,7 +676,7 @@ export class MockShaderEffectElement extends MockVisualElement {
     SetShader = vi.fn();
     /** What a new element reports, so a test can stand in for an older OneJS. */
     static accepts: boolean | undefined = true;
-    /** OneJS 3.7 and newer: draws a program that carries no VM buffer. */
+    /** OneJS 3.7 and newer: draws a compiled program. */
     AcceptsCompiledPrograms: boolean | undefined = MockShaderEffectElement.accepts;
     SetProgram = vi.fn();
     RecordProgram = vi.fn();

@@ -1016,44 +1016,30 @@ export type TreeViewProps = TreeViewImperativeProps | TreeViewRenderProps;
  */
 export interface CompiledProgram<Names extends string = string> {
   /**
-   * The VM's buffer, which only a program from `encode()` or an older
-   * onejs-unity carries: a Play bundle published before `compile()`, say.
-   * OneJS draws every program compiled and ignores it. Optional, and absent
-   * from anything `compile()` gives.
-   */
-  data?: ArrayLike<number>;
-  instructions?: number;
-  resultRegister?: number;
-  /**
    * Uniform names in slot order.
    *
-   * The VM addresses a uniform by slot, so this is how a name in `uniforms`
-   * becomes something it can write. Optional because a program encoded by an
-   * older onejs-unity will not carry it; those set no uniforms rather than
-   * setting the wrong ones.
+   * Every backend addresses a uniform by slot, so this is how a name in
+   * `uniforms` becomes something it can write. Optional because a program
+   * built by an older onejs-unity may not carry it; those set no uniforms
+   * rather than setting the wrong ones.
    */
   uniforms?: readonly Names[];
   /**
    * Declared uniform defaults, four floats per slot in slot order.
    *
    * The generated shader writes these into its Properties block, so a compiled
-   * material starts at them while the VM's uniform array starts at zero. The
-   * host seeds them on upload so both backends begin at the same picture.
-   * Optional: a program encoded by an older onejs-unity carries none, and those
+   * material starts at them while the web host's uniform array starts at zero.
+   * The host seeds them on upload so every backend begins at the same picture.
+   * Optional: a program built by an older onejs-unity carries none, and those
    * start at zero as they always did.
    */
   defaults?: readonly number[];
-  /**
-   * The lowest VM encoding that can run `data`, with it or not at all. A
-   * program with a buffer and no `wire` reads as 1.
-   */
-  wire?: number;
   /**
    * Texture names in slot order.
    *
    * The same reason the uniform names are here: both backends address a
    * texture as `_Tex0` to `_Tex3`, so a host handed the name an author wrote
-   * had nothing to set. Optional, and a program encoded without it binds no
+   * had nothing to set. Optional, and a program built without it binds no
    * textures rather than binding the wrong ones.
    */
   textures?: readonly string[];
@@ -1075,7 +1061,7 @@ export interface CompiledProgram<Names extends string = string> {
   readonly glsl?: string;
 }
 
-/** The name `CompiledProgram` had while programs carried the VM's buffer. */
+/** @deprecated The name `CompiledProgram` had while programs carried the VM's buffer. */
 export type EncodedProgram<Names extends string = string> = CompiledProgram<Names>;
 
 export interface ShaderProgramProps<Names extends string = string> extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {
@@ -1090,12 +1076,6 @@ export interface ShaderProgramProps<Names extends string = string> extends Omit<
   program: CompiledProgram<Names>;
   /** Uniform values by the name they were declared with. */
   uniforms?: Partial<Record<Names, number | [number, number, number, number]>>;
-  /**
-   * Changes nothing. False used to keep a program on the interpreter in a
-   * WebGL player that could run it compiled; no WebGL player has one now, and
-   * an editor or native player never read it.
-   */
-  compiled?: boolean;
 }
 
 export interface ShaderEffectProps extends BaseProps {
