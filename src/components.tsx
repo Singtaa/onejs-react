@@ -431,7 +431,7 @@ ShaderEffect.displayName = 'ShaderEffect';
 /**
  * Runs a shader language program into an element's background.
  *
- *     const plasma = encode(sl.program(({ uv, time }) => {
+ *     const plasma = compile(sl.program(({ uv, time }) => {
  *         const q = uv.mul(8).add(time.mul(0.4))
  *         const v = sl.sin(q.x).add(sl.sin(q.y))
  *         return sl.ramp(v.mul(0.25).add(0.5), ["#000018", "#0080ff", "#ffffff"])
@@ -453,7 +453,7 @@ ShaderProgramImpl.displayName = 'ShaderProgram';
  *
  * The cast is the whole trick: the runtime component is the one above and does
  * not change, while the type is a generic function so `Names` is inferred from
- * the program handed in. A program from `encode(sl.program(...))` leaves Names
+ * the program handed in. A program from `compile(sl.program(...))` leaves Names
  * as `string` and nothing tightens; a program from a `.sl` file's generated
  * `.d.ts` carries its names, and a misspelled uniform is a call site error.
  */

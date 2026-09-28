@@ -1664,6 +1664,29 @@ function warnUnknownTexture(hash: string | undefined, name: string, declared: re
     console.warn(`[onejs-react] ShaderProgram: no texture named "${name}" in this program (declared: ${known}). Check the name in the texture2D declaration.`);
 }
 
+/**
+ * Whether the element draws a program that carries no VM buffer: OneJS 3.7 and
+ * newer say so. Read in a try, since how a missing member reads depends on the
+ * interop, and an older OneJS has none.
+ */
+function acceptsCompiledPrograms(el: any): boolean {
+    try { return el.AcceptsCompiledPrograms === true; } catch { return false; }
+}
+
+/**
+ * A compiled program on a OneJS too old to take one, said once per program.
+ *
+ * onejs-unity and OneJS update separately, so a project can bump the npm side
+ * past the Unity side. The alternative to this line is an empty element and a
+ * message about the VM's instruction count, which points at neither package.
+ */
+const reportedOldOneJS = new Set<string>();
+function reportOldOneJS(hash: string) {
+    if (reportedOldOneJS.has(hash)) return;
+    reportedOldOneJS.add(hash);
+    console.error(`[onejs-react] shader program ${hash} needs OneJS 3.7 or newer, which draws programs without a VM encoding. Update OneJS, or keep onejs-unity below 0.6.`);
+}
+
 const shaderShallowEq = (a: any, b: any) => {
     if (a === b) return true;
     if (!a || !b) return false;
@@ -1692,24 +1715,37 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         // The names go with the program, because the native backend binds its
         // uniforms as per name material properties and only the program knows
         // which name owns which slot.
-        // The wire only goes across when the program needs more than 1, so an
-        // older OneJS, whose SetProgram has no such parameter, keeps working
-        // for everything it can run. A program it cannot run fails to bind
-        // there rather than drawing wrong, and says why.
-        const wire = typeof p.wire === 'number' ? p.wire : 1;
+        //
+        // A program from compile() carries no VM buffer, and an empty one goes
+        // across in its place. Only a OneJS that says it accepts that gets it:
+        // an older one validates the buffer for the VM and throws, which a user
+        // would see as a blank element and a line about instructions.
+        const encoded = p.data !== undefined && (p.instructions ?? 0) > 0;
         let wantsSource: unknown;
         let bound = true;
-        if (wire > 1) {
-            try {
-                wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
-                    p.hash, p.uniforms ?? [], wire);
-            } catch {
-                console.warn(`[onejs-react] shader program ${p.hash} needs a newer OneJS (VM wire ${wire}) and will not draw.`);
-                bound = false;
-            }
+        if (!encoded && !acceptsCompiledPrograms(el)) {
+            reportOldOneJS(p.hash);
+            bound = false;
+        } else if (!encoded) {
+            wantsSource = el.SetProgram(new Float32Array(0), 0, 0, p.hash, p.uniforms ?? []);
         } else {
-            wantsSource = el.SetProgram(Float32Array.from(p.data), p.instructions, p.resultRegister,
-                p.hash, p.uniforms ?? []);
+            // The wire only goes across when the program needs more than 1, so
+            // an older OneJS, whose SetProgram has no such parameter, keeps
+            // working for everything it can run. A program it cannot run fails
+            // to bind there rather than drawing wrong, and says why.
+            const wire = typeof p.wire === 'number' ? p.wire : 1;
+            if (wire > 1) {
+                try {
+                    wantsSource = el.SetProgram(Float32Array.from(p.data!), p.instructions, p.resultRegister ?? 0,
+                        p.hash, p.uniforms ?? [], wire);
+                } catch {
+                    console.warn(`[onejs-react] shader program ${p.hash} needs a newer OneJS (VM wire ${wire}) and will not draw.`);
+                    bound = false;
+                }
+            } else {
+                wantsSource = el.SetProgram(Float32Array.from(p.data!), p.instructions, p.resultRegister ?? 0,
+                    p.hash, p.uniforms ?? []);
+            }
         }
         if (bound) {
             /**
@@ -1739,9 +1775,9 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
             }
             // A WebGL player that can compile the program draws it compiled in
             // place of the VM. Asked first, so nowhere else pays for the strings
-            // (or, for an encode() result, for printing them). Guarded because a
+            // (or, for a compile() result, for printing them). Guarded because a
             // OneJS older than the web path has neither member.
-            // `in`, not a read: on an encode() result these are lazy getters.
+            // `in`, not a read: on a compile() result these are lazy getters.
             if ('wgsl' in p || 'glsl' in p) {
                 try {
                     if (el.WantsWebSource === true) el.SetProgramWeb(p.wgsl ?? '', p.glsl ?? '');

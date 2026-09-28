@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { hostConfig, type Instance } from "../host-config";
-import { MockVisualElement, MockLength, MockColor, getEventAPI } from "./mocks";
+import { MockVisualElement, MockLength, MockColor, MockShaderEffectElement, getEventAPI } from "./mocks";
 import type { BaseProps } from "../types";
 
 // Props type that includes component-specific properties for testing
@@ -974,8 +974,58 @@ describe('ScrollView wheel step, paired with the WebGL notch', () => {
 });
 
 describe('ShaderProgram uniforms', () => {
-    const program = (uniforms: string[], hash = 'abc') => ({
-        data: [], instructions: [], resultRegister: 0, hash, uniforms,
+    /** What compile() gives: no VM buffer. */
+    const program = (uniforms: string[], hash = 'abc') => ({ hash, uniforms });
+    /** What a Play bundle published before compile() carries: a buffer. */
+    const encoded = (uniforms: string[], hash = 'abc') => ({
+        ...program(uniforms, hash), data: [1, 0, 0, 0, 0, 0, 0, 0], instructions: 1, resultRegister: 0,
+    });
+
+    it('sends a compiled program across with an empty buffer', () => {
+        const instance = createInstance('ojs-shaderfx', { program: program(['warp'], 'c') } as any, null as any, null, null);
+        const [data, instructions, result, hash, names] = (instance.element as any).SetProgram.mock.calls[0];
+        expect(data).toBeInstanceOf(Float32Array);
+        expect(data.length).toBe(0);
+        expect([instructions, result, hash, names]).toEqual([0, 0, 'c', ['warp']]);
+    });
+
+    it('still sends the buffer a published bundle carries', () => {
+        const instance = createInstance('ojs-shaderfx', { program: encoded(['warp'], 'e') } as any, null as any, null, null);
+        const [data, instructions] = (instance.element as any).SetProgram.mock.calls[0];
+        expect(Array.from(data)).toEqual([1, 0, 0, 0, 0, 0, 0, 0]);
+        expect(instructions).toBe(1);
+    });
+
+    /**
+     * onejs-unity 0.6 on OneJS 3.6: the npm side updated past the Unity side.
+     * That OneJS throws on an empty buffer, so the program never goes across,
+     * and the one line says which package to move rather than leaving an empty
+     * element and a message about the VM's instruction count.
+     */
+    it('says a compiled program needs a newer OneJS, once, rather than handing it to one that throws', () => {
+        const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            for (const flag of [undefined, false]) {
+                MockShaderEffectElement.accepts = flag;
+                const hash = `old-${flag}`;
+                const p = { ...program(['warp'], hash), defaults: [1, 0, 0, 1] };
+                const instance = createInstance('ojs-shaderfx', { program: p } as any, null as any, null, null);
+                const el = instance.element as any;
+                // A second element on the same program says nothing more.
+                createInstance('ojs-shaderfx', { program: p } as any, null as any, null, null);
+                expect(el.SetProgram).not.toHaveBeenCalled();
+                expect(el.SetUniform).not.toHaveBeenCalled();
+                const lines = error.mock.calls.filter((c) => String(c[0]).includes(hash));
+                expect(lines).toHaveLength(1);
+                expect(String(lines[0]![0])).toContain('needs OneJS 3.7 or newer');
+            }
+            // A buffer still goes to an old OneJS, which draws it on its VM.
+            const old = createInstance('ojs-shaderfx', { program: encoded([], 'buffered') } as any, null as any, null, null);
+            expect((old.element as any).SetProgram).toHaveBeenCalledWith(expect.anything(), 1, 0, 'buffered', []);
+        } finally {
+            MockShaderEffectElement.accepts = true;
+            error.mockRestore();
+        }
     });
 
     it('sets a declared uniform by its slot', () => {
@@ -1030,7 +1080,7 @@ describe('ShaderProgram uniforms', () => {
     });
 
     it('passes the wire only when a program needs more than 1, and refuses it on a OneJS without it', () => {
-        const withWire = (hash: string, wire?: number) => ({ ...program(['k'], hash), defaults: [1, 0, 0, 1], ...(wire ? { wire } : {}) });
+        const withWire = (hash: string, wire?: number) => ({ ...encoded(['k'], hash), defaults: [1, 0, 0, 1], ...(wire ? { wire } : {}) });
         // Wire 1, or none (an older onejs-unity): the call every OneJS has.
         const instance = createInstance('ojs-shaderfx', { program: withWire('w1') } as any, null as any, null, null);
         const el = instance.element as any;

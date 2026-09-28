@@ -1004,20 +1004,26 @@ export type TreeViewProps = TreeViewImperativeProps | TreeViewRenderProps;
  * Property names are the shader's own (`_Speed`, `_Ramp`, ...). Effects are a
  * shader plus a thin wrapper component, so adding one needs no C#.
  */
-/** An encoded shader language program, as `encode()` produces. */
 /**
- * A program, encoded once and handed to `<ShaderProgram>`.
+ * A shader language program, compiled once and handed to `<ShaderProgram>`:
+ * what `compile()` gives, and what a `.sl` import is.
  *
  * `Names` is the set of uniform names the program declares. A program built by
- * `encode(sl.program(...))` leaves it as `string`, because the EDSL cannot know
+ * `compile(sl.program(...))` leaves it as `string`, because the EDSL cannot know
  * the names at the type level. A `.sl` file's generated `.d.ts` fills it in, so
  * `uniforms={{ wrap: 1 }}` is a type error at the call site rather than a
  * console warning on a frame nobody is looking at.
  */
-export interface EncodedProgram<Names extends string = string> {
-  data: ArrayLike<number>;
-  instructions: number;
-  resultRegister: number;
+export interface CompiledProgram<Names extends string = string> {
+  /**
+   * The VM's buffer, which only a program from `encode()` or an older
+   * onejs-unity carries: a Play bundle published before `compile()`, say.
+   * OneJS draws every program compiled and ignores it. Optional, and absent
+   * from anything `compile()` gives.
+   */
+  data?: ArrayLike<number>;
+  instructions?: number;
+  resultRegister?: number;
   /**
    * Uniform names in slot order.
    *
@@ -1038,8 +1044,8 @@ export interface EncodedProgram<Names extends string = string> {
    */
   defaults?: readonly number[];
   /**
-   * The lowest VM encoding that can run `data`. Optional: a program encoded
-   * by an older onejs-unity carries none, and reads as 1.
+   * The lowest VM encoding that can run `data`, with it or not at all. A
+   * program with a buffer and no `wire` reads as 1.
    */
   wire?: number;
   /**
@@ -1056,28 +1062,32 @@ export interface EncodedProgram<Names extends string = string> {
    * The program as HLSL, read only when the host asks for it.
    *
    * An editor with no compiled shader for `hash` records this and generates
-   * one. `encode()` defines it as a lazy getter, so nothing is emitted unless
+   * one. `compile()` defines it as a lazy getter, so nothing is emitted unless
    * a host wants it; Play never does.
    */
   readonly hlsl?: string;
   /**
    * The program as WGSL and as GLSL ES 3.00, for a WebGL player to compile and
-   * draw in place of the interpreter. Carried by a `.sl` import (printed at
-   * build time); lazy on an `encode()` result, like `hlsl`.
+   * draw. Carried by a `.sl` import (printed at
+   * build time); lazy on a `compile()` result, like `hlsl`.
    */
   readonly wgsl?: string;
   readonly glsl?: string;
 }
 
+/** The name `CompiledProgram` had while programs carried the VM's buffer. */
+export type EncodedProgram<Names extends string = string> = CompiledProgram<Names>;
+
 export interface ShaderProgramProps<Names extends string = string> extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectors' | 'vectorArrays' | 'colors' | 'ramp' | 'rampProperty'> {
   /**
-   * The program to run, from `encode(sl.program(...))`.
+   * The program to run: a `.sl` import, or `compile(sl.program(...))`.
    *
-   * Which backend runs it is not your concern: a project with generated shaders
-   * uses the compiled one, and everywhere else interprets. The picture is the
-   * same either way, which is what makes a Play game eject without changing.
+   * Which backend compiles it is not your concern: the editor and a native
+   * player use the shader generated from it, a browser compiles its WGSL or
+   * GLSL. The picture is the same either way, which is what makes a Play game
+   * eject without changing.
    */
-  program: EncodedProgram<Names>;
+  program: CompiledProgram<Names>;
   /** Uniform values by the name they were declared with. */
   uniforms?: Partial<Record<Names, number | [number, number, number, number]>>;
   /**
