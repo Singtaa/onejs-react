@@ -1081,10 +1081,9 @@ export interface ShaderProgramProps<Names extends string = string> extends Omit<
   /** Uniform values by the name they were declared with. */
   uniforms?: Partial<Record<Names, number | [number, number, number, number]>>;
   /**
-   * False keeps the program on the interpreter where a WebGL player could run
-   * it compiled. For comparing the two; the picture is meant to be the same.
-   * Ignored in a WebGL player built without the interpreter, which is every
-   * one but the comparison harness's.
+   * False keeps the program on the interpreter, where there is one: an editor
+   * or native player built with `ONEJS_SL_VM`. For comparing the two; the
+   * picture is meant to be the same. Ignored in a WebGL player, which has none.
    */
   compiled?: boolean;
 }
