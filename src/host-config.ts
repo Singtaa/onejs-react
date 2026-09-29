@@ -1757,14 +1757,9 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
             reportUnstepped(p.hash);
             bound = false;
         } else {
+            // The element reads what the program keeps between frames from the
+            // compiled shader itself, so nothing more crosses here.
             wantsSource = el.SetProgram(new Float32Array(0), 0, 0, p.hash, p.uniforms ?? []);
-            // What the element keeps between frames for this program, every
-            // time a program arrives, so one that reads nothing drops a
-            // history the last one needed.
-            if (stepped) {
-                const r = p.reads;
-                el.SetProgramReads(r?.previous === true, r?.frame === true, r?.deltaTime === true);
-            }
         }
         if (bound) {
             /**

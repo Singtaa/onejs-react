@@ -1032,31 +1032,20 @@ describe('ShaderProgram uniforms', () => {
     });
 
     /**
-     * A program that reads the previous frame, frame or deltaTime needs the
-     * element to keep them. The reads go across with the program; a OneJS that
-     * cannot step one is not handed it, since it would draw the first frame
-     * forever, and says so once.
+     * A program that reads the previous frame, frame or deltaTime needs an
+     * element that steps it. One that cannot would draw a clear previous frame
+     * and frame 0 forever, so it is not handed the program, and says so once.
      */
     describe('a program that reads what came before', () => {
         const none = { previous: false, frame: false, deltaTime: false };
         const trail = (hash: string) => ({ ...program([], hash), reads: { previous: true, frame: false, deltaTime: true } });
 
-        it('hands the element its reads, right after the program', () => {
+        it('goes to an element that steps programs', () => {
             const el = createInstance('ojs-shaderfx', { program: trail('t1') } as any, null as any, null, null).element as any;
             expect(el.SetProgram).toHaveBeenCalledTimes(1);
-            expect(el.SetProgramReads).toHaveBeenCalledWith(true, false, true);
-            expect(el.SetProgramReads.mock.invocationCallOrder[0]).toBeGreaterThan(el.SetProgram.mock.invocationCallOrder[0]);
         });
 
-        it('tells the element a plain program reads nothing, including one built before reads existed', () => {
-            for (const p of [{ ...program([], 'p1'), reads: none }, program([], 'p2')]) {
-                const el = createInstance('ojs-shaderfx', { program: p } as any, null as any, null, null).element as any;
-                expect(el.SetProgram).toHaveBeenCalledTimes(1);
-                expect(el.SetProgramReads).toHaveBeenCalledWith(false, false, false);
-            }
-        });
-
-        it('says a program that reads them needs a newer OneJS, once, rather than drawing its first frame forever', () => {
+        it('says it needs a newer OneJS, once, rather than drawing its first frame forever', () => {
             const error = vi.spyOn(console, 'error').mockImplementation(() => {});
             try {
                 for (const flag of [undefined, false]) {
@@ -1068,10 +1057,12 @@ describe('ShaderProgram uniforms', () => {
                     const lines = error.mock.calls.filter((c) => String(c[0]).includes(hash));
                     expect(lines).toHaveLength(1);
                     expect(String(lines[0]![0])).toContain('reads the previous frame, frame or deltaTime');
-                    // A plain program on the same OneJS draws as it always did.
-                    const plain = createInstance('ojs-shaderfx', { program: { ...program([], `plain-${flag}`), reads: none } } as any, null as any, null, null).element as any;
-                    expect(plain.SetProgram).toHaveBeenCalledTimes(1);
-                    expect(plain.SetProgramReads).not.toHaveBeenCalled();
+                    // A plain program on the same OneJS draws as it always did,
+                    // and so does one built before reads existed.
+                    for (const p of [{ ...program([], `plain-${flag}`), reads: none }, program([], `old-${flag}`)]) {
+                        const plain = createInstance('ojs-shaderfx', { program: p } as any, null as any, null, null).element as any;
+                        expect(plain.SetProgram).toHaveBeenCalledTimes(1);
+                    }
                 }
             } finally {
                 MockShaderEffectElement.steps = true;

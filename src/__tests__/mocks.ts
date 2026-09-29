@@ -683,7 +683,6 @@ export class MockShaderEffectElement extends MockVisualElement {
     /** A OneJS that keeps the previous frame, counts frames and hands over the step. */
     AcceptsSteppedPrograms: boolean | undefined = MockShaderEffectElement.steps;
     SetProgram = vi.fn();
-    SetProgramReads = vi.fn();
     RecordProgram = vi.fn();
     WantsWebSource = false;
     SetProgramWeb = vi.fn();
