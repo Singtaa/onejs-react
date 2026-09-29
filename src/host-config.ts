@@ -1687,6 +1687,36 @@ function reportOldOneJS(hash: string) {
     console.error(`[onejs-react] shader program ${hash} needs OneJS 3.7 or newer. Update OneJS, or keep onejs-react below 0.2 and onejs-unity below 0.6.`);
 }
 
+/**
+ * Whether the element steps a program: keeps the frame it drew before, counts
+ * frames and hands over the step. OneJS says so from the release that added
+ * `previous`, `frame` and `deltaTime` to the shader language.
+ */
+function acceptsSteppedPrograms(el: any): boolean {
+    try { return el.AcceptsSteppedPrograms === true; } catch { return false; }
+}
+
+/** The OneJS that first steps a program, for the one line an older one gets. */
+const STEPPED_ONEJS = '3.9.1';
+
+/** Whether a program reads anything a host keeps between frames. A program built before `reads` existed reads none. */
+function readsBetweenFrames(p: any): boolean {
+    const r = p.reads;
+    return r != null && (r.previous === true || r.frame === true || r.deltaTime === true);
+}
+
+/**
+ * A program that reads the previous frame, frame or deltaTime on a OneJS that
+ * cannot step it, said once per program. Such a OneJS would draw it with a
+ * clear previous frame and frame 0 forever: a picture, and the wrong one.
+ */
+const reportedUnstepped = new Set<string>();
+function reportUnstepped(hash: string) {
+    if (reportedUnstepped.has(hash)) return;
+    reportedUnstepped.add(hash);
+    console.error(`[onejs-react] shader program ${hash} reads the previous frame, frame or deltaTime, which needs OneJS ${STEPPED_ONEJS} or newer. Update OneJS.`);
+}
+
 const shaderShallowEq = (a: any, b: any) => {
     if (a === b) return true;
     if (!a || !b) return false;
@@ -1720,9 +1750,22 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         // every OneJS since 3.7 ignores; an empty buffer and two zeros fill
         // them. A buffer an older bundle still carries is never sent.
         let wantsSource: unknown;
-        const bound = acceptsCompiledPrograms(el);
+        const stepped = acceptsSteppedPrograms(el);
+        let bound = acceptsCompiledPrograms(el);
         if (!bound) reportOldOneJS(p.hash);
-        else wantsSource = el.SetProgram(new Float32Array(0), 0, 0, p.hash, p.uniforms ?? []);
+        else if (!stepped && readsBetweenFrames(p)) {
+            reportUnstepped(p.hash);
+            bound = false;
+        } else {
+            wantsSource = el.SetProgram(new Float32Array(0), 0, 0, p.hash, p.uniforms ?? []);
+            // What the element keeps between frames for this program, every
+            // time a program arrives, so one that reads nothing drops a
+            // history the last one needed.
+            if (stepped) {
+                const r = p.reads;
+                el.SetProgramReads(r?.previous === true, r?.frame === true, r?.deltaTime === true);
+            }
+        }
         if (bound) {
             /**
              * The declared defaults, seeded before anything the caller passes.

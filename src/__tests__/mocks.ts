@@ -678,7 +678,12 @@ export class MockShaderEffectElement extends MockVisualElement {
     static accepts: boolean | undefined = true;
     /** OneJS 3.7 and newer: draws a compiled program. */
     AcceptsCompiledPrograms: boolean | undefined = MockShaderEffectElement.accepts;
+    /** What a new element reports about stepping, so a test can stand in for a OneJS that cannot. */
+    static steps: boolean | undefined = true;
+    /** A OneJS that keeps the previous frame, counts frames and hands over the step. */
+    AcceptsSteppedPrograms: boolean | undefined = MockShaderEffectElement.steps;
     SetProgram = vi.fn();
+    SetProgramReads = vi.fn();
     RecordProgram = vi.fn();
     WantsWebSource = false;
     SetProgramWeb = vi.fn();

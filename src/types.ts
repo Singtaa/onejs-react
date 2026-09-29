@@ -1045,6 +1045,13 @@ export interface CompiledProgram<Names extends string = string> {
   textures?: readonly string[];
   hash: string;
   /**
+   * What the program needs kept from one frame to the next: the frame it drew
+   * before, the frame count, the step. The element keeps a history only for a
+   * program that reads `previous`. Optional: a program built by an older
+   * onejs-unity carries none, and reads none of them.
+   */
+  reads?: { readonly previous: boolean; readonly frame: boolean; readonly deltaTime: boolean };
+  /**
    * The program as HLSL, read only when the host asks for it.
    *
    * An editor with no compiled shader for `hash` records this and generates
