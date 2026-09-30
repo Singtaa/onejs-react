@@ -135,14 +135,11 @@ export function ScreenProvider({ children, size }: ScreenProviderProps) {
      * A provider nested inside another follows it instead of measuring the
      * panel again.
      *
-     * Without this, wrapping a game in its own <ScreenProvider>, which is
-     * exactly what the OneJS Tailwind guide tells a OneJS user to write,
-     * silently undoes the stage sizing OJPlay's mount() set up. Measured in a
-     * 960x540 letterboxed game at a 1600x400 window: the stage provider alone
-     * reports md, and one nested plain provider inside it reports 2xl, because
-     * the panel root is the window divided by the stage scale. The breakpoint
-     * classes on the root go with it, so Tailwind's lg: and xl: prefixes flip
-     * with the window while nothing else in the game's layout moves.
+     * Without this, wrapping an app in its own <ScreenProvider> silently undoes
+     * the size a host gave the outer one: a nested plain provider measures the
+     * panel root again, so its breakpoints describe the panel rather than the
+     * box the host described. OneJS's Tailwind guide tells a user to write
+     * exactly that wrapper, so it has to follow the provider around it.
      *
      * Re-measuring was never what nesting wanted. A provider that really does
      * describe a smaller box says so with `size`, which still wins here.
