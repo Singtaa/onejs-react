@@ -538,6 +538,9 @@ export function getPortalLayer(): VisualElement {
         // children (modals, etc.) still receive input normally.
         el.pickingMode = CS.UnityEngine.UIElements.PickingMode.Ignore;
         __root.Add(el);
+        // Portaled content bubbles through the layer to __root, as DOM portal
+        // content reaches document: that is where dismissal listens.
+        trackParent(el, __root as unknown as CSObject);
         layer = el;
         _portalLayers.set(root, layer);
     }
@@ -1420,7 +1423,9 @@ export const hostConfig = {
 
     appendChildToContainer(container: Container, child: Instance) {
         nodeAdd(container, child.element);
-        // Container is the root: no parent to track
+        // Linked like any other parent: JS bubbling follows these links, and a
+        // listener on the container (__root) must hear what bubbles up to it.
+        trackParent(child.element, container);
     },
 
     insertBefore(parentInstance: Instance, child: Instance, beforeChild: Instance) {
@@ -1435,7 +1440,7 @@ export const hostConfig = {
 
     insertInContainerBefore(container: Container, child: Instance, beforeChild: Instance) {
         insertElementBefore(container, child.element, beforeChild.element);
-        // Container is the root: no parent to track
+        trackParent(child.element, container);
     },
 
     removeChild(parentInstance: Instance, child: Instance) {
