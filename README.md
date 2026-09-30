@@ -202,7 +202,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `rows.test.tsx`, `treeview.test.tsx` | `renderItem` rows on recycled ListView/TreeView elements; `flattenTree` (fixtures mirror `TreeViewBridgeTests.cs`) |
 | `hooks.test.tsx`, `collection-sync.test.tsx` | Sync hooks, `toArray`, syncing C# collections into components |
 | `screen.test.tsx` | Controlled and nested `ScreenProvider` |
-| `style-parser.test.ts` | Length, color, enum and transform parsing |
+| `style-parser.test.ts` | Length, color and enum parsing (`parseLength`, `parseColor`, `parseStyleValue`); transforms have no test |
 | `painter.test.ts` | Batched Painter command buffer (JS side only; the C# contract guard is `PainterOpcodeContractTests` in the container) |
 | `particles.test.ts` | Particle wire schema and handle |
 | `texturefx.test.ts` | TextureFX uniform packing |
