@@ -49,18 +49,18 @@ Implementation: `insertElementBefore()` helper (targets `beforeIndex - 1` when t
 
 ---
 
-### 3. More Events ✅
-Added 40+ event handlers:
+### 3. More Events (partly wired)
+40 event props are typed and listed in `EVENT_PROPS` (`host-config.ts`). An unchecked box below is typed but never fires: `QuickJSUIBridge.cs` registers no UI Toolkit callback for it, so the handler is silently ignored. Wire it in the runtime or delete the prop.
 
 **Pointer Events:**
 - [x] onClick
 - [x] onPointerDown/Up/Move/Enter/Leave
-- [x] onPointerCancel/Capture/CaptureOut/Stationary
+- [x] onPointerCancel/Capture/CaptureOut
 
 **Mouse Events:**
-- [x] onMouseDown/Up/Move/Enter/Leave/Over/Out
+- [ ] onMouseDown/Up/Move/Enter/Leave/Over/Out
 - [x] onWheel
-- [x] onContextClick
+- [ ] onContextClick
 
 **Focus Events:**
 - [x] onFocus/Blur
@@ -71,10 +71,10 @@ Added 40+ event handlers:
 
 **Input Events:**
 - [x] onChange
-- [x] onInput
+- [ ] onInput
 
 **Drag Events:**
-- [x] onDragEnter/Leave/Updated/Perform/Exited
+- [ ] onDragEnter/Leave/Updated/Perform/Exited
 
 **Geometry Events:**
 - [x] onGeometryChanged
@@ -83,10 +83,10 @@ Added 40+ event handlers:
 - [x] onNavigationMove/Submit/Cancel
 
 **Transition Events:**
-- [x] onTransitionRun/Start/End/Cancel
+- [ ] onTransitionRun/Start/End/Cancel
 
 **Other:**
-- [x] onTooltip
+- [ ] onTooltip
 
 ---
 
@@ -129,7 +129,7 @@ import { ErrorBoundary } from "onejs-react"
 
 ### 6. DevTools Integration (Future Work)
 
-**Current state:** Basic `injectIntoDevTools` call exists but doesn't enable actual DevTools inspection since QuickJS lacks WebSocket support.
+**Current state:** Basic `injectIntoDevTools` call exists but doesn't enable actual DevTools inspection. The bootstrap now has a `WebSocket` (C# `ClientWebSocket` via `WebSocketBridge` natively, the browser's on WebGL), so the transport below exists; the backend and bootstrap wiring do not.
 
 **Added utilities:**
 - `flushSync(callback)`: Execute synchronously, flush all updates
@@ -138,7 +138,7 @@ import { ErrorBoundary } from "onejs-react"
 
 **Full DevTools would require:**
 
-1. **WebSocket bridge**: C# `ClientWebSocket` exposed to JS
+1. ~~**WebSocket bridge**: C# `ClientWebSocket` exposed to JS~~ (done: bootstrap `WebSocket`)
 2. **react-devtools-core backend**: Bundle and load before React
 3. **Bootstrap integration**: Initialize DevTools before user code
 
@@ -165,8 +165,8 @@ If multiple merged text children update in one render, rebuild parent text once.
 
 ## Advanced Features
 
-### 9. Portals
-`createPortal()` to render children into different UI Toolkit containers.
+### 9. Portals ✅
+`createPortal()` and `<Portal>` (shared overlay layer) shipped; see README "Portals".
 
 ### 10. Suspense
 Full Suspense support for async components and data fetching.

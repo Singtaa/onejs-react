@@ -6,12 +6,21 @@ React 19 reconciler for Unity's UI Toolkit.
 
 | File | Purpose |
 |------|---------|
-| `src/host-config.ts` | React reconciler implementation (createInstance, commitUpdate, etc.) |
-| `src/renderer.ts` | Entry point: `render(element, container)` |
-| `src/components.tsx` | Component wrappers: View, Text, Label, Button, TextField, etc. |
-| `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive |
-| `src/types.ts` | TypeScript type definitions (includes Vector Drawing types) |
-| `src/index.ts` | Package exports |
+| `src/index.ts` | Package exports (the only entry point) |
+| `src/host-config.ts` | React reconciler implementation (createInstance, commitUpdate, etc.), event prop table, `registerElement` |
+| `src/renderer.ts` | `render`, `unmount`, `unmountAll`, `createPortal`, `flushSync`, `batchedUpdates`, `getDebugInfo` |
+| `src/components.tsx` | Component wrappers (View, Text, ... FrostedGlass, ShaderEffect, TextureFX, Flame), `createComponent`, `clearImageCache` |
+| `src/portal.tsx` | `<Portal>` and the shared overlay layer |
+| `src/error-boundary.tsx` | `ErrorBoundary`, `formatError` |
+| `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive, useMediaQuery |
+| `src/hooks.ts` | C# sync hooks (`useFrameSync`, `useFrameSyncWith`, `useThrottledSync`, `useEventSync`) and `toArray` |
+| `src/style-parser.ts` | Converts style values (`"100px"`, `"#ff0000"`, enums) to UI Toolkit values |
+| `src/vector.ts` | `Transform2D` and `useVectorContent` for `Painter2D` drawing |
+| `src/painter.ts` | Batched drawing: `Painter`, `batchedVisualContent`, `useBatchedVectorContent` |
+| `src/particles.ts` | 2D particle control plane: `useParticles`, `createParticles`, wire schema (`toWire`) |
+| `src/texturefx.ts` | `TextureFX` layer builder (noise, shapes, SDFs, blends) |
+| `src/rows.tsx`, `src/treeview.ts` | `renderItem` row portals for ListView/TreeView; TreeView data flattening |
+| `src/types.ts` | TypeScript type definitions (props, event data, element refs, vector drawing) |
 
 ## Components
 
@@ -28,6 +37,12 @@ React 19 reconciler for Unity's UI Toolkit.
 | `Image` | Image | Image display |
 | `ListView` | ListView | Virtualized list (`renderItem` for JSX rows, or `makeItem`/`bindItem`) |
 | `TreeView` | TreeView | Virtualized tree (nested `rootItems`, same two row APIs) |
+| `FrostedGlass` | `OneJS.GPU.FrostedGlassElement` | Blurred backdrop (`blur`, `tint`) |
+| `ShaderEffect` | `OneJS.ShaderFX.ShaderEffectElement` | Runs any shader into the element's background |
+| `ShaderProgram` | `OneJS.ShaderFX.ShaderEffectElement` | Runs a compiled shader language program (`onejs-unity/sl`) |
+| `TextureFX`, `Flame` | `OneJS.ShaderFX.ShaderEffectElement` | Procedural textures built from noise, shapes and blends |
+
+Custom C# elements: `registerElement(name, CS.My.Element)` then `createComponent<Props>(name)`.
 
 **Raw text in JSX** (e.g., `<View>Hello</View>`) creates a `TextElement`, providing semantic distinction from explicit `<Label>` components.
 
@@ -78,10 +93,10 @@ function MyComponent() {
 
 ### Imperative Element Creation
 
-For creating elements outside React, use `unity-types`:
+For creating elements outside React, import the C# type (typed by `unity-types`, rewritten to `CS.*` by onejs-unity's esbuild import transform):
 
 ```tsx
-import { Button } from "UnityEngine.UIElements"
+import { Button } from "UnityEngine/UIElements"
 
 const btn = new Button()
 btn.text = "Dynamic Button"
@@ -146,10 +161,12 @@ The layer ignores picking when empty, so a closed overlay never blocks the app.
 ## Key Concepts
 
 - **Element types**: Use `ojs-` prefix internally (e.g., `ojs-view`, `ojs-button`) to avoid conflicts with HTML types
-- **Style shorthands**: `padding`/`margin` are expanded to individual properties (UI Toolkit requirement)
+- **Style shorthands**: `padding`/`margin`/`borderWidth`/`borderColor`/`borderRadius` are expanded to individual properties (UI Toolkit requirement)
+- **Style batching**: an element's parsed styles cross to C# in one `StyleBridge.ApplyStyles` call
 - **Style cleanup**: When props change, removed style properties are cleared (not just new ones applied)
 - **className updates**: Selective add/remove of classes (not full clear + reapply)
 - **Event handlers**: Registered via `__eventAPI` from QuickJSBootstrap.js
+- **Events that fire**: click, pointer (down/up/move/enter/leave/cancel/capture/captureout), focus/blur/focusin/focusout, keydown/keyup, change, wheel, navigation (move/submit/cancel) and geometrychanged. The mouse, contextclick, input, drag, tooltip and transition props are typed but the runtime does not dispatch them yet
 - **Instance structure**: `{ element, type, props, eventHandlers: Map, appliedStyleKeys: Set }`
 
 ## Build & Test
@@ -157,6 +174,7 @@ The layer ignores picking when empty, so a closed overlay never blocks the app.
 ```bash
 npm run typecheck           # TypeScript check (no build output: consumed directly by App)
 npm run typecheck:consumer  # Check src the way a consumer compiles it (see below)
+npm run lint                # ESLint
 npm test                    # Run test suite
 npm run test:watch          # Run tests in watch mode
 ```
@@ -180,12 +198,35 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `host-config.test.ts` | Instance creation, style/className management, events, children |
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
+| `portal.test.tsx` | `<Portal>` overlay layer |
+| `rows.test.tsx`, `treeview.test.tsx` | `renderItem` rows on recycled ListView/TreeView elements; `flattenTree` (fixtures mirror `TreeViewBridgeTests.cs`) |
+| `hooks.test.tsx`, `collection-sync.test.tsx` | Sync hooks, `toArray`, syncing C# collections into components |
+| `screen.test.tsx` | Controlled and nested `ScreenProvider` |
+| `style-parser.test.ts` | Length, color, enum and transform parsing |
+| `painter.test.ts` | Batched Painter command buffer (JS side only; the C# contract guard is `PainterOpcodeContractTests` in the container) |
+| `particles.test.ts` | Particle wire schema and handle |
+| `texturefx.test.ts` | TextureFX uniform packing |
 | `mocks.ts` | Mock implementations of Unity UI Toolkit classes |
-| `setup.ts` | Global test setup for CS, __eventAPI |
+| `pre-setup.ts`, `setup.ts` | Globals defined before imports (`CS`, `useExtensions`), then the test setup for CS, __eventAPI |
 
 ## Vector Drawing
 
 OneJS exposes Unity's `Painter2D` API for GPU-accelerated vector graphics. Any element can render custom vector content via `onGenerateVisualContent`.
+
+Raw `mgc.painter2D` costs one C# crossing per call and per `new Vector2`/`new Color`. For paths redrawn often, prefer the batched API, which records the whole draw and replays it in one crossing:
+
+```tsx
+import { View, batchedVisualContent } from "onejs-react"
+
+<View
+    style={{ width: 200, height: 200 }}
+    onGenerateVisualContent={batchedVisualContent((p) => {
+        p.fillColor("#ff0000").beginPath().circle(100, 100, 80).fill()
+    })}
+/>
+```
+
+It covers paths, fill/stroke, colours, line width/cap/join, miter limit and dashes; use raw `painter2D` for gradients, textures and text. `useBatchedVectorContent(draw, deps)` is the hook form.
 
 ### Basic Usage
 
@@ -280,7 +321,7 @@ function AnimatedCircle() {
 | Feature | Unity Painter2D | HTML5 Canvas |
 |---------|-----------------|--------------|
 | Transforms | Manual point calculation | Built-in translate/rotate/scale |
-| Gradients | Limited (strokeGradient) | Full linear/radial/conic |
+| Gradients | Linear/radial (`fillGradient`, `strokeFillGradient`), plus `strokeGradient` | Linear/radial/conic |
 | State Stack | Not built-in | save()/restore() |
 | Text | Via MeshGenerationContext.DrawText() | fillText/strokeText |
 | Shadows | Not available | shadowBlur, shadowColor |
@@ -315,11 +356,25 @@ import { toArray } from "onejs-react"
 // Convert a C# array
 const resolutions = toArray<Resolution>(Screen.resolutions)
 
-// Safe with null - returns []
+// Safe with null: returns []
 const npcs = toArray(currentPlace?.NPCs)
 ```
 
 Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `[]` for null/undefined.
+
+### Sync hooks
+
+- `useFrameSync(getter, selectOrDeps?, deps?)`: polls a C# value every frame and re-renders when it (or the selected fields) change
+- `useFrameSyncWith(getter, isEqual, deps?)`: the same with a custom comparison
+- `useThrottledSync(getter, intervalMs, deps?)`: polls on an interval instead of every frame
+- `useEventSync(getter, [[source, "EventName"], ...], deps?)` or `useEventSync(source, "Health")` (reads `source.Health` on `OnHealthChanged`): re-reads when a C# event fires, no polling
+
+## Other exports
+
+- `ErrorBoundary`, `formatError`: catch render errors with a fallback (`fallback`, `onError`, `reset()`)
+- `useParticles(ref, config)` / `createParticles`: C#-owned 2D particle systems (see the OneJS runtime's `Particles/`)
+- `Transform2D`, `useVectorContent`: transforms and auto-repaint for raw `Painter2D` drawing
+- `TextureFXBuilder`, `buildTextureFX`: the builder behind `<TextureFX build={...}>`
 
 ## Dependencies
 
