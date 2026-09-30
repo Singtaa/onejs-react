@@ -2,6 +2,14 @@
 
 React 19 reconciler for Unity's UI Toolkit.
 
+## Install
+
+```bash
+npm install onejs-react
+```
+
+npm adds the peers `react` and `unity-types`. A OneJS project already has this package, and its `types/global.d.ts` declares the runtime globals that this package's source and the examples below use (`__root`, `console`, the timers). Outside a OneJS project, copy that file (OneJS's `Editor/Templates/global.d.ts.txt`), or TypeScript reports `Cannot find name '__root'`, and `console` and `setInterval` inside this package.
+
 ## Files
 
 | File | Purpose |
@@ -73,7 +81,8 @@ OneJS has multiple type sources. Here's when to use each:
 Import types from `onejs-react` for refs and component props:
 
 ```tsx
-import { View, Button, VisualElement, ButtonElement } from "onejs-react"
+import { useEffect, useRef } from "react"
+import { View, Button, type VisualElement, type ButtonElement } from "onejs-react"
 
 function MyComponent() {
     const viewRef = useRef<VisualElement>(null)
@@ -154,6 +163,8 @@ function Modal({ children }) {
 
 The layer ignores picking when empty, so a closed overlay never blocks the app.
 
+Events in portaled content bubble through the overlay layer to `__root`, as DOM portal events reach `document`, and so do events from the rest of the app (onejs-react 0.2.2 and newer). That is where onejs-ui listens for outside presses and Escape.
+
 `<Portal>` is built on `createPortal(children, container, key?)` (the OneJS equivalent of `react-dom`'s `createPortal`), exported for when you need a specific target. With a custom target you own draw order, so prefer `<Portal>` for overlays.
 
 > Use the exports from `onejs-react`, not `react-dom`. The latter targets the browser DOM and will not work here.
@@ -199,6 +210,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
 | `portal.test.tsx` | `<Portal>` overlay layer |
+| `bubbling.test.tsx` | Parent links the bootstrap bubbles along: app and portaled events reach a listener on `__root` |
 | `rows.test.tsx`, `treeview.test.tsx` | `renderItem` rows on recycled ListView/TreeView elements; `flattenTree` (fixtures mirror `TreeViewBridgeTests.cs`) |
 | `hooks.test.tsx`, `collection-sync.test.tsx` | Sync hooks, `toArray`, syncing C# collections into components |
 | `screen.test.tsx` | Controlled and nested `ScreenProvider` |
@@ -285,6 +297,9 @@ Properties:
 Use `MarkDirtyRepaint()` to trigger a repaint when drawing state changes:
 
 ```tsx
+import { useEffect, useRef, useState } from "react"
+import { View, type VisualElement } from "onejs-react"
+
 function AnimatedCircle() {
     const ref = useRef<VisualElement>(null)
     const [radius, setRadius] = useState(50)
