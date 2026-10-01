@@ -75,7 +75,7 @@ export default tseslint.config(
                         "onejs-react/src/*",
                         "onejs-ui/src/*",
                         "onejs-unity/src/*",
-                        "onejs-play/src/*",
+                        "ojp/src/*",
                     ],
                     message: "Import from the package's exported entry points, not its src internals.",
                 }],
