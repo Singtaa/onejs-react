@@ -58,6 +58,16 @@ function _isUrlPath(path: string): boolean {
     return path.includes("://")
 }
 
+/**
+ * The fix, for a bare name that loaded nothing from a URL. In an OJPlay cart
+ * a bare src resolves to the container's own files, never the cart's, and a
+ * cart names its own files with assetUrl. Nothing for a URL or a rooted path,
+ * which never were names of a cart's file.
+ */
+function _cartHint(src: string): string {
+    return _isUrlPath(src) || src.startsWith("/") ? "" : ` In a cart, use src={assetUrl("${src}")}.`
+}
+
 function _resolveAssetPath(src: string): string {
     // URLs bypass resolution entirely. Without this a src of
     // "https://example.com/a.png" is mangled into
@@ -134,7 +144,7 @@ function _loadImageAssetAsync(src: string, url: string): Promise<any> {
             if (src.toLowerCase().endsWith(".svg")) {
                 const res = await fetch(url)
                 if (!res.ok) {
-                    console.error(`Image src not found: ${src} (resolved to ${url})`)
+                    console.error(`Image src not found: ${src} (resolved to ${url}).${_cartHint(src)}`)
                     return null
                 }
                 const svgText = await res.text()
@@ -148,8 +158,9 @@ function _loadImageAssetAsync(src: string, url: string): Promise<any> {
                     // "not found" for a file that returns 200 sends the author
                     // to check the path, which is the one thing that will not
                     // help them.
-                    console.error(`Image src loaded nothing: ${src} (resolved to ${url}). `
-                        + `Either the request failed or the format is one Unity does not decode; the preceding [Network] warning says which.`)
+                    const hint = _cartHint(src)
+                    console.error(`Image src "${src}" loaded nothing (resolved to ${url}).${hint} `
+                        + `${hint === "" ? "Either" : "Otherwise,"} the request failed or the format is one Unity does not decode; the preceding [Network] warning says which.`)
                     return null
                 }
                 tex.filterMode = CS.UnityEngine.FilterMode.Bilinear

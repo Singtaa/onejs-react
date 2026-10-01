@@ -617,8 +617,27 @@ describe('components', () => {
             const el = container.children[0] as any;
             expect(el.image).toBeNull();
             expect(console.error).toHaveBeenCalledWith(
-                expect.stringContaining("Image src loaded nothing: images/missing.png")
+                expect.stringContaining('Image src "images/missing.png" loaded nothing')
             );
+        });
+
+        /**
+         * A bare name is the first thing anybody writes, and in an OJPlay cart
+         * it resolves to the container's own files, never the cart's. So the
+         * error names the fix, for a bare name only: a URL that loads nothing
+         * has nothing to do with assetUrl.
+         */
+        it('names assetUrl as the fix for a bare name, and only for one', async () => {
+            const container = createMockContainer();
+            render(<Image src="glow.png" />, container as any);
+            await flushMicrotasks();
+            expect(console.error).toHaveBeenCalledWith(
+                expect.stringContaining('In a cart, use src={assetUrl("glow.png")}.')
+            );
+            (console.error as any).mockClear?.();
+            render(<Image src="https://cdn.example.test/glow.png" />, createMockContainer() as any);
+            await flushMicrotasks();
+            for (const call of (console.error as any).mock.calls) expect(String(call[0])).not.toContain("assetUrl");
         });
 
         it('does not claim the file is missing, because it cannot know that', async () => {
