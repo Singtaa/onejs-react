@@ -2,6 +2,7 @@ import Reconciler from 'react-reconciler';
 import { version as reactVersion, type ReactNode, type ReactPortal } from 'react';
 import { hostConfig, setSyncRunner, type Container } from './host-config';
 import type { RenderContainer } from './types';
+import { releaseImageCache } from './image-cache';
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
@@ -51,17 +52,30 @@ function logCaughtError(error: unknown, errorInfo: unknown): void {
   console.error(parts.join('\n'));
 }
 
-// Register unmountAll as a runtime teardown hook exactly once. The OneJS runtime
+// Register the renderer's teardown as a runtime teardown hook. The OneJS runtime
 // (QuickJSUIBridge.Dispose) invokes __runTeardown() right before destroying the JS
-// context on hot reload / stop. Unmounting here fires useEffect/useLayoutEffect
-// cleanups while the context is still alive; otherwise they never run and stale
-// C# subscriptions (e.g. from useEventSync) leak across reloads.
+// context on hot reload / stop.
+//
+// It unmounts every root first, which fires useEffect/useLayoutEffect cleanups
+// while the context is still alive; otherwise they never run and stale C#
+// subscriptions (e.g. from useEventSync) leak across reloads. Then, with no
+// element left showing them, it destroys the textures the <Image> cache made,
+// which nothing else would ever release.
+//
+// __runTeardown drains its list, so the hook re-arms itself: a render after an
+// explicit __runTeardown registers it again.
 let teardownHookRegistered = false;
+function teardown(): void {
+  teardownHookRegistered = false;
+  unmountAll();
+  releaseImageCache();
+}
+
 function ensureTeardownHook(): void {
   if (teardownHookRegistered) return;
   const g = globalThis as any;
   if (typeof g !== 'undefined' && typeof g.__onTeardown === 'function') {
-    g.__onTeardown(unmountAll);
+    g.__onTeardown(teardown);
     teardownHookRegistered = true;
   }
 }

@@ -18,6 +18,7 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 | `src/host-config.ts` | React reconciler implementation (createInstance, commitUpdate, etc.), event prop table, `registerElement` |
 | `src/renderer.ts` | `render`, `unmount`, `unmountAll`, `createPortal`, `flushSync`, `batchedUpdates`, `getDebugInfo` |
 | `src/components.tsx` | Component wrappers (View, Text, ... FrostedGlass, ShaderEffect, TextureFX, Flame), `createComponent`, `clearImageCache` |
+| `src/image-cache.ts` | `<Image src>` loading and its texture cache (`clearImageCache`, and the teardown release) |
 | `src/portal.tsx` | `<Portal>` and the shared overlay layer |
 | `src/error-boundary.tsx` | `ErrorBoundary`, `formatError` |
 | `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive, useMediaQuery |
@@ -129,7 +130,7 @@ render(<App />, __root)
 
 `unmount(container)` tears a root down **synchronously** (`updateContainerSync` + `flushSyncWork` + `flushPassiveEffects`), so `useEffect`/`useLayoutEffect` cleanup functions fire immediately instead of on a later scheduler tick. `unmountAll()` does the same for every active root.
 
-The first `render()` call registers `unmountAll` as a runtime teardown hook (`globalThis.__onTeardown`). The OneJS runtime invokes it right before destroying the JS context on hot reload / stop, so component cleanups run while the context is still alive. Without this, cleanups would be skipped on hot reload and stale C# subscriptions (e.g. from `useEventSync`) would leak across reloads.
+The first `render()` call registers the renderer's teardown as a runtime teardown hook (`globalThis.__onTeardown`). The OneJS runtime invokes it right before destroying the JS context on hot reload / stop. It runs `unmountAll`, so component cleanups run while the context is still alive (without this, cleanups would be skipped on hot reload and stale C# subscriptions, e.g. from `useEventSync`, would leak across reloads). Then it destroys every Texture2D and VectorImage the `<Image src>` cache decoded (`DestroyImmediate` in edit mode, `Destroy` in play mode), so an edit-mode save does not leave one copy of every image behind. A texture taken from an `<Image>` (`ref.current.image`) and kept by C# past the reload is destroyed with the rest. `clearImageCache()` only forgets the cache: an `<Image>` on screen may still be showing one of its textures.
 
 ### Type Hierarchy
 
@@ -211,6 +212,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `host-config.test.ts` | Instance creation, style/className management, events, children |
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
+| `image-cache.test.tsx` | `<Image>` textures destroyed on teardown, after the tree unmounts |
 | `controlled-inputs.test.tsx` | Controlled `value` re-asserted after a rejected or transformed change |
 | `error-boundary.test.tsx` | `ErrorBoundary`: `fallbackRender`, `reset`, `resetKeys`, one log per caught error |
 | `portal.test.tsx` | `<Portal>` overlay layer |
