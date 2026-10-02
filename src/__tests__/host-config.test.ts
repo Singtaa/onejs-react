@@ -71,7 +71,7 @@ describe('host-config', () => {
             expect(instance.type).toBe('ojs-view');
             expect(instance.element).toBeInstanceOf(MockVisualElement);
             expect(instance.eventHandlers).toBeInstanceOf(Map);
-            expect(instance.appliedStyleKeys).toBeInstanceOf(Set);
+            expect(instance.appliedStyle).toBeInstanceOf(Map);
         });
 
         it('creates a Label for ojs-label', () => {
@@ -176,9 +176,9 @@ describe('host-config', () => {
                 null
             );
 
-            expect(instance.appliedStyleKeys.has('width')).toBe(true);
-            expect(instance.appliedStyleKeys.has('height')).toBe(true);
-            expect(instance.appliedStyleKeys.has('backgroundColor')).toBe(false);
+            expect(instance.appliedStyle.has('width')).toBe(true);
+            expect(instance.appliedStyle.has('height')).toBe(true);
+            expect(instance.appliedStyle.has('backgroundColor')).toBe(false);
         });
 
         it('expands shorthand padding to individual properties', () => {
@@ -194,7 +194,7 @@ describe('host-config', () => {
             expect(getStyleValue(instance.element.style.paddingRight)).toBe(10);
             expect(getStyleValue(instance.element.style.paddingBottom)).toBe(10);
             expect(getStyleValue(instance.element.style.paddingLeft)).toBe(10);
-            expect(instance.appliedStyleKeys.has('paddingTop')).toBe(true);
+            expect(instance.appliedStyle.has('paddingTop')).toBe(true);
         });
 
         it('expands shorthand margin to individual properties', () => {
@@ -225,6 +225,74 @@ describe('host-config', () => {
             expect(getStyleValue(instance.element.style.borderTopRightRadius)).toBe(8);
             expect(getStyleValue(instance.element.style.borderBottomRightRadius)).toBe(8);
             expect(getStyleValue(instance.element.style.borderBottomLeftRadius)).toBe(8);
+        });
+    });
+
+    describe('style updates send only what changed', () => {
+        function spyApplyStyles() {
+            const bridge = (globalThis as any).CS.OneJS.StyleBridge;
+            return vi.spyOn(bridge, 'ApplyStyles');
+        }
+        const sentKeys = (spy: ReturnType<typeof spyApplyStyles>) =>
+            spy.mock.calls.flatMap(([, styles]) => Object.keys(styles as object)).sort();
+
+        it('builds a typical style without a C# constructor call', () => {
+            const UIE = (globalThis as any).CS.UnityEngine.UIElements;
+            const UE = (globalThis as any).CS.UnityEngine;
+            const crossing = () => { throw new Error('C# constructor called'); };
+            UIE.Length = crossing;
+            UE.Color = crossing;
+            const spy = spyApplyStyles();
+
+            const card = { style: { width: '50%', height: 'auto', padding: 12, borderRadius: 6, borderColor: '#333', backgroundColor: 'rgba(0,0,0,0.5)', color: 'white', flexDirection: 'row', fontSize: 14 } } as TestProps;
+            const instance = createInstance('ojs-view', card);
+            commitUpdate(instance, 'ojs-view', card, { style: { ...card.style, backgroundColor: 'red' } } as TestProps);
+
+            // One crossing for the mount, one for the update
+            expect(spy).toHaveBeenCalledTimes(2);
+            expect(getStyleValue(instance.element.style.width)).toBe(50);
+        });
+
+        it('sends only the keys whose values changed', () => {
+            const before = { style: { width: 100, height: 50, color: 'red' } };
+            const instance = createInstance('ojs-view', before);
+            const spy = spyApplyStyles();
+
+            commitUpdate(instance, 'ojs-view', before, { style: { width: 100, height: 60, color: 'red' } });
+            expect(sentKeys(spy)).toEqual(['height']);
+        });
+
+        it('clears a removed key without sending the rest again', () => {
+            const before = { style: { width: 100, height: 50 } };
+            const instance = createInstance('ojs-view', before);
+            const spy = spyApplyStyles();
+
+            commitUpdate(instance, 'ojs-view', before, { style: { width: 100 } });
+            expect(spy).not.toHaveBeenCalled();
+            expect(instance.element.style.height).toBeUndefined();
+            expect(getStyleValue(instance.element.style.width)).toBe(100);
+        });
+
+        it('keeps a longhand that overrides its shorthand when only the shorthand changes', () => {
+            const before = { style: { padding: 8, paddingTop: 4 } };
+            const instance = createInstance('ojs-view', before);
+            expect(getStyleValue(instance.element.style.paddingTop)).toBe(4);
+            const spy = spyApplyStyles();
+
+            commitUpdate(instance, 'ojs-view', before, { style: { padding: 10, paddingTop: 4 } });
+            expect(sentKeys(spy)).toEqual(['paddingBottom', 'paddingLeft', 'paddingRight']);
+            expect(getStyleValue(instance.element.style.paddingTop)).toBe(4);
+            expect(getStyleValue(instance.element.style.paddingLeft)).toBe(10);
+        });
+
+        it('sends the shorthand value to a longhand whose override was removed', () => {
+            const before = { style: { padding: 8, paddingTop: 4 } };
+            const instance = createInstance('ojs-view', before);
+            const spy = spyApplyStyles();
+
+            commitUpdate(instance, 'ojs-view', before, { style: { padding: 8 } });
+            expect(sentKeys(spy)).toEqual(['paddingTop']);
+            expect(getStyleValue(instance.element.style.paddingTop)).toBe(8);
         });
     });
 
@@ -319,7 +387,7 @@ describe('host-config', () => {
             expect(instance.element.style.height).toBeUndefined();
         });
 
-        it('updates appliedStyleKeys after style change', () => {
+        it('updates appliedStyle after style change', () => {
             const instance = createInstance(
                 'ojs-view',
                 { style: { width: 100 } },
@@ -328,8 +396,8 @@ describe('host-config', () => {
                 null
             );
 
-            expect(instance.appliedStyleKeys.has('width')).toBe(true);
-            expect(instance.appliedStyleKeys.has('height')).toBe(false);
+            expect(instance.appliedStyle.has('width')).toBe(true);
+            expect(instance.appliedStyle.has('height')).toBe(false);
 
             commitUpdate(
                 instance,
@@ -339,8 +407,8 @@ describe('host-config', () => {
                 null as any
             );
 
-            expect(instance.appliedStyleKeys.has('width')).toBe(false);
-            expect(instance.appliedStyleKeys.has('height')).toBe(true);
+            expect(instance.appliedStyle.has('width')).toBe(false);
+            expect(instance.appliedStyle.has('height')).toBe(true);
         });
 
         it('updates focusable when the prop changes', () => {
@@ -787,7 +855,7 @@ describe('host-config', () => {
             expect(textInstance.type).toBe('text');
             expect(textInstance.element.__csType).toBe('UnityEngine.UIElements.TextElement');
             expect(textInstance.element.text).toBe('Hello World');
-            expect(textInstance.appliedStyleKeys).toBeInstanceOf(Set);
+            expect(textInstance.appliedStyle).toBeInstanceOf(Map);
         });
 
         it('commitTextUpdate updates the text', () => {

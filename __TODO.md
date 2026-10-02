@@ -145,8 +145,8 @@ See: [react-devtools-core](https://www.npmjs.com/package/react-devtools-core)
 
 ## Performance
 
-### 7. Style Diffing
-Only update changed style properties instead of reapplying all.
+### 7. Style Diffing ✅
+An update flattens the old and new styles to longhands and sends only the ones whose raw value changed; removed ones are cleared. Lengths, colours and enums cross as plain data, so a style costs one `StyleBridge.ApplyStyles` call and no constructor calls. Transforms and `unityMaterial` still build C# structs.
 
 ### 8. Batch Text Rebuilds
 If multiple merged text children update in one render, rebuild parent text once.

@@ -2,89 +2,88 @@
  * Tests for style-parser.ts: style value parsing utilities
  *
  * Tests cover:
- * - Length parsing (numbers, "px", "%", "auto")
+ * - Length parsing (numbers, "px", "%", "auto") into plain { value, unit } and { keyword }
  * - Color parsing (hex, rgb, rgba, named colors)
  * - parseStyleValue dispatcher
  */
 
 import { describe, it, expect } from "vitest"
 import { parseLength, parseColor, parseStyleValue } from "../style-parser"
-import { MockLength, MockColor, MockStyleKeyword } from "./mocks"
+import { MockColor, MockStyleKeyword } from "./mocks"
+
+type PlainPixels = { value: number; unit: number }
 
 describe("style-parser", () => {
     describe("parseLength", () => {
         it("parses number as pixels", () => {
-            const result = parseLength(100) as MockLength
-            expect(result).toBeInstanceOf(MockLength)
+            const result = parseLength(100) as PlainPixels
             expect(result.value).toBe(100)
             expect(result.unit).toBe(0) // Pixel
         })
 
         it("parses negative number as pixels", () => {
-            const result = parseLength(-50) as MockLength
-            expect(result).toBeInstanceOf(MockLength)
+            const result = parseLength(-50) as PlainPixels
             expect(result.value).toBe(-50)
         })
 
         it("parses float number as pixels", () => {
-            const result = parseLength(10.5) as MockLength
+            const result = parseLength(10.5) as PlainPixels
             expect(result.value).toBe(10.5)
         })
 
         it("parses string without unit as pixels", () => {
-            const result = parseLength("100") as MockLength
-            expect(result).toBeInstanceOf(MockLength)
+            const result = parseLength("100") as PlainPixels
             expect(result.value).toBe(100)
             expect(result.unit).toBe(0)
         })
 
         it("parses 'px' suffix as pixels", () => {
-            const result = parseLength("200px") as MockLength
+            const result = parseLength("200px") as PlainPixels
             expect(result.value).toBe(200)
             expect(result.unit).toBe(0)
         })
 
         it("parses '%' suffix as percent", () => {
-            const result = parseLength("50%") as MockLength
+            const result = parseLength("50%") as PlainPixels
             expect(result.value).toBe(50)
             expect(result.unit).toBe(1) // Percent
         })
 
         it("parses negative percentage", () => {
-            const result = parseLength("-25%") as MockLength
+            const result = parseLength("-25%") as PlainPixels
             expect(result.value).toBe(-25)
             expect(result.unit).toBe(1)
         })
 
         it("parses decimal percentage", () => {
-            const result = parseLength("33.33%") as MockLength
+            const result = parseLength("33.33%") as PlainPixels
             expect(result.value).toBeCloseTo(33.33)
             expect(result.unit).toBe(1)
         })
 
         it("returns StyleKeyword.Auto for 'auto'", () => {
             const result = parseLength("auto")
-            expect(result).toBe(MockStyleKeyword.Auto)
+            expect(result).toEqual({ keyword: MockStyleKeyword.Auto })
         })
 
         it("returns StyleKeyword.None for 'none'", () => {
             const result = parseLength("none")
-            expect(result).toBe(MockStyleKeyword.None)
+            expect(result).toEqual({ keyword: MockStyleKeyword.None })
         })
 
         it("returns StyleKeyword.Initial for 'initial'", () => {
             const result = parseLength("initial")
-            expect(result).toBe(MockStyleKeyword.Initial)
+            expect(result).toEqual({ keyword: MockStyleKeyword.Initial })
         })
 
         it("handles whitespace in string values", () => {
-            const result = parseLength("  100px  ") as MockLength
+            const result = parseLength("  100px  ") as PlainPixels
             expect(result.value).toBe(100)
         })
 
         it("is case insensitive for keywords", () => {
-            expect(parseLength("AUTO")).toBe(MockStyleKeyword.Auto)
-            expect(parseLength("Auto")).toBe(MockStyleKeyword.Auto)
+            expect(parseLength("AUTO")).toEqual({ keyword: MockStyleKeyword.Auto })
+            expect(parseLength("Auto")).toEqual({ keyword: MockStyleKeyword.Auto })
         })
 
         it("returns null for invalid string", () => {
@@ -244,30 +243,28 @@ describe("style-parser", () => {
 
     describe("parseStyleValue", () => {
         it("parses length properties with numbers", () => {
-            const result = parseStyleValue("width", 100) as MockLength
-            expect(result).toBeInstanceOf(MockLength)
+            const result = parseStyleValue("width", 100) as PlainPixels
             expect(result.value).toBe(100)
         })
 
         it("parses length properties with string values", () => {
-            const result = parseStyleValue("height", "50%") as MockLength
+            const result = parseStyleValue("height", "50%") as PlainPixels
             expect(result.value).toBe(50)
             expect(result.unit).toBe(1) // Percent
         })
 
         it("parses padding shorthand", () => {
-            const result = parseStyleValue("padding", 16) as MockLength
-            expect(result).toBeInstanceOf(MockLength)
+            const result = parseStyleValue("padding", 16) as PlainPixels
             expect(result.value).toBe(16)
         })
 
         it("parses margin with percentage", () => {
-            const result = parseStyleValue("marginTop", "10%") as MockLength
+            const result = parseStyleValue("marginTop", "10%") as PlainPixels
             expect(result.unit).toBe(1)
         })
 
         it("parses borderRadius", () => {
-            const result = parseStyleValue("borderRadius", 8) as MockLength
+            const result = parseStyleValue("borderRadius", 8) as PlainPixels
             expect(result.value).toBe(8)
         })
 
@@ -277,13 +274,12 @@ describe("style-parser", () => {
         })
 
         it("parses fontSize", () => {
-            const result = parseStyleValue("fontSize", 16) as MockLength
+            const result = parseStyleValue("fontSize", 16) as PlainPixels
             expect(result.value).toBe(16)
         })
 
         it("parses color properties", () => {
             const result = parseStyleValue("backgroundColor", "#ff0000") as MockColor
-            expect(result).toBeInstanceOf(MockColor)
             expect(result.r).toBeCloseTo(1)
         })
 
@@ -303,12 +299,10 @@ describe("style-parser", () => {
             expect(parseStyleValue("flexShrink", 0)).toBe(0)
         })
 
-        it("converts enum properties to Unity enum values", () => {
-            const CS = (globalThis as any).CS
-            const UIE = CS.UnityEngine.UIElements
-            expect(parseStyleValue("flexDirection", "row")).toBe(UIE.FlexDirection.Row)
-            expect(parseStyleValue("display", "none")).toBe(UIE.DisplayStyle.None)
-            expect(parseStyleValue("position", "absolute")).toBe(UIE.Position.Absolute)
+        it("converts enum properties to Unity enum member names", () => {
+            expect(parseStyleValue("flexDirection", "row")).toBe("Row")
+            expect(parseStyleValue("display", "none")).toBe("None")
+            expect(parseStyleValue("position", "absolute")).toBe("Absolute")
         })
 
         it("passes through unknown properties unchanged", () => {
@@ -324,6 +318,62 @@ describe("style-parser", () => {
 
 describe('justifyContent space-evenly', () => {
     it('maps to Justify.SpaceEvenly', () => {
-        expect(parseStyleValue('justifyContent', 'space-evenly')).toBe(5)
+        expect(parseStyleValue('justifyContent', 'space-evenly')).toBe('SpaceEvenly')
+    })
+})
+
+/**
+ * Style values cross to StyleBridge.ApplyStyles as plain data, so building a
+ * style costs no C# call. Each shape is one StyleBridge already reads:
+ * {value, unit} and {keyword} through the StyleLength deserializer,
+ * {r, g, b, a} through ResolveValue's Color reconstruction, and an enum
+ * member's name through ConvertToTargetType's StyleEnum<T> string parse.
+ */
+describe("style values as plain data", () => {
+    it("sends a length as { value, unit }", () => {
+        expect(parseStyleValue("width", 100)).toStrictEqual({ value: 100, unit: 0 })
+        expect(parseStyleValue("height", "50%")).toStrictEqual({ value: 50, unit: 1 })
+        expect(parseStyleValue("marginTop", "-4px")).toStrictEqual({ value: -4, unit: 0 })
+        expect(parseStyleValue("fontSize", "12")).toStrictEqual({ value: 12, unit: 0 })
+    })
+
+    it("sends a length keyword as { keyword }", () => {
+        expect(parseStyleValue("width", "auto")).toStrictEqual({ keyword: MockStyleKeyword.Auto })
+        expect(parseStyleValue("maxWidth", "none")).toStrictEqual({ keyword: MockStyleKeyword.None })
+        expect(parseStyleValue("left", "initial")).toStrictEqual({ keyword: MockStyleKeyword.Initial })
+    })
+
+    it("sends a colour as { r, g, b, a }, from any colour form", () => {
+        expect(parseStyleValue("backgroundColor", "#ff0000")).toStrictEqual({ r: 1, g: 0, b: 0, a: 1 })
+        expect(parseStyleValue("color", [0, 1, 0, 0.5])).toStrictEqual({ r: 0, g: 1, b: 0, a: 0.5 })
+        expect(parseStyleValue("borderTopColor", { r: 0, g: 0, b: 1, a: 1 })).toStrictEqual({ r: 0, g: 0, b: 1, a: 1 })
+    })
+
+    it("sends an enum as the Unity member's name", () => {
+        expect(parseStyleValue("flexDirection", "row-reverse")).toBe("RowReverse")
+        expect(parseStyleValue("justifyContent", "space-between")).toBe("SpaceBetween")
+        expect(parseStyleValue("display", "none")).toBe("None")
+        expect(parseStyleValue("unityFontStyleAndWeight", "bold-and-italic")).toBe("BoldAndItalic")
+        expect(parseStyleValue("unityOverflowClipBox", "content-box")).toBe("ContentBox")
+    })
+
+    it("makes no C# call to build a length, a colour or an enum", () => {
+        const UIE = (globalThis as any).CS.UnityEngine.UIElements
+        const UE = (globalThis as any).CS.UnityEngine
+        const crossing = () => { throw new Error("C# constructor called") }
+        UIE.Length = crossing
+        UE.Color = crossing
+        for (const name of ["FlexDirection", "Wrap", "Align", "Justify", "Position", "Overflow", "DisplayStyle", "Visibility", "WhiteSpace", "TextOverflow", "TextOverflowPosition", "OverflowClipBox"]) {
+            delete UIE[name]
+        }
+        delete UE.FontStyle
+
+        expect(() => {
+            parseStyleValue("width", 10)
+            parseStyleValue("width", "auto")
+            parseStyleValue("backgroundColor", "red")
+            parseStyleValue("flexDirection", "row")
+            parseStyleValue("unityFontStyleAndWeight", "bold")
+        }).not.toThrow()
     })
 })

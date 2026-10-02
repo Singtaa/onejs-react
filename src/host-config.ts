@@ -193,7 +193,8 @@ export interface Instance {
     type: string;
     props: BaseProps;
     eventHandlers: Map<string, Function>;
-    appliedStyleKeys: Set<string>; // Track which style properties are currently applied
+    // The inline style as last sent: longhand key -> the raw value it came from
+    appliedStyle: FlatStyle;
     // For text-merging parents: ordered list of merged text children
     mergedTextChildren?: Instance[];
     // For merged text children: reference to parent they're merged into
@@ -205,8 +206,8 @@ export interface Instance {
     // For TextField: the inner input element, resolved once and cached.
     // undefined = never looked up; null = looked up and not found.
     inputElement?: CSObject | null;
-    // For TextField: which inputStyle properties are currently applied
-    appliedInputStyleKeys?: Set<string>;
+    // For TextField: the inputStyle as last sent, like appliedStyle
+    appliedInputStyle?: FlatStyle;
     // The one `change` listener, registered while the element has onChange or
     // a controlled value. Stable for the instance's life; reads instance.props.
     changeListener?: (event: ChangeDispatch) => void;
@@ -428,24 +429,34 @@ function shallowEqual(a: Record<string, unknown> | undefined, b: Record<string, 
     return true;
 }
 
-// Get all expanded property keys for a style object
-function getExpandedStyleKeys(style: ViewStyle | undefined): Set<string> {
-    const keys = new Set<string>();
-    if (!style) return keys;
+/**
+ * A style object flattened to what UI Toolkit has: longhand key -> the raw
+ * value the style gave it. Shorthands are expanded (`padding: 8` gives four
+ * entries of 8) and a later entry wins, so `{ padding: 8, paddingTop: 4 }`
+ * holds 4 for paddingTop. Undefined entries are left out.
+ *
+ * Two of these compare key by key, which is how an update finds the
+ * longhands it has to send and the ones it has to clear.
+ */
+type FlatStyle = Map<string, unknown>;
+
+const EMPTY_STYLE: FlatStyle = new Map();
+
+function flattenStyle(style: ViewStyle | undefined): FlatStyle {
+    const flat: FlatStyle = new Map();
+    if (!style) return flat;
 
     for (const [key, value] of Object.entries(style)) {
         if (value === undefined) continue;
 
         const expanded = STYLE_SHORTHANDS[key];
         if (expanded) {
-            for (const prop of expanded) {
-                keys.add(prop);
-            }
+            for (const prop of expanded) flat.set(prop, value);
         } else {
-            keys.add(key);
+            flat.set(key, value);
         }
     }
-    return keys;
+    return flat;
 }
 
 /**
@@ -477,52 +488,60 @@ function getRenderTextureHandle(value: RenderTextureRef): number {
     return value.__rtHandle ?? value.__handle ?? -1;
 }
 
-// Apply style properties to element, returns the set of applied keys.
+// Apply a style to a new element; returns it flattened, for the next update.
+function applyStyle(element: CSObject, style: ViewStyle | undefined): FlatStyle {
+    const flat = flattenStyle(style);
+    sendStyles(element, flat, flat.keys());
+    return flat;
+}
+
+// Move an element from the style it was last sent to a new one: clear the
+// longhands that are gone, send only the ones whose value changed. Returns the
+// new style flattened, for the next update.
+function updateStyle(element: CSObject, previous: FlatStyle, style: ViewStyle | undefined): FlatStyle {
+    const next = flattenStyle(style);
+    clearRemovedStyles(element, previous, next);
+    const changed: string[] = [];
+    for (const [key, value] of next) {
+        if (!previous.has(key) || !Object.is(previous.get(key), value)) changed.push(key);
+    }
+    sendStyles(element, next, changed);
+    return next;
+}
+
+// Send the given longhands of a flattened style.
 //
-// Batched path: parsed style values are collected into a single dict and sent
-// to CS.OneJS.StyleBridge.ApplyStyles in one __cs.invoke crossing instead of
-// one per property. On WebGL each crossing is ~3ms (JSON marshal + reflection),
-// so the difference is ~N invokes vs 1 invoke per element. backgroundImage
-// stays on its individual GPU-bridge path since it's not a plain IStyle setter.
-function applyStyle(element: CSObject, style: ViewStyle | undefined): Set<string> {
-    const appliedKeys = new Set<string>();
-    if (!style) return appliedKeys;
-
-    const batched: Record<string, unknown> = {}
-
-    for (const [key, value] of Object.entries(style)) {
-        if (value === undefined) continue;
-
-        const expanded = STYLE_SHORTHANDS[key];
-        if (expanded) {
-            const parsed = resolveForBatch(parseStyleValue(expanded[0], value));
-            for (const prop of expanded) {
-                batched[prop] = parsed;
-                appliedKeys.add(prop);
-            }
-        } else if (key === "backgroundImage") {
-            if (value == null) {
-                CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
-            } else if (isRenderTextureHandle(value)) {
-                const handle = getRenderTextureHandle(value);
-                if (handle >= 0) {
-                    CS.OneJS.GPU.GPUBridge.SetElementBackgroundImage(element, handle);
-                }
-            } else if (typeof value === "object" && "__csHandle" in value) {
-                CS.OneJS.GPU.GPUBridge.SetElementBackgroundFromObject(element, value);
-            }
-            appliedKeys.add(key);
-        } else {
-            batched[key] = resolveForBatch(parseStyleValue(key, value));
-            appliedKeys.add(key);
+// One crossing for all of them: the values are parsed into plain data (see
+// style-parser.ts) and handed to CS.OneJS.StyleBridge.ApplyStyles together.
+// On WebGL each crossing is ~3ms (JSON marshal + reflection), so this is the
+// difference between one call per element and one per property.
+// backgroundImage stays on its own GPU-bridge path since it is not a plain
+// IStyle setter.
+function sendStyles(element: CSObject, flat: FlatStyle, keys: Iterable<string>) {
+    let batched: Record<string, unknown> | null = null;
+    for (const key of keys) {
+        const value = flat.get(key);
+        if (key === "backgroundImage") {
+            applyBackgroundImage(element, value);
+            continue;
         }
+        batched ??= {};
+        batched[key] = resolveForBatch(parseStyleValue(key, value));
     }
+    if (batched) CS.OneJS.StyleBridge.ApplyStyles(element, batched);
+}
 
-    if (Object.keys(batched).length > 0) {
-        CS.OneJS.StyleBridge.ApplyStyles(element, batched);
+function applyBackgroundImage(element: CSObject, value: unknown) {
+    if (value == null) {
+        CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
+    } else if (isRenderTextureHandle(value)) {
+        const handle = getRenderTextureHandle(value);
+        if (handle >= 0) {
+            CS.OneJS.GPU.GPUBridge.SetElementBackgroundImage(element, handle);
+        }
+    } else if (typeof value === "object" && "__csHandle" in value) {
+        CS.OneJS.GPU.GPUBridge.SetElementBackgroundFromObject(element, value as CSObject);
     }
-
-    return appliedKeys;
 }
 
 // Shared overlay layer for <Portal>. A full-screen, click-through element kept as
@@ -557,13 +576,13 @@ export function getPortalLayer(): VisualElement {
 }
 
 // Force-resolve CS path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center)
-// to their underlying int value. parseEnumValue and parseLength's StyleKeyword
-// cases return path proxies whose .valueOf() reads the int via GetField. The
-// non-batched __cs.invoke path resolved these implicitly via __resolveValue;
-// the batched path JSON.stringifies the whole dict, so path proxies serialize
-// via toJSON to {__csTypeRef:...} which C# can't interpret as an enum value.
-// CS object proxies (with __csHandle) keep their toJSON shape: only path
-// proxies need coercion.
+// to their underlying int value. parseStyleValue no longer returns any, but a
+// style may hold one directly (`display: CS...DisplayStyle.None`), and its
+// .valueOf() reads the int via GetField. The batched path JSON.stringifies the
+// whole dict, so a path proxy would otherwise serialize via toJSON to
+// {__csTypeRef:...}, which C# can't interpret as an enum value. CS object
+// proxies (with __csHandle) keep their toJSON shape: only path proxies need
+// coercion.
 function resolveForBatch(value: unknown): unknown {
     // Path proxies (e.g. CS.UnityEngine.UIElements.Justify.Center) have a
     // function as their underlying Proxy target so they can also be invoked
@@ -576,10 +595,10 @@ function resolveForBatch(value: unknown): unknown {
 }
 
 // Clear style properties that are no longer in the new style
-function clearRemovedStyles(element: CSObject, oldKeys: Set<string>, newKeys: Set<string>) {
+function clearRemovedStyles(element: CSObject, previous: FlatStyle, next: FlatStyle) {
     const s = element.style;
-    for (const key of oldKeys) {
-        if (!newKeys.has(key)) {
+    for (const key of previous.keys()) {
+        if (!next.has(key)) {
             if (key === "backgroundImage") {
                 // Special handling for backgroundImage: use GPUBridge to clear
                 CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
@@ -1013,10 +1032,9 @@ function applyTextFieldInputProps(instance: Instance, props: Record<string, unkn
     if (oldProps ? (oldInputStyle !== inputStyle && !shallowEqual(oldInputStyle as any, inputStyle as any)) : inputStyle !== undefined) {
         const input = getTextFieldInput(instance);
         if (input) {
-            if (oldProps) {
-                clearRemovedStyles(input, instance.appliedInputStyleKeys ?? new Set(), getExpandedStyleKeys(inputStyle));
-            }
-            instance.appliedInputStyleKeys = applyStyle(input, inputStyle);
+            instance.appliedInputStyle = oldProps
+                ? updateStyle(input, instance.appliedInputStyle ?? EMPTY_STYLE, inputStyle)
+                : applyStyle(input, inputStyle);
         }
     }
 
@@ -1330,13 +1348,12 @@ function createInstance(type: string, props: BaseProps): Instance {
     }
 
     const element = factory();
-    const appliedStyleKeys = applyStyle(element, props.style);
     const instance: Instance = {
         element,
         type,
         props,
         eventHandlers: new Map(),
-        appliedStyleKeys,
+        appliedStyle: applyStyle(element, props.style),
     };
 
     applyClassName(element, props.className);
@@ -1381,11 +1398,10 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
     instance.props = newProps;
 
     // Update style: skip if values are shallowly equal (inline style objects are
-    // new references each render but usually contain the same values)
+    // new references each render but usually contain the same values), and
+    // otherwise send only the longhands that changed
     if (oldProps.style !== newProps.style && !shallowEqual(oldProps.style as any, newProps.style as any)) {
-        const newStyleKeys = getExpandedStyleKeys(newProps.style);
-        clearRemovedStyles(element, instance.appliedStyleKeys, newStyleKeys);
-        instance.appliedStyleKeys = applyStyle(element, newProps.style);
+        instance.appliedStyle = updateStyle(element, instance.appliedStyle, newProps.style);
     }
 
     // Update className: selectively add/remove classes
@@ -1485,7 +1501,7 @@ export const hostConfig = {
             type: 'text',
             props: {},
             eventHandlers: new Map(),
-            appliedStyleKeys: new Set(),
+            appliedStyle: EMPTY_STYLE,
         };
     },
 

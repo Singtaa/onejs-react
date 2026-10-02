@@ -2,7 +2,19 @@
  * Style value parsing utilities for OneJS React
  *
  * Converts friendly style values (numbers, strings like "100px", "#ff0000")
- * into Unity UI Toolkit compatible values.
+ * into what CS.OneJS.StyleBridge.ApplyStyles reads.
+ *
+ * Lengths, colours and enums come out as plain data, so building a style
+ * makes no C# call and the whole style crosses once, in ApplyStyles. Each
+ * shape is one StyleBridge already turns into the IStyle value:
+ *
+ *   { value, unit }   StyleLength, through its registered deserializer
+ *   { keyword }       StyleLength, the same deserializer (auto, none, initial)
+ *   { r, g, b, a }    StyleColor, through ResolveValue's Color reconstruction
+ *   "FlexStart"       StyleEnum<T>, through ConvertToTargetType's name parse
+ *
+ * Transforms and unityMaterial still build their C# structs here: StyleBridge
+ * has no plain reading for them.
  */
 
 import { tryRGBA } from "./color"
@@ -57,6 +69,38 @@ interface CSLength {
     unit: number;
 }
 
+/** A length as StyleBridge reads it: a number with a unit, or a keyword. */
+export type PlainLength = { value: number; unit: number } | { keyword: number }
+
+/** A colour as StyleBridge reads it, each channel 0 to 1. */
+export interface PlainColor {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+}
+
+// LengthUnit and StyleKeyword numbers, read from C# once per context rather
+// than written down here, so they cannot drift from the Unity in use.
+let lengthUnits: { pixel: number; percent: number } | null = null
+let styleKeywords: { auto: number; none: number; initial: number } | null = null
+
+function units() {
+    if (lengthUnits === null) {
+        const LengthUnit = CS.UnityEngine.UIElements.LengthUnit
+        lengthUnits = { pixel: Number(LengthUnit.Pixel), percent: Number(LengthUnit.Percent) }
+    }
+    return lengthUnits
+}
+
+function keywords() {
+    if (styleKeywords === null) {
+        const StyleKeyword = CS.UnityEngine.UIElements.StyleKeyword
+        styleKeywords = { auto: Number(StyleKeyword.Auto), none: Number(StyleKeyword.None), initial: Number(StyleKeyword.Initial) }
+    }
+    return styleKeywords
+}
+
 // Style properties that expect length values
 const LENGTH_PROPERTIES = new Set([
     "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight",
@@ -84,11 +128,10 @@ const NUMBER_PROPERTIES = new Set([
     "unityTextOutlineWidth",
 ])
 
-// Enum property mappings: React style value -> Unity enum value
-// Keys are camelCase (React/CSS style), values map to Unity enum member names
-const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values: Record<string, string> }> = {
+// Enum property mappings: CSS keyword -> Unity enum member name. The name is
+// what crosses: StyleBridge parses it into the property's StyleEnum<T>.
+const ENUM_MAPPINGS: Record<string, { values: Record<string, string> }> = {
     flexDirection: {
-        enum: () => CS.UnityEngine.UIElements.FlexDirection,
         values: {
             "row": "Row",
             "row-reverse": "RowReverse",
@@ -97,7 +140,6 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     flexWrap: {
-        enum: () => CS.UnityEngine.UIElements.Wrap,
         values: {
             "nowrap": "NoWrap",
             "wrap": "Wrap",
@@ -105,7 +147,6 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     alignItems: {
-        enum: () => CS.UnityEngine.UIElements.Align,
         values: {
             "auto": "Auto",
             "flex-start": "FlexStart",
@@ -115,7 +156,6 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     alignSelf: {
-        enum: () => CS.UnityEngine.UIElements.Align,
         values: {
             "auto": "Auto",
             "flex-start": "FlexStart",
@@ -125,7 +165,6 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     alignContent: {
-        enum: () => CS.UnityEngine.UIElements.Align,
         values: {
             "auto": "Auto",
             "flex-start": "FlexStart",
@@ -135,7 +174,6 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     justifyContent: {
-        enum: () => CS.UnityEngine.UIElements.Justify,
         values: {
             "flex-start": "FlexStart",
             "flex-end": "FlexEnd",
@@ -146,42 +184,36 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     position: {
-        enum: () => CS.UnityEngine.UIElements.Position,
         values: {
             "relative": "Relative",
             "absolute": "Absolute",
         }
     },
     overflow: {
-        enum: () => CS.UnityEngine.UIElements.Overflow,
         values: {
             "visible": "Visible",
             "hidden": "Hidden",
         }
     },
     display: {
-        enum: () => CS.UnityEngine.UIElements.DisplayStyle,
         values: {
             "flex": "Flex",
             "none": "None",
         }
     },
     visibility: {
-        enum: () => CS.UnityEngine.UIElements.Visibility,
         values: {
             "visible": "Visible",
             "hidden": "Hidden",
         }
     },
     whiteSpace: {
-        enum: () => CS.UnityEngine.UIElements.WhiteSpace,
         values: {
             "normal": "Normal",
             "nowrap": "NoWrap",
         }
     },
     unityFontStyleAndWeight: {
-        enum: () => CS.UnityEngine.FontStyle,
         values: {
             "normal": "Normal",
             "bold": "Bold",
@@ -190,14 +222,12 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     textOverflow: {
-        enum: () => CS.UnityEngine.UIElements.TextOverflow,
         values: {
             "clip": "Clip",
             "ellipsis": "Ellipsis",
         }
     },
     unityTextOverflowPosition: {
-        enum: () => CS.UnityEngine.UIElements.TextOverflowPosition,
         values: {
             "end": "End",
             "start": "Start",
@@ -205,7 +235,6 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
         }
     },
     unityOverflowClipBox: {
-        enum: () => CS.UnityEngine.UIElements.OverflowClipBox,
         values: {
             "padding-box": "PaddingBox",
             "content-box": "ContentBox",
@@ -217,56 +246,35 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
  * Parse an enum style value
  * @param key: Style property name
  * @param value: String value from React style (e.g., "row", "flex-start")
- * @returns Unity enum value or null if not found
+ * @returns The Unity enum member's name (e.g. "Row", "FlexStart"), or null if not found
  */
-function parseEnumValue(key: string, value: string): number | null {
-    const mapping = ENUM_MAPPINGS[key]
-    if (!mapping) return null
-
-    const unityEnumName = mapping.values[value]
-    if (!unityEnumName) return null
-
-    const enumType = mapping.enum()
-    return enumType[unityEnumName] ?? null
+function parseEnumValue(key: string, value: string): string | null {
+    return ENUM_MAPPINGS[key]?.values[value] ?? null
 }
 
 /**
  * Parse a length value from various formats
- * @param value: number, "100", "100px", "50%", "auto"
- * @returns Unity Length struct or StyleKeyword
+ * @param value: number, "100", "100px", "50%", "auto", "none", "initial"
+ * @returns `{ value, unit }`, `{ keyword }`, or null when it is not a length
  */
-export function parseLength(value: number | string): CSLength | number | null {
+export function parseLength(value: number | string): PlainLength | null {
     if (typeof value === "number") {
-        return new CS.UnityEngine.UIElements.Length(value, CS.UnityEngine.UIElements.LengthUnit.Pixel)
+        return { value, unit: units().pixel }
     }
 
     if (typeof value !== "string") return null
 
     const trimmed = value.trim().toLowerCase()
 
-    // Handle keywords
-    if (trimmed === "auto") {
-        return CS.UnityEngine.UIElements.StyleKeyword.Auto
-    }
-    if (trimmed === "none") {
-        return CS.UnityEngine.UIElements.StyleKeyword.None
-    }
-    if (trimmed === "initial") {
-        return CS.UnityEngine.UIElements.StyleKeyword.Initial
-    }
+    if (trimmed === "auto") return { keyword: keywords().auto }
+    if (trimmed === "none") return { keyword: keywords().none }
+    if (trimmed === "initial") return { keyword: keywords().initial }
 
-    // Parse numeric values with units
     const match = trimmed.match(/^(-?[\d.]+)(px|%)?$/)
     if (match) {
         const num = parseFloat(match[1])
         if (isNaN(num)) return null
-
-        const unitStr = match[2]
-        const unit = unitStr === "%"
-            ? CS.UnityEngine.UIElements.LengthUnit.Percent
-            : CS.UnityEngine.UIElements.LengthUnit.Pixel
-
-        return new CS.UnityEngine.UIElements.Length(num, unit)
+        return { value: num, unit: match[2] === "%" ? units().percent : units().pixel }
     }
 
     return null
@@ -287,7 +295,20 @@ function createColor(r: number, g: number, b: number, a: number): CSColor {
 }
 
 /**
+ * Parse a colour in any form OneJS accepts (see ColorInput in color.ts) into
+ * the plain `{ r, g, b, a }` a style sends.
+ * @returns The colour, or null if invalid
+ */
+export function parsePlainColor(value: unknown): PlainColor | null {
+    const rgba = tryRGBA(value)
+    if (rgba === null) return null
+    const [r, g, b, a] = rgba
+    return { r: clamp01(r), g: clamp01(g), b: clamp01(b), a: clamp01(a) }
+}
+
+/**
  * Parse a color value in any form OneJS accepts (see ColorInput in color.ts)
+ * into a C# Color, for a property that is not a style (Image.tintColor).
  * @returns Unity Color struct or null if invalid
  */
 export function parseColor(value: unknown): CSColor | null {
@@ -443,24 +464,17 @@ export function parseStyleValue(key: string, value: unknown): unknown {
     if (value === undefined || value === null) return value
 
     // Length properties
-    if (LENGTH_PROPERTIES.has(key)) {
-        if (typeof value === "number") {
-            return new CS.UnityEngine.UIElements.Length(value, CS.UnityEngine.UIElements.LengthUnit.Pixel)
-        }
-        if (typeof value === "string") {
-            const parsed = parseLength(value)
-            if (parsed !== null) return parsed
-        }
+    if (LENGTH_PROPERTIES.has(key) && (typeof value === "number" || typeof value === "string")) {
+        const parsed = parseLength(value)
+        if (parsed !== null) return parsed
         // Fall through to return original value
     }
 
-    // Color properties
+    // Color properties: hex, rgb(), CSS names, arrays and { r, g, b, a }
     if (COLOR_PROPERTIES.has(key)) {
-        if (typeof value === "string") {
-            const parsed = parseColor(value)
-            if (parsed !== null) return parsed
-        }
-        // Could already be a Color object, pass through
+        const parsed = parsePlainColor(value)
+        if (parsed !== null) return parsed
+        // Anything else (a C# Color proxy, say) passes through
     }
 
     // Plain number properties: pass through as-is
@@ -468,7 +482,7 @@ export function parseStyleValue(key: string, value: unknown): unknown {
         return value
     }
 
-    // Enum properties: convert string to Unity enum value
+    // Enum properties: convert the CSS keyword to the Unity member name
     if (key in ENUM_MAPPINGS && typeof value === "string") {
         const parsed = parseEnumValue(key, value)
         if (parsed !== null) return parsed

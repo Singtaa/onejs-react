@@ -489,6 +489,21 @@ export const mockFileSystem = new Map<string, number[] | string>()
 export const mockUrlAssets = new Map<string, number[] | string>()
 
 /**
+ * A plain style value as StyleBridge reads it: { r, g, b } is a Color
+ * (ResolveValue), { value, unit } a Length and { keyword } a StyleKeyword (the
+ * StyleLength deserializer). Anything else, an enum member's name included,
+ * lands as sent.
+ */
+function fromStyleWire(value: unknown): unknown {
+    if (value === null || typeof value !== "object" || value instanceof MockColor || value instanceof MockLength) return value;
+    const v = value as Record<string, number>;
+    if ("r" in v && "g" in v && "b" in v) return new MockColor(v.r, v.g, v.b, v.a ?? 1);
+    if ("keyword" in v) return v.keyword;
+    if ("value" in v && "unit" in v) return new MockLength(v.value, v.unit);
+    return value;
+}
+
+/**
  * Create the mock CS global object that mirrors QuickJSBootstrap.js proxy
  *
  * Enum values match Unity's actual enum definitions so that tests
@@ -604,13 +619,13 @@ export function createMockCS() {
                 ShaderEffectElement: MockShaderEffectElement,
             },
             // Mirrors the real CS.OneJS.StyleBridge batched path: ApplyStyles writes
-            // each parsed style value onto element.style; AddClassesBatch adds each
-            // class. host-config sends pre-parsed values (MockLength/MockColor/etc.),
-            // so a direct assignment is faithful for assertions.
+            // each style value onto element.style; AddClassesBatch adds each class.
+            // host-config sends plain data, and this reads it the way StyleBridge
+            // does (see fromStyleWire), so assertions see the struct C# would set.
             StyleBridge: {
                 ApplyStyles: (element: MockVisualElement, styles: Record<string, unknown>) => {
                     for (const key in styles) {
-                        element.style[key] = styles[key];
+                        element.style[key] = fromStyleWire(styles[key]);
                     }
                 },
                 AddClassesBatch: (element: MockVisualElement, classes: string[]) => {

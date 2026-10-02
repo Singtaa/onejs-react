@@ -22,7 +22,7 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 | `src/error-boundary.tsx` | `ErrorBoundary`, `formatError` |
 | `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive, useMediaQuery |
 | `src/hooks.ts` | C# sync hooks (`useFrameSync`, `useFrameSyncWith`, `useThrottledSync`, `useEventSync`) and `toArray` |
-| `src/style-parser.ts` | Converts style values (`"100px"`, `"#ff0000"`, enums) to UI Toolkit values |
+| `src/style-parser.ts` | Converts style values (`"100px"`, `"#ff0000"`, enums) to the plain data `StyleBridge` reads |
 | `src/vector.ts` | `Transform2D` and `useVectorContent` for `Painter2D` drawing |
 | `src/painter.ts` | Batched drawing: `Painter`, `batchedVisualContent`, `useBatchedVectorContent` |
 | `src/particles.ts` | 2D particle control plane: `useParticles`, `createParticles`, wire schema (`toWire`) |
@@ -175,12 +175,12 @@ Events in portaled content bubble through the overlay layer to `__root`, as DOM 
 
 - **Element types**: Use `ojs-` prefix internally (e.g., `ojs-view`, `ojs-button`) to avoid conflicts with HTML types
 - **Style shorthands**: `padding`/`margin`/`borderWidth`/`borderColor`/`borderRadius` are expanded to individual properties (UI Toolkit requirement)
-- **Style batching**: an element's parsed styles cross to C# in one `StyleBridge.ApplyStyles` call
-- **Style cleanup**: When props change, removed style properties are cleared (not just new ones applied)
+- **Style batching**: an element's parsed styles cross to C# in one `StyleBridge.ApplyStyles` call. Values cross as plain data, so building them makes no C# call: a length is `{ value, unit }` or `{ keyword }`, a colour `{ r, g, b, a }`, an enum the Unity member's name (`"FlexStart"`). Transforms and `unityMaterial` still build their C# structs
+- **Style updates**: only the longhands whose value changed are sent (shorthands expanded first, a later entry winning), and removed ones are cleared
 - **className updates**: Selective add/remove of classes (not full clear + reapply)
 - **Event handlers**: Registered via `__eventAPI` from QuickJSBootstrap.js. `change` is the exception: one reconciler-owned listener per element calls the latest `onChange` inside `flushSync` and then re-asserts a controlled `value`
 - **Events that fire**: click, pointer (down/up/move/enter/leave/cancel/capture/captureout), focus/blur/focusin/focusout, keydown/keyup, change, wheel, navigation (move/submit/cancel) and geometrychanged. The mouse, contextclick, input, drag, tooltip and transition props are typed but the runtime does not dispatch them yet
-- **Instance structure**: `{ element, type, props, eventHandlers: Map, appliedStyleKeys: Set, changeListener? }`
+- **Instance structure**: `{ element, type, props, eventHandlers: Map, appliedStyle: Map, changeListener? }` (`appliedStyle` is the style as last sent, longhand to raw value)
 
 ## Build & Test
 
@@ -218,7 +218,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `rows.test.tsx`, `treeview.test.tsx` | `renderItem` rows on recycled ListView/TreeView elements; `flattenTree` (fixtures mirror `TreeViewBridgeTests.cs`) |
 | `hooks.test.tsx`, `collection-sync.test.tsx` | Sync hooks, `toArray`, syncing C# collections into components |
 | `screen.test.tsx` | Controlled and nested `ScreenProvider` |
-| `style-parser.test.ts` | Length, color and enum parsing (`parseLength`, `parseColor`, `parseStyleValue`); transforms have no test |
+| `style-parser.test.ts` | Length, color and enum parsing (`parseLength`, `parseColor`, `parseStyleValue`) into the plain shapes `StyleBridge` reads; transforms have no test |
 | `painter.test.ts` | Batched Painter command buffer (JS side only; the C# contract guard is `PainterOpcodeContractTests` in the container) |
 | `particles.test.ts` | Particle wire schema and handle |
 | `texturefx.test.ts` | TextureFX uniform packing |
