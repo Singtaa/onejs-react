@@ -387,7 +387,7 @@ Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `
 ## Other exports
 
 - `ErrorBoundary`, `formatError`: catch render errors and show `fallbackRender={({ error, errorInfo, reset }) => ...}` instead; `resetKeys` resets it when an entry changes, `onError` and `onReset` report. `errorInfo` is null on the first fallback render. The root logs each caught error once. `fallback` (a node, or `(error, errorInfo) => node`) still works and is deprecated.
-- `useParticles(ref, config)` / `createParticles`: C#-owned 2D particle systems (see the OneJS runtime's `Particles/`)
+- `useParticles(ref, config)` / `createParticles`: C#-owned 2D particle systems (see the OneJS runtime's `Particles/`). The hook compares the config by value: an equal config keeps the system, a changed one recreates it (dropping live particles), and textures are swapped in without a restart. Drive continuous values through the handle (`fx.emitters[0].pos(x, y)`, `.rate`).
 - `Transform2D`, `useVectorContent`: transforms and auto-repaint for raw `Painter2D` drawing
 - `TextureFXBuilder`, `buildTextureFX`: the builder behind `<TextureFX build={...}>`
 

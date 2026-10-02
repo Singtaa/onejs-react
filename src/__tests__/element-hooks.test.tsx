@@ -101,3 +101,60 @@ describe("useParticles follows an element that mounts late", () => {
         await flushMicrotasks()
     })
 })
+
+describe("useParticles follows its config", () => {
+    let create: ReturnType<typeof vi.fn>
+    let disposes: Array<ReturnType<typeof vi.fn>>
+    beforeEach(() => {
+        disposes = []
+        create = vi.fn(() => {
+            const dispose = vi.fn()
+            disposes.push(dispose)
+            return { Dispose: dispose, SetEmitterTexture: vi.fn(), AliveCount: 0 }
+        })
+        ;(globalThis as any).CS.OneJS.ParticleBridge = { Create: create }
+    })
+
+    async function mountWithRarity() {
+        let setRarity: (r: string) => void = () => {}
+        let rerender: () => void = () => {}
+        function Aura() {
+            const [rarity, set] = useState("common")
+            const [, bump] = useState(0)
+            setRarity = set
+            rerender = () => bump(n => n + 1)
+            const ref = React.useRef(null)
+            // A fresh object every render, as written inline in a component
+            useParticles(ref, { emitters: [{ rate: rarity === "epic" ? 40 : 10, colorOverLife: [rarity === "epic" ? "#a040ff" : "#ffffff"] }] })
+            return <View ref={ref as any} />
+        }
+        const container = createMockContainer()
+        render(<Aura />, container as any)
+        await flushMicrotasks()
+        return { container, setRarity: (r: string) => setRarity(r), rerender: () => rerender() }
+    }
+
+    it("recreates the system when the config really changes, disposing the old one", async () => {
+        const { container, setRarity } = await mountWithRarity()
+        expect(create).toHaveBeenCalledTimes(1)
+
+        setRarity("epic")
+        await flushMicrotasks()
+        expect(create).toHaveBeenCalledTimes(2)
+        expect(disposes[0]).toHaveBeenCalledTimes(1)
+        expect(JSON.parse(create.mock.calls[1][1]).emitters[0].rate).toBe(40)
+        unmount(container as any)
+        await flushMicrotasks()
+        expect(disposes[1]).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps the system when a rerender passes an equal config", async () => {
+        const { container, rerender } = await mountWithRarity()
+        rerender()
+        await flushMicrotasks()
+        expect(create).toHaveBeenCalledTimes(1)
+        expect(disposes[0]).not.toHaveBeenCalled()
+        unmount(container as any)
+        await flushMicrotasks()
+    })
+})

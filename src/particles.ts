@@ -505,12 +505,23 @@ function ensureTeardownHook(): void {
 
 /**
  * Hook form: creates the system when the ref attaches, disposes on unmount,
- * and recreates when deps change. Returns a stable handle whose methods no-op
- * until the system exists (e.g. before mount).
+ * and follows the config. Returns a stable handle whose methods no-op until
+ * the system exists (e.g. before mount).
  *
- * Textures follow the config on every render, so `texture: useTexture(...)`
- * works without deps. Everything else in the config is read when the system
- * is created; pass deps to recreate it when those change.
+ * The config is compared by value, so writing it inline is fine: a rerender
+ * with an equal config keeps the running system. A config that really changes
+ * (an aura that follows an item's rarity, say) recreates the system, which
+ * drops the particles alive at that moment. Textures are the exception: they
+ * are handed to the running system without a restart, so
+ * `texture: useTexture(...)` works as it loads.
+ *
+ * For values that change continuously, such as an emitter following the
+ * pointer or a rate that tracks speed, use the handle instead of the config:
+ * `fx.emitters[0].pos(x, y)` and `fx.emitters[0].rate = r` are one crossing
+ * each and keep the particles alive.
+ *
+ * `deps` is rarely needed now. A change in it recreates the system even when
+ * the config is equal, which restarts the effect on demand.
  */
 export function useParticles(
     ref: RefObject<VisualElement | null>,
@@ -520,6 +531,16 @@ export function useParticles(
     const innerRef = useRef<ParticlesHandle | null>(null)
     const configRef = useRef(config)
     configRef.current = config
+
+    // The wire document is what the C# system is built from, so it is the
+    // value to compare. Textures never ride it (see the retexturer below). A
+    // config hoisted out of the component keeps its identity across renders
+    // and skips the rebuild.
+    const wireRef = useRef<{ config: ParticlesConfig, key: string } | null>(null)
+    if (wireRef.current?.config !== config) {
+        wireRef.current = { config, key: JSON.stringify(toWire(config)) }
+    }
+    const wireKey = wireRef.current.key
 
     const facadeRef = useRef<ParticlesHandle | null>(null)
     if (!facadeRef.current) {
@@ -536,7 +557,7 @@ export function useParticles(
     }
 
     // Follows the ref, so an element that mounts late or is replaced gets a
-    // system too; a deps change recreates it on the same element
+    // system too; a changed wire document or deps recreates it on the same element
     useAttachToRef(ref, (element) => {
         const handle = createParticles(element, configRef.current)
         innerRef.current = handle
@@ -544,7 +565,7 @@ export function useParticles(
             innerRef.current = null
             handle.dispose()
         }
-    }, deps)
+    }, [wireKey, ...deps])
 
     useEffect(() => {
         const handle = innerRef.current
