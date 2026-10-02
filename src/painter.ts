@@ -28,6 +28,7 @@
 
 import { useRef, useEffect, type DependencyList, type RefObject } from "react"
 import type { VisualElement, MeshGenerationContext, GenerateVisualContentCallback } from "./types"
+import { useAttachToRef } from "./attach"
 
 declare const CS: {
     OneJS: {
@@ -217,10 +218,7 @@ export function useBatchedVectorContent(
     const drawRef = useRef(draw)
     drawRef.current = draw
 
-    useEffect(() => {
-        const element = ref.current
-        if (!element) return
-
+    useAttachToRef(ref, (element) => {
         const painter = new Painter()
         const callback: GenerateVisualContentCallback = (mgc) => {
             painter.clear()
@@ -235,7 +233,7 @@ export function useBatchedVectorContent(
         return () => {
             el.generateVisualContent = null
         }
-    }, [])
+    })
 
     const isFirstRender = useRef(true)
     useEffect(() => {

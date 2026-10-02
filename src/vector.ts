@@ -9,6 +9,7 @@
 
 import { useRef, useEffect, type DependencyList, type RefObject } from 'react'
 import type { Vector2, VisualElement, GenerateVisualContentCallback } from './types'
+import { useAttachToRef } from './attach'
 
 // Global declarations for Unity interop
 declare const CS: {
@@ -270,11 +271,9 @@ export function useVectorContent(
     // Keep drawRef current
     drawRef.current = draw
 
-    // Register callback and handle updates
-    useEffect(() => {
-        const element = ref.current
-        if (!element) return
-
+    // Register the callback on whichever element the ref points at, including
+    // one that mounts after this hook or replaces the first
+    useAttachToRef(ref, (element) => {
         // Create a stable wrapper that always calls the latest draw function
         const callback: GenerateVisualContentCallback = (mgc) => {
             drawRef.current(mgc)
@@ -292,7 +291,7 @@ export function useVectorContent(
             // Clear callback on cleanup
             el.generateVisualContent = null
         }
-    }, []) // Only run once on mount
+    })
 
     // Trigger repaint when dependencies change (but not on first render)
     const isFirstRender = useRef(true)

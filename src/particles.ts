@@ -32,8 +32,9 @@
  * ParticleWire.cs, kept in sync by particles.test.ts and ParticleTests.cs.
  */
 
-import { useEffect, useRef, type DependencyList, type RefObject } from "react"
+import { useRef, type DependencyList, type RefObject } from "react"
 import type { VisualElement } from "./types"
+import { useAttachToRef } from "./attach"
 
 // MARK: CS interop surface
 
@@ -522,16 +523,15 @@ export function useParticles(
         }
     }
 
-    useEffect(() => {
-        const element = ref.current
-        if (!element) return
+    // Follows the ref, so an element that mounts late or is replaced gets a
+    // system too; a deps change recreates it on the same element
+    useAttachToRef(ref, (element) => {
         const handle = createParticles(element, configRef.current)
         innerRef.current = handle
         return () => {
             innerRef.current = null
             handle.dispose()
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps)
 
     return facadeRef.current
