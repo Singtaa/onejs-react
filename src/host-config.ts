@@ -1745,7 +1745,12 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     // program itself has not changed. Comparing identity would rebuild the
     // material, drop the render target and restart the clock sixty times a
     // second.
-    if (props.program !== undefined && props.program?.hash !== oldProps?.program?.hash) {
+    // A new program is a new material, and the values set on the old one went
+    // with it, so the caller's uniforms and textures go again below even when
+    // they did not change (a live .sl swap in the Play editor, the Ghost Hunt
+    // dry run of 1 Oct 2026, or a cart picking between two programs).
+    const newProgram = props.program !== undefined && props.program?.hash !== oldProps?.program?.hash;
+    if (newProgram) {
         const p = props.program;
         // The names go with the program, because the native backend binds its
         // uniforms as per name material properties and only the program knows
@@ -1820,7 +1825,7 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
      * to whichever backend is live: a material property on a generated shader,
      * the uniform array in a browser.
      */
-    if (props.uniforms && !shaderShallowEq(props.uniforms, oldProps?.uniforms)) {
+    if (props.uniforms && (newProgram || !shaderShallowEq(props.uniforms, oldProps?.uniforms))) {
         const names = props.program?.uniforms;
         for (const k in props.uniforms) {
             const slot = names ? names.indexOf(k) : -1;
@@ -1855,7 +1860,7 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
             el.SetColor(k, r, g, b, a);
         }
     }
-    if (props.textures && !shaderShallowEq(props.textures, oldProps?.textures)) {
+    if (props.textures && (newProgram || !shaderShallowEq(props.textures, oldProps?.textures))) {
         /**
          * A program's textures go by SLOT, the way its uniforms do.
          *

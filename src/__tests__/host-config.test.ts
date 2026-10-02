@@ -1143,6 +1143,36 @@ describe('ShaderProgram uniforms', () => {
         ]);
     });
 
+    it('gives a new program the uniforms and textures the caller set, though they did not change', () => {
+        // A new program is a new material: the values set on the old one went
+        // with it. A cart whose uniforms object stays the same across the
+        // change (a live .sl swap in the Play editor, the Ghost Hunt dry run of
+        // 1 Oct 2026, or a cart picking between two programs) kept them only
+        // in its props, and the new program drew its defaults instead.
+        const uniforms = { hue: 0.9 };
+        const grain = {};
+        const textures = { grain };
+        const first = { ...program(['warp', 'hue'], 'swap-1'), defaults: [0.5, 0, 0, 1, 0.25, 0, 0, 1], textures: ['grain'] };
+        const second = { ...program(['warp', 'hue'], 'swap-2'), defaults: [0.7, 0, 0, 1, 0.3, 0, 0, 1], textures: ['grain'] };
+        const instance = createInstance('ojs-shaderfx', { program: first, uniforms, textures } as any, null as any, null, null);
+        const el = instance.element as any;
+        el.SetUniform.mockClear();
+        el.SetProgramTexture.mockClear();
+        commitUpdate(instance, 'ojs-shaderfx', { program: first, uniforms, textures } as any,
+            { program: second, uniforms, textures } as any, null as any);
+        expect(el.SetUniform.mock.calls).toEqual([
+            [0, 0.7, 0, 0, 1],
+            [1, 0.3, 0, 0, 1],
+            [1, 0.9, 0, 0, 0],
+        ]);
+        expect(el.SetProgramTexture).toHaveBeenCalledWith(0, grain);
+        // And the same program again sends nothing.
+        el.SetUniform.mockClear();
+        commitUpdate(instance, 'ojs-shaderfx', { program: second, uniforms, textures } as any,
+            { program: second, uniforms, textures } as any, null as any);
+        expect(el.SetUniform).not.toHaveBeenCalled();
+    });
+
     it('starts a program encoded before defaults existed at zero, as it always did', () => {
         const instance = createInstance('ojs-shaderfx',
             { program: program(['warp'], 'older') } as any, null as any, null, null);
