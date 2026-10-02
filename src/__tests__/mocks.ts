@@ -216,13 +216,23 @@ export class MockButton extends MockVisualElement {
 }
 
 /**
+ * INotifyValueChanged<T>.SetValueWithoutNotify, which every value control has.
+ * A spy, so a test can tell a re-assert from a plain prop write.
+ */
+function writeWithoutNotify(el: MockVisualElement) {
+    return vi.fn((value: unknown) => { el.value = value; });
+}
+
+/**
  * Mock TextField element
  */
 export class MockTextField extends MockVisualElement {
     textEdition: { placeholder: string };
+    SetValueWithoutNotify: ReturnType<typeof writeWithoutNotify>;
     constructor() {
         super('UnityEngine.UIElements.TextField');
         this.value = '';
+        this.SetValueWithoutNotify = writeWithoutNotify(this);
         // Unity exposes placeholder on ITextEdition rather than on the field.
         this.textEdition = { placeholder: '' };
         // Unity's TextField constructs an inner TextInput child carrying these
@@ -262,6 +272,7 @@ export class MockToggle extends MockVisualElement {
         super('UnityEngine.UIElements.Toggle');
         this.value = false;
     }
+    SetValueWithoutNotify = writeWithoutNotify(this);
 }
 
 /**
@@ -272,6 +283,7 @@ export class MockSlider extends MockVisualElement {
         super('UnityEngine.UIElements.Slider');
         this.value = 0;
     }
+    SetValueWithoutNotify = writeWithoutNotify(this);
 }
 
 /**

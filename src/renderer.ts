@@ -1,6 +1,6 @@
 import Reconciler from 'react-reconciler';
 import { version as reactVersion, type ReactNode, type ReactPortal } from 'react';
-import { hostConfig, type Container } from './host-config';
+import { hostConfig, setSyncRunner, type Container } from './host-config';
 import type { RenderContainer } from './types';
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
@@ -171,12 +171,16 @@ export function createPortal(children: ReactNode, container: RenderContainer, ke
  * Useful for tests or when you need immediate UI updates.
  */
 export function flushSync<T>(callback: () => T): T {
-    if (typeof (reconciler as any).flushSync === 'function') {
-        return (reconciler as any).flushSync(callback);
-    }
-    // Fallback: just call the callback
+    // react-reconciler 0.31 names it flushSyncFromReconciler; flushSync is the
+    // name older versions used.
+    const r = reconciler as any;
+    const sync = r.flushSyncFromReconciler ?? r.flushSync;
+    if (typeof sync === 'function') return sync(callback);
     return callback();
 }
+
+// Controlled inputs commit their onChange synchronously (see host-config)
+setSyncRunner(flushSync);
 
 /**
  * Batch multiple updates together for better performance.

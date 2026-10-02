@@ -616,6 +616,10 @@ export interface ButtonProps extends BaseProps {
 }
 
 export interface TextFieldProps extends BaseProps {
+  /**
+   * Controlled text. The field always shows this: a change `onChange` rejects
+   * or rewrites is put back. Leave it out for an uncontrolled field.
+   */
   value?: string;
   label?: string;
   placeholder?: string;
@@ -641,6 +645,10 @@ export interface TextFieldProps extends BaseProps {
 }
 
 export interface ToggleProps extends BaseProps {
+  /**
+   * Controlled state. The toggle always shows this: a click `onChange` does
+   * not accept is undone. Leave it out for an uncontrolled toggle.
+   */
   value?: boolean;
   label?: string;
   text?: string;
@@ -649,6 +657,10 @@ export interface ToggleProps extends BaseProps {
 }
 
 export interface SliderProps extends BaseProps {
+  /**
+   * Controlled position. The slider always shows this: a drag `onChange`
+   * clamps or rejects is put back. Leave it out for an uncontrolled slider.
+   */
   value?: number;
   label?: string;
   /** Smallest value. `lowValue` is UI Toolkit's name for the same thing and still works. */

@@ -207,6 +207,14 @@ export interface Instance {
     inputElement?: CSObject | null;
     // For TextField: which inputStyle properties are currently applied
     appliedInputStyleKeys?: Set<string>;
+    // The one `change` listener, registered while the element has onChange or
+    // a controlled value. Stable for the instance's life; reads instance.props.
+    changeListener?: (event: ChangeDispatch) => void;
+}
+
+// What the bootstrap hands a `change` listener, as far as the reconciler reads it
+interface ChangeDispatch {
+    target?: number;
 }
 
 export type TextInstance = Instance; // For Label elements with text content
@@ -680,9 +688,24 @@ function nodeRemoveFromHierarchy(childEl: CSObject) {
 }
 
 
+// `change` has its own listener (see applyChangeListener); every other event
+// prop registers the handler it was given.
+const DIRECT_EVENT_ENTRIES = Object.entries(EVENT_PROPS).filter(([, eventType]) => eventType !== 'change');
+
+// Runs a callback and commits any React update it scheduled before returning.
+// The renderer installs the reconciler's flushSync here; host-config cannot
+// import it without a module cycle.
+let runSync: <T>(fn: () => T) => T = (fn) => fn();
+
+/** Internal: called once by the renderer. */
+export function setSyncRunner(fn: <T>(fn: () => T) => T): void {
+    runSync = fn;
+}
+
 // Apply event handlers
 function applyEvents(instance: Instance, props: BaseProps) {
-    for (const [propName, eventType] of Object.entries(EVENT_PROPS)) {
+    applyChangeListener(instance, props);
+    for (const [propName, eventType] of DIRECT_EVENT_ENTRIES) {
         const handler = (props as Record<string, unknown>)[propName] as Function | undefined;
         const existingHandler = instance.eventHandlers.get(eventType);
 
@@ -696,6 +719,68 @@ function applyEvents(instance: Instance, props: BaseProps) {
                 instance.eventHandlers.set(eventType, handler);
             }
         }
+    }
+}
+
+/**
+ * Controlled inputs, the way React DOM does them: a control given `value`
+ * shows that value whatever the user did to it.
+ *
+ * UI Toolkit changes the native control before ChangeEvent reaches JS. When
+ * the handler rejects or transforms the change, state may not change at all,
+ * React bails out, nothing commits, and the control would keep the user's
+ * value. So the listener runs onChange inside flushSync, which commits any
+ * state it set before returning, then compares the element with the value
+ * prop and writes the prop back without raising another ChangeEvent.
+ *
+ * One listener per instance, reading the latest props, so a new inline
+ * onChange each render costs nothing. It is registered while the element has
+ * onChange or a controlled value, and removed when it has neither.
+ */
+function applyChangeListener(instance: Instance, props: BaseProps) {
+    const p = props as Record<string, unknown>;
+    const wanted = p.onChange !== undefined || p.value != null;
+    if (wanted && !instance.changeListener) {
+        const listener = (event: ChangeDispatch) => dispatchChange(instance, event);
+        instance.changeListener = listener;
+        __eventAPI.addEventListener(instance.element, 'change', listener);
+    } else if (!wanted && instance.changeListener) {
+        __eventAPI.removeEventListener(instance.element, 'change', instance.changeListener);
+        instance.changeListener = undefined;
+    }
+}
+
+function dispatchChange(instance: Instance, event: ChangeDispatch) {
+    try {
+        const onChange = (instance.props as Record<string, unknown>).onChange as ((e: unknown) => void) | undefined;
+        if (onChange) runSync(() => onChange(event));
+    } finally {
+        // A change bubbling up from a descendant is the descendant's to restore
+        if (event.target === undefined || event.target === elementHandle(instance.element)) {
+            reassertValue(instance);
+        }
+    }
+}
+
+// The built-in controls, all INotifyValueChanged<T>
+const VALUE_CONTROL_TYPES = new Set(['ojs-textfield', 'ojs-toggle', 'ojs-slider']);
+
+function reassertValue(instance: Instance) {
+    const value = (instance.props as Record<string, unknown>).value;
+    if (value == null) return;
+    const el = instance.element as any;
+    if (el.value === value) return;
+    if (VALUE_CONTROL_TYPES.has(instance.type)) {
+        el.SetValueWithoutNotify(value);
+        return;
+    }
+    // A registered element: every UI Toolkit field (DropdownField, IntegerField,
+    // EnumField...) implements INotifyValueChanged and has SetValueWithoutNotify.
+    // One that raises ChangeEvent without it falls back to a plain write.
+    try {
+        el.SetValueWithoutNotify(value);
+    } catch {
+        el.value = value;
     }
 }
 
@@ -1290,6 +1375,10 @@ function createInstance(type: string, props: BaseProps): Instance {
 // Update an instance with new props
 function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseProps) {
     const element = instance.element;
+    // First, not last: writing `value` below can raise a ChangeEvent
+    // synchronously, and its listener must see the props being committed, not
+    // the ones they replace, or it re-asserts the old value.
+    instance.props = newProps;
 
     // Update style: skip if values are shallowly equal (inline style objects are
     // new references each render but usually contain the same values)
@@ -1349,8 +1438,6 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
             element.SetEnabled(true);
         }
     }
-
-    instance.props = newProps;
 }
 
 // NOTE: We use a type assertion because @types/react-reconciler (0.28.x) is outdated

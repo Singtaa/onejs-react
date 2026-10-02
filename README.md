@@ -52,6 +52,8 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 
 Custom C# elements: `registerElement(name, CS.My.Element)` then `createComponent<Props>(name)`.
 
+**Controlled inputs** work as in React DOM. A `TextField`, `Toggle`, `Slider` or registered field (a `DropdownField`, say) given `value` always shows that value: after `onChange` runs, and the update it made has committed, the reconciler writes `value` back with `SetValueWithoutNotify` if the control disagrees. So a handler that rejects or caps a change (`onChange={e => setName(e.value.slice(0, 12))}`) keeps the control in step, and `value` without `onChange` is read only. Leave `value` out for an uncontrolled control.
+
 **Raw text in JSX** (e.g., `<View>Hello</View>`) creates a `TextElement`, providing semantic distinction from explicit `<Label>` components.
 
 ## Usage
@@ -176,9 +178,9 @@ Events in portaled content bubble through the overlay layer to `__root`, as DOM 
 - **Style batching**: an element's parsed styles cross to C# in one `StyleBridge.ApplyStyles` call
 - **Style cleanup**: When props change, removed style properties are cleared (not just new ones applied)
 - **className updates**: Selective add/remove of classes (not full clear + reapply)
-- **Event handlers**: Registered via `__eventAPI` from QuickJSBootstrap.js
+- **Event handlers**: Registered via `__eventAPI` from QuickJSBootstrap.js. `change` is the exception: one reconciler-owned listener per element calls the latest `onChange` inside `flushSync` and then re-asserts a controlled `value`
 - **Events that fire**: click, pointer (down/up/move/enter/leave/cancel/capture/captureout), focus/blur/focusin/focusout, keydown/keyup, change, wheel, navigation (move/submit/cancel) and geometrychanged. The mouse, contextclick, input, drag, tooltip and transition props are typed but the runtime does not dispatch them yet
-- **Instance structure**: `{ element, type, props, eventHandlers: Map, appliedStyleKeys: Set }`
+- **Instance structure**: `{ element, type, props, eventHandlers: Map, appliedStyleKeys: Set, changeListener? }`
 
 ## Build & Test
 
@@ -209,6 +211,8 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `host-config.test.ts` | Instance creation, style/className management, events, children |
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
+| `controlled-inputs.test.tsx` | Controlled `value` re-asserted after a rejected or transformed change |
+| `error-boundary.test.tsx` | `ErrorBoundary`: `fallbackRender`, `reset`, `resetKeys`, one log per caught error |
 | `portal.test.tsx` | `<Portal>` overlay layer |
 | `bubbling.test.tsx` | Parent links the bootstrap bubbles along: app and portaled events reach a listener on `__root` |
 | `rows.test.tsx`, `treeview.test.tsx` | `renderItem` rows on recycled ListView/TreeView elements; `flattenTree` (fixtures mirror `TreeViewBridgeTests.cs`) |

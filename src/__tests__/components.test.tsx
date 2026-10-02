@@ -234,19 +234,19 @@ describe('components', () => {
             expect(el.value).toBe('initial text');
         });
 
-        it('registers onChange handler', async () => {
+        it('delivers change events to onChange', async () => {
             const container = createMockContainer();
             const handleChange = vi.fn();
 
             render(<TextField onChange={handleChange} />, container as any);
             await flushMicrotasks();
 
-            const eventAPI = getEventAPI();
-            expect(eventAPI.addEventListener).toHaveBeenCalledWith(
-                container.children[0],
-                'change',
-                handleChange
-            );
+            // One reconciler-owned listener per element, which calls the latest onChange
+            const el = container.children[0];
+            const call = getEventAPI().addEventListener.mock.calls.find(c => c[0] === el && c[1] === 'change');
+            const event = { type: 'change', value: 'typed', target: el.__csHandle };
+            call![2](event);
+            expect(handleChange).toHaveBeenCalledWith(event);
         });
 
         // Unity puts placeholder on ITextEdition, not on TextField, so it needs
@@ -364,19 +364,19 @@ describe('components', () => {
             expect(el.label).toBe('Enable feature');
         });
 
-        it('registers onChange handler', async () => {
+        it('delivers change events to onChange', async () => {
             const container = createMockContainer();
             const handleChange = vi.fn();
 
             render(<Toggle onChange={handleChange} />, container as any);
             await flushMicrotasks();
 
-            const eventAPI = getEventAPI();
-            expect(eventAPI.addEventListener).toHaveBeenCalledWith(
-                container.children[0],
-                'change',
-                handleChange
-            );
+            // One reconciler-owned listener per element, which calls the latest onChange
+            const el = container.children[0];
+            const call = getEventAPI().addEventListener.mock.calls.find(c => c[0] === el && c[1] === 'change');
+            const event = { type: 'change', value: true, target: el.__csHandle };
+            call![2](event);
+            expect(handleChange).toHaveBeenCalledWith(event);
         });
     });
 
@@ -398,19 +398,19 @@ describe('components', () => {
             expect(el.value).toBe(0.5);
         });
 
-        it('registers onChange handler', async () => {
+        it('delivers change events to onChange', async () => {
             const container = createMockContainer();
             const handleChange = vi.fn();
 
             render(<Slider onChange={handleChange} />, container as any);
             await flushMicrotasks();
 
-            const eventAPI = getEventAPI();
-            expect(eventAPI.addEventListener).toHaveBeenCalledWith(
-                container.children[0],
-                'change',
-                handleChange
-            );
+            // One reconciler-owned listener per element, which calls the latest onChange
+            const el = container.children[0];
+            const call = getEventAPI().addEventListener.mock.calls.find(c => c[0] === el && c[1] === 'change');
+            const event = { type: 'change', value: 0.25, target: el.__csHandle };
+            call![2](event);
+            expect(handleChange).toHaveBeenCalledWith(event);
         });
     });
 

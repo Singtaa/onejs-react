@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import React, { useState, useEffect } from 'react';
-import { render, unmount, unmountAll, createPortal, getRoot } from '../renderer';
+import { render, unmount, unmountAll, createPortal, getRoot, flushSync } from '../renderer';
 import { View, Label, Button } from '../components';
 import { MockVisualElement, MockLength, MockColor, createMockContainer, flushMicrotasks, getEventAPI } from './mocks';
 
@@ -360,6 +360,24 @@ describe('renderer', () => {
 
             expect(view.style.backgroundColor).toBeUndefined();
             expect(getStyleValue(view.style.width)).toBe(100);
+        });
+    });
+
+    describe('flushSync()', () => {
+        it('commits the update its callback schedules before returning', async () => {
+            const container = createMockContainer();
+            let setCount: (n: number) => void = () => {};
+            function Counter() {
+                const [count, set] = useState(0);
+                setCount = set;
+                return <ojs-label text={`count ${count}`} />;
+            }
+            render(<Counter />, container as any);
+            await flushMicrotasks();
+
+            flushSync(() => setCount(1));
+            expect(container.children[0].text).toBe('count 1');
+            unmount(container as any);
         });
     });
 
