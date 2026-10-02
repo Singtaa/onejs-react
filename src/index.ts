@@ -47,7 +47,9 @@ export type {
 } from './screen';
 
 // Vector Drawing
-export { Transform2D, useVectorContent } from './vector';
+export { useVectorContent } from './vector';
+export { Transform2D, TransformedPath } from './transform';
+export type { PathSink } from './transform';
 
 // Batched vector drawing: single-crossing command buffer (see painter.ts)
 export { Painter, drawing, useDrawing, batchedVisualContent, useBatchedVectorContent } from './painter';
