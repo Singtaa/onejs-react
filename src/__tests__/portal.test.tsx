@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import React from 'react';
-import { render } from '../renderer';
+import { render, unmount } from '../renderer';
 import { Portal } from '../portal';
 import { View, Label, Button } from '../components';
 import { MockVisualElement, createMockContainer, flushMicrotasks } from './mocks';
@@ -81,5 +81,22 @@ describe('Portal', () => {
         render(<App show={false} />, root as any);
         await flushMicrotasks();
         expect(layer.childCount).toBe(0);
+    });
+
+    it('portals into a live layer after the root is unmounted and rendered again', async () => {
+        const root = createMockContainer();
+        (globalThis as any).__root = root;
+
+        render(<View><Portal><Label text="first" /></Portal></View>, root as any);
+        await flushMicrotasks();
+        unmount(root as any);
+        await flushMicrotasks();
+
+        render(<View><Portal><Label text="second" /></Portal></View>, root as any);
+        await flushMicrotasks();
+
+        const layer = (root.children as MockVisualElement[]).find((c) => c.name === 'onejs-portal-root');
+        expect(layer).toBeDefined();
+        expect(layer!.childCount).toBe(1);
     });
 });

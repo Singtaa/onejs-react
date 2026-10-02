@@ -1518,6 +1518,9 @@ export const hostConfig = {
     },
 
     clearContainer(container: Container) {
+        // Clear() also removes the portal layer, so forget it: the next Portal
+        // makes a new one instead of rendering into a detached element.
+        _portalLayers.delete(container as unknown as object);
         container.Clear();
     },
 
