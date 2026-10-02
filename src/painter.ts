@@ -7,17 +7,17 @@
  * the way raw mgc.painter2D usage does. On the QuickJS interpreter those
  * per-op crossings are the dominant cost of custom vector drawing.
  *
- * For the common case, wrap your draw function with batchedVisualContent so the
- * flush is automatic:
+ * Wrap a draw function with `drawing` and the flush is automatic, or use
+ * `useDrawing(ref, draw, deps)` from a component:
  *
- *     import { batchedVisualContent } from "onejs-react"
+ *     import { drawing } from "onejs-react"
  *
  *     <View
  *         style={{ width: 200, height: 200 }}
- *         onGenerateVisualContent={batchedVisualContent((p) => {
- *             p.fillColor(1, 0, 0, 1)
+ *         onGenerateVisualContent={drawing((p) => {
+ *             p.fillColor("#f00")
  *             p.beginPath()
- *             p.arc(100, 100, 80, 0, Math.PI * 2)
+ *             p.circle(100, 100, 80)
  *             p.fill()
  *         })}
  *     />
@@ -29,6 +29,7 @@
 import { useRef, useEffect, type DependencyList, type RefObject } from "react"
 import type { VisualElement, MeshGenerationContext, GenerateVisualContentCallback } from "./types"
 import { useAttachToRef } from "./attach"
+import { subscribeFrame } from "./frame"
 
 declare const CS: {
     OneJS: {
@@ -183,11 +184,18 @@ export class Painter {
 }
 
 /**
- * Wrap a draw function so it records into a reused Painter and auto-flushes in
- * one crossing after each repaint. The recommended entry point for batched
- * drawing: assign the result straight to onGenerateVisualContent.
+ * Turns a draw function into an `onGenerateVisualContent` callback. The draw
+ * records into a reused Painter, and everything it drew crosses to C# in one
+ * call per repaint.
+ *
+ * ```tsx
+ * <View
+ *     style={{ width: 100, height: 100 }}
+ *     onGenerateVisualContent={drawing((p) => p.fillColor("#f80").beginPath().circle(50, 50, 40).fill())}
+ * />
+ * ```
  */
-export function batchedVisualContent(draw: (p: Painter) => void): GenerateVisualContentCallback {
+export function drawing(draw: (p: Painter) => void): GenerateVisualContentCallback {
     const painter = new Painter()
     return (mgc: MeshGenerationContext) => {
         painter.clear()
@@ -196,54 +204,73 @@ export function batchedVisualContent(draw: (p: Painter) => void): GenerateVisual
     }
 }
 
+/** @deprecated Use `drawing`. */
+export const batchedVisualContent = drawing
+
 /**
- * Batched counterpart to useVectorContent. Returns a ref to attach to a
- * VisualElement; the draw callback records into a reused Painter that flushes in
- * a single crossing. Repaints automatically when deps change.
+ * Draws into the element behind `ref`, with the draw function from the latest
+ * render. It repaints when `deps` change, or every frame with `"frame"` for a
+ * drawing that moves on its own.
  *
- * @example
- * const ref = useBatchedVectorContent((p) => {
- *     p.fillColor(1, 0, 0, 1)
- *     p.beginPath()
- *     p.arc(100, 100, radius, 0, Math.PI * 2)
- *     p.fill()
- * }, [radius])
- * return <View ref={ref} style={{ width: 200, height: 200 }} />
+ * ```tsx
+ * const ref = useRef(null)
+ * useDrawing(ref, (p) => p.strokeColor("#0f8").beginPath().arc(50, 50, 40, 0, sweep).stroke(), [sweep])
+ * return <View ref={ref} style={{ width: 100, height: 100 }} />
+ * ```
+ */
+export function useDrawing(
+    ref: RefObject<VisualElement | null>,
+    draw: (p: Painter) => void,
+    deps: DependencyList | "frame" = [],
+): void {
+    useDrawInto(ref, draw)
+    const everyFrame = deps === "frame"
+
+    useEffect(() => {
+        if (!everyFrame) return
+        return subscribeFrame(() => ref.current?.MarkDirtyRepaint())
+    }, [everyFrame, ref])
+
+    useRepaintOnChange(ref, everyFrame ? [] : deps as DependencyList)
+}
+
+/**
+ * @deprecated Use `useDrawing(ref, draw, deps)`, which takes the ref like
+ * `useParticles` does.
  */
 export function useBatchedVectorContent(
     draw: (p: Painter) => void,
     deps: DependencyList = []
 ): RefObject<VisualElement | null> {
     const ref = useRef<VisualElement | null>(null)
+    useDrawInto(ref, draw)
+    useRepaintOnChange(ref, deps)
+    return ref
+}
+
+function useDrawInto(ref: RefObject<VisualElement | null>, draw: (p: Painter) => void): void {
     const drawRef = useRef(draw)
     drawRef.current = draw
 
     useAttachToRef(ref, (element) => {
-        const painter = new Painter()
-        const callback: GenerateVisualContentCallback = (mgc) => {
-            painter.clear()
-            drawRef.current(painter)
-            painter.flush(mgc)
-        }
-
+        const paint = drawing((p) => drawRef.current(p))
         const el = element as unknown as { generateVisualContent: GenerateVisualContentCallback | null }
-        el.generateVisualContent = callback
+        el.generateVisualContent = paint
         element.MarkDirtyRepaint()
-
         return () => {
             el.generateVisualContent = null
         }
     })
+}
 
+function useRepaintOnChange(ref: RefObject<VisualElement | null>, deps: DependencyList): void {
     const isFirstRender = useRef(true)
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false
             return
         }
-        const element = ref.current
-        if (element) element.MarkDirtyRepaint()
+        ref.current?.MarkDirtyRepaint()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps)
-
-    return ref
 }
