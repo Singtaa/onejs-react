@@ -32,7 +32,7 @@
  * ParticleWire.cs, kept in sync by particles.test.ts and ParticleTests.cs.
  */
 
-import { useRef, type DependencyList, type RefObject } from "react"
+import { useEffect, useRef, type DependencyList, type RefObject } from "react"
 import type { VisualElement } from "./types"
 import { useAttachToRef } from "./attach"
 
@@ -439,6 +439,7 @@ export function createParticles(element: VisualElement, config: ParticlesConfig)
     config.emitters.forEach((e, i) => {
         if (e.texture) sys.SetEmitterTexture(i, e.texture)
     })
+    const applied = config.emitters.map((e) => e.texture ?? config.texture ?? null)
 
     let disposed = false
     const emitters: EmitterHandle[] = doc.emitters.map((e, i) => {
@@ -473,9 +474,23 @@ export function createParticles(element: VisualElement, config: ParticlesConfig)
 
     liveSystems.add(handle)
     ensureTeardownHook()
+    retexturers.set(handle, (next) => {
+        if (disposed) return
+        for (let i = 0; i < applied.length; i++) {
+            const texture = next.emitters[i]?.texture ?? next.texture ?? null
+            if (texture === applied[i]) continue
+            applied[i] = texture
+            sys.SetEmitterTexture(i, texture)
+        }
+    })
 
     return handle
 }
+
+// Lets useParticles hand a running system a texture that arrived after it was
+// created (a `useTexture` result is null on the first render), without
+// recreating the system and losing its live particles.
+const retexturers = new WeakMap<ParticlesHandle, (config: ParticlesConfig) => void>()
 
 // Hot-reload/shutdown safety net for systems created outside React effects.
 // One hook disposes whatever is still live: a hook per system would hold every
@@ -499,6 +514,10 @@ function ensureTeardownHook(): void {
  * Hook form: creates the system when the ref attaches, disposes on unmount,
  * and recreates when deps change. Returns a stable handle whose methods no-op
  * until the system exists (e.g. before mount).
+ *
+ * Textures follow the config on every render, so `texture: useTexture(...)`
+ * works without deps. Everything else in the config is read when the system
+ * is created; pass deps to recreate it when those change.
  */
 export function useParticles(
     ref: RefObject<VisualElement | null>,
@@ -533,6 +552,11 @@ export function useParticles(
             handle.dispose()
         }
     }, deps)
+
+    useEffect(() => {
+        const handle = innerRef.current
+        if (handle) retexturers.get(handle)?.(configRef.current)
+    })
 
     return facadeRef.current
 }

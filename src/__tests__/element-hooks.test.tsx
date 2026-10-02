@@ -68,4 +68,36 @@ describe("useParticles follows an element that mounts late", () => {
         await flushMicrotasks()
         expect(dispose).toHaveBeenCalledTimes(1)
     })
+
+    it("gives a running system a texture that loads after mount, without recreating it", async () => {
+        // `texture: useTexture("glow.png")` is null on the first render
+        const setTexture = vi.fn()
+        create.mockImplementation(() => ({ Dispose: dispose, SetEmitterTexture: setTexture, AliveCount: 0 }))
+        let setTex: (t: any) => void = () => {}
+        function App() {
+            const [tex, set] = useState<any>(null)
+            setTex = set
+            const ref = React.useRef(null)
+            useParticles(ref, { texture: tex, emitters: [{ rate: 1 }, { rate: 1, texture: "own" }] })
+            return <View ref={ref as any} />
+        }
+        const container = createMockContainer()
+        render(<App />, container as any)
+        await flushMicrotasks()
+        expect(create).toHaveBeenCalledTimes(1)
+        setTexture.mockClear()
+
+        setTex("glow")
+        await flushMicrotasks()
+        expect(create).toHaveBeenCalledTimes(1)
+        // The emitter with its own texture keeps it
+        expect(setTexture.mock.calls).toEqual([[0, "glow"]])
+
+        setTexture.mockClear()
+        setTex("glow")
+        await flushMicrotasks()
+        expect(setTexture).not.toHaveBeenCalled()
+        unmount(container as any)
+        await flushMicrotasks()
+    })
 })
