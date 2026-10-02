@@ -1730,19 +1730,26 @@ function reportUnstepped(hash: string) {
     console.error(`[onejs-react] shader program ${hash} reads the previous frame, frame or deltaTime, which needs OneJS ${STEPPED_ONEJS} or newer. Update OneJS.`);
 }
 
+const shaderValueEq = (a: any, b: any) => {
+    if (a === b) return true;
+    // An inline vector (`tint: [1, 0.5, 0, 1]`) is a new array every render
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => v === b[i]);
+};
+
 const shaderShallowEq = (a: any, b: any) => {
     if (a === b) return true;
     if (!a || !b) return false;
     const ka = Object.keys(a), kb = Object.keys(b);
     if (ka.length !== kb.length) return false;
-    return ka.every((k) => a[k] === b[k]);
+    return ka.every((k) => shaderValueEq(a[k], b[k]));
 };
 
 /**
  * Applies ShaderEffect props. Each setter is one interop crossing and the
  * element re-applies them before every blit, so ordering against shader/material
  * creation does not matter. Dictionaries are compared shallowly, which is enough
- * because effect props are flat numbers and strings.
+ * because effect props are flat numbers, strings and short number arrays.
  */
 function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     if (props.shader !== undefined && props.shader !== oldProps?.shader) el.SetShader(props.shader);

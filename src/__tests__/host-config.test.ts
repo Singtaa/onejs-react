@@ -1154,6 +1154,22 @@ describe('ShaderProgram uniforms', () => {
         ]);
     });
 
+    it('sends nothing when an inline array uniform rerenders with the same values', () => {
+        // `uniforms={{ tint: [1, 0.5, 0, 1] }}` makes a new array every render.
+        // Compared by identity, every render re-sent every uniform.
+        const p = program(['tint', 'warp'], 'inline-array');
+        const instance = createInstance('ojs-shaderfx',
+            { program: p, uniforms: { tint: [1, 0.5, 0, 1], warp: 2 } } as any, null as any, null, null);
+        const el = instance.element as any;
+        el.SetUniform.mockClear();
+        commitUpdate(instance, 'ojs-shaderfx', { program: p, uniforms: { tint: [1, 0.5, 0, 1], warp: 2 } } as any,
+            { program: p, uniforms: { tint: [1, 0.5, 0, 1], warp: 2 } } as any, null as any);
+        expect(el.SetUniform).not.toHaveBeenCalled();
+        commitUpdate(instance, 'ojs-shaderfx', { program: p, uniforms: { tint: [1, 0.5, 0, 1], warp: 2 } } as any,
+            { program: p, uniforms: { tint: [1, 0.6, 0, 1], warp: 2 } } as any, null as any);
+        expect(el.SetUniform).toHaveBeenCalledWith(0, 1, 0.6, 0, 1);
+    });
+
     it('gives a new program the uniforms and textures the caller set, though they did not change', () => {
         // A new program is a new material: the values set on the old one went
         // with it. A cart whose uniforms object stays the same across the

@@ -1096,8 +1096,11 @@ export interface ShaderProgramProps<Names extends string = string> extends Omit<
    * eject without changing.
    */
   program: CompiledProgram<Names>;
-  /** Uniform values by the name they were declared with. */
-  uniforms?: Partial<Record<Names, number | [number, number, number, number]>>;
+  /**
+   * Uniform values by the name they were declared with: a number, or up to
+   * four numbers for a vector (missing components are 0, so a float2 is `[x, y]`).
+   */
+  uniforms?: Partial<Record<Names, number | readonly number[]>>;
 }
 
 export interface ShaderEffectProps extends BaseProps {
