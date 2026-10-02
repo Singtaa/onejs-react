@@ -1011,3 +1011,127 @@ describe("useEventSync", () => {
         })
     })
 })
+
+// ===========================================================================
+// Polling loops after a deps change, and C# types as event sources
+// ===========================================================================
+
+describe("frame-sync polling across deps changes", () => {
+    it("useFrameSync (simple) keeps one polling loop after deps change", async () => {
+        let reads = 0
+        const container = createMockContainer()
+        function TestComponent({ id }: { id: number }) {
+            useFrameSync(() => { reads++; return id }, [id])
+            return null
+        }
+
+        render(<TestComponent id={1} />, container as any)
+        await flushMicrotasks()
+        for (let id = 2; id <= 4; id++) {
+            render(<TestComponent id={id} />, container as any)
+            await flushMicrotasks()
+            await advanceFrame()
+        }
+
+        reads = 0
+        await advanceFrame()
+        expect(reads).toBe(1)
+        unmount(container as any)
+    })
+
+    it("useFrameSync (selector) keeps one polling loop after deps change", async () => {
+        let reads = 0
+        const container = createMockContainer()
+        function TestComponent({ id }: { id: number }) {
+            useFrameSync(() => { reads++; return { id } }, (v) => [v.id], [id])
+            return null
+        }
+
+        render(<TestComponent id={1} />, container as any)
+        await flushMicrotasks()
+        for (let id = 2; id <= 4; id++) {
+            render(<TestComponent id={id} />, container as any)
+            await flushMicrotasks()
+            await advanceFrame()
+        }
+
+        reads = 0
+        await advanceFrame()
+        expect(reads).toBe(1)
+        unmount(container as any)
+    })
+})
+
+/** A C# type proxy: callable (so `new` works), with statics and events. */
+function createMockCSharpType(statics: Record<string, unknown>) {
+    const obj = createMockCSharpObject(statics)
+    const type = new Proxy(function MockType() {}, {
+        get(_target, prop) { return (obj.proxy as any)[prop] },
+    })
+    return { ...obj, proxy: type }
+}
+
+describe("useEventSync with a C# type as the source", () => {
+    it("reads the static property and subscribes to the static event", async () => {
+        const GameManager = createMockCSharpType({ Score: 10 })
+        let captured: unknown
+
+        function TestComponent() {
+            captured = useEventSync(GameManager.proxy, "Score")
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        expect(captured).toBe(10)
+        expect(GameManager.listenerCount("OnScoreChanged")).toBe(1)
+
+        GameManager.set("Score", 25)
+        GameManager.fire("OnScoreChanged")
+        await flushMicrotasks()
+        expect(captured).toBe(25)
+        unmount(container as any)
+    })
+})
+
+describe("useEventSync when the event does not exist", () => {
+    it("warns naming the missing event", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+        const player = { Health: 100 }  // no add_OnHealthChanged
+
+        function TestComponent() {
+            useEventSync(player, "Health")
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(String(warn.mock.calls[0][0])).toContain("OnHealthChanged")
+        warn.mockRestore()
+        unmount(container as any)
+    })
+    it("warns instead of throwing when the C# side rejects the subscription", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+        const player = {
+            __csType: "MyGame.Player",
+            Health: 100,
+            add_OnHealthChanged() { throw new Error("[QuickJS] Method not found") },
+        }
+
+        function TestComponent() {
+            useEventSync(player, "Health")
+            return null
+        }
+
+        const container = createMockContainer()
+        expect(() => render(<TestComponent />, container as any)).not.toThrow()
+        await flushMicrotasks()
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(String(warn.mock.calls[0][0])).toContain("MyGame.Player")
+        warn.mockRestore()
+        unmount(container as any)
+    })
+})

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useReducer } from "react"
 
 // QuickJS environment declarations
 declare function requestAnimationFrame(callback: (time: number) => void): number;
+declare function cancelAnimationFrame(id: number): void;
 
 /**
  * Syncs a value from C# (or any external source) to React state, checking every frame.
@@ -80,7 +81,6 @@ function useFrameSyncSimple<T>(getter: () => T, deps: readonly unknown[]): T {
     const [value, setValue] = useState<T>(getInitialValue)
     const lastValueRef = useRef<T>(value)
     const getterRef = useRef(getter)
-    const runningRef = useRef(false)
 
     getterRef.current = getter
 
@@ -93,10 +93,13 @@ function useFrameSyncSimple<T>(getter: () => T, deps: readonly unknown[]): T {
             // Getter failed, keep current value
         }
 
-        runningRef.current = true
+        // Local to this effect run: a ref shared across runs let the loop
+        // from before a deps change see the new run's flag and keep going.
+        let active = true
+        let frame = 0
 
         const check = () => {
-            if (!runningRef.current) return
+            if (!active) return
 
             try {
                 const current = getterRef.current()
@@ -108,15 +111,14 @@ function useFrameSyncSimple<T>(getter: () => T, deps: readonly unknown[]): T {
                 // Getter might fail if object was destroyed: that's ok
             }
 
-            if (runningRef.current) {
-                requestAnimationFrame(check)
-            }
+            if (active) frame = requestAnimationFrame(check)
         }
 
-        requestAnimationFrame(check)
+        frame = requestAnimationFrame(check)
 
         return () => {
-            runningRef.current = false
+            active = false
+            cancelAnimationFrame(frame)
         }
     }, deps)
 
@@ -133,7 +135,6 @@ function useFrameSyncSelect<T>(
     const getterRef = useRef(getter)
     const selectRef = useRef(select)
     const lastSelectedRef = useRef<readonly unknown[]>([])
-    const runningRef = useRef(false)
     const initializedRef = useRef(false)
 
     getterRef.current = getter
@@ -158,10 +159,13 @@ function useFrameSyncSelect<T>(
             // Getter or select failed
         }
 
-        runningRef.current = true
+        // Local to this effect run: a ref shared across runs let the loop
+        // from before a deps change see the new run's flag and keep going.
+        let active = true
+        let frame = 0
 
         const check = () => {
-            if (!runningRef.current) return
+            if (!active) return
 
             try {
                 const current = getterRef.current()
@@ -178,15 +182,14 @@ function useFrameSyncSelect<T>(
                 // Getter or select might fail if object was destroyed
             }
 
-            if (runningRef.current) {
-                requestAnimationFrame(check)
-            }
+            if (active) frame = requestAnimationFrame(check)
         }
 
-        requestAnimationFrame(check)
+        frame = requestAnimationFrame(check)
 
         return () => {
-            runningRef.current = false
+            active = false
+            cancelAnimationFrame(frame)
         }
     }, deps)
 
@@ -238,7 +241,6 @@ export function useFrameSyncWith<T>(
     const lastValueRef = useRef<T>(value)
     const getterRef = useRef(getter)
     const isEqualRef = useRef(isEqual)
-    const runningRef = useRef(false)
 
     getterRef.current = getter
     isEqualRef.current = isEqual
@@ -252,10 +254,13 @@ export function useFrameSyncWith<T>(
             // Getter failed, keep current value
         }
 
-        runningRef.current = true
+        // Local to this effect run: a ref shared across runs let the loop
+        // from before a deps change see the new run's flag and keep going.
+        let active = true
+        let frame = 0
 
         const check = () => {
-            if (!runningRef.current) return
+            if (!active) return
 
             try {
                 const current = getterRef.current()
@@ -267,15 +272,14 @@ export function useFrameSyncWith<T>(
                 // Getter might fail if object was destroyed
             }
 
-            if (runningRef.current) {
-                requestAnimationFrame(check)
-            }
+            if (active) frame = requestAnimationFrame(check)
         }
 
-        requestAnimationFrame(check)
+        frame = requestAnimationFrame(check)
 
         return () => {
-            runningRef.current = false
+            active = false
+            cancelAnimationFrame(frame)
         }
     }, deps)
 
@@ -393,8 +397,8 @@ export type EventSource = [source: object, eventName: string]
  * Zero work when nothing changes: the getter is only called when an event fires.
  *
  * Use this instead of `useFrameSync` when C# fires events on state change.
- * `useFrameSync` polls every frame (causing GC pressure); `useEventSync` does
- * zero work between events.
+ * `useFrameSync` reads its getter every frame; `useEventSync` does zero work
+ * between events.
  *
  * **Convention form**: Derives the getter and event name from a property name.
  * `useEventSync(source, "Health")` subscribes to `source.add_OnHealthChanged`
@@ -431,16 +435,19 @@ export type EventSource = [source: object, eventName: string]
  * )
  */
 export function useEventSync<T>(getter: () => T, events: EventSource[], deps?: readonly unknown[]): T
-export function useEventSync(source: object, propertyName: string, deps?: readonly unknown[]): unknown
+export function useEventSync<S extends object, K extends keyof S & string>(source: S | null | undefined, propertyName: K, deps?: readonly unknown[]): S[K]
+export function useEventSync(source: object | null | undefined, propertyName: string, deps?: readonly unknown[]): unknown
 export function useEventSync<T>(
-    sourceOrGetter: object | (() => T),
+    sourceOrGetter: object | null | undefined | (() => T),
     propOrEvents: string | EventSource[],
     depsOrNothing?: readonly unknown[]
 ): T {
     // Safe despite the conditional: a call site is written against one of the
     // two overloads and never switches shape between renders, and both
     // branches call the same hook with the same internal hook order anyway.
-    if (typeof sourceOrGetter === "function") {
+    // The form is told by the second argument: a C# type proxy is callable
+    // (so `new` works), so a function first argument can still be a source.
+    if (typeof propOrEvents !== "string") {
         // eslint-disable-next-line react-hooks/rules-of-hooks
         return useEventSyncImpl(
             sourceOrGetter as () => T,
@@ -457,6 +464,11 @@ export function useEventSync<T>(
         source ? [[source, `On${propName}Changed`]] : [],
         depsOrNothing ?? []
     )
+}
+
+function describeSource(source: object): string {
+    const typeName = (source as { __csType?: unknown }).__csType
+    return typeof typeName === "string" && typeName ? typeName : "the source object"
 }
 
 function useEventSyncImpl<T>(
@@ -478,10 +490,15 @@ function useEventSyncImpl<T>(
         }
 
         for (const [source, eventName] of events) {
+            // A C# proxy hands back an add_ function for any name and throws
+            // when it is called, so a missing event surfaces in the catch.
             try {
                 const addFn = (source as any)[`add_${eventName}`]
-                if (typeof addFn === "function") addFn(handler)
-            } catch {}
+                if (typeof addFn !== "function") throw new TypeError(`no add_${eventName}`)
+                addFn(handler)
+            } catch {
+                console.warn(`useEventSync: ${describeSource(source)} has no event "${eventName}", so this value will never update. Declare \`public event Action ${eventName}\` in C#, or pass the event names explicitly: useEventSync(getter, [[source, "EventName"]]).`)
+            }
         }
 
         return () => {
