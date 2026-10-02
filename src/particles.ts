@@ -464,17 +464,34 @@ export function createParticles(element: VisualElement, config: ParticlesConfig)
         dispose: () => {
             if (disposed) return
             disposed = true
+            liveSystems.delete(handle)
             sys.Dispose()
         },
         get aliveCount() { return disposed ? 0 : sys.AliveCount },
     }
 
-    // Hot-reload/shutdown safety net for systems created outside React effects.
-    // Dispose is idempotent, so double-disposal via both paths is harmless.
-    const teardown = (globalThis as { __onTeardown?: (cb: () => void) => void }).__onTeardown
-    if (typeof teardown === "function") teardown(handle.dispose)
+    liveSystems.add(handle)
+    ensureTeardownHook()
 
     return handle
+}
+
+// Hot-reload/shutdown safety net for systems created outside React effects.
+// One hook disposes whatever is still live: a hook per system would hold every
+// disposed system's proxy (and its C# arrays) until the context dies, since the
+// bootstrap has no way to unregister one. Dispose is idempotent, so a system
+// disposed by both paths is harmless.
+const liveSystems = new Set<ParticlesHandle>()
+let teardownHookOwner: unknown = null
+
+function ensureTeardownHook(): void {
+    const onTeardown = (globalThis as { __onTeardown?: (cb: () => void) => void }).__onTeardown
+    if (typeof onTeardown !== "function" || teardownHookOwner === onTeardown) return
+    teardownHookOwner = onTeardown
+    onTeardown(() => {
+        teardownHookOwner = null
+        for (const system of [...liveSystems]) system.dispose()
+    })
 }
 
 /**

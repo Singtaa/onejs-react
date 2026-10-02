@@ -276,6 +276,22 @@ describe("createParticles handle", () => {
             delete (globalThis as any).__onTeardown
         }
     })
+    it("does not keep disposed systems alive through the teardown hook", () => {
+        const hooks: Array<() => void> = []
+        ;(globalThis as any).__onTeardown = (cb: () => void) => hooks.push(cb)
+        try {
+            for (let i = 0; i < 100; i++) createParticles(element, config).dispose()
+            expect(hooks.length).toBeLessThanOrEqual(1)
+
+            const live = createParticles(element, config)
+            const disposeCalls = sys.Dispose.mock.calls.length
+            hooks.forEach((h) => h())
+            expect(sys.Dispose).toHaveBeenCalledTimes(disposeCalls + 1)
+            expect(live.aliveCount).toBe(0)
+        } finally {
+            delete (globalThis as any).__onTeardown
+        }
+    })
 })
 
 describe("the emitter's plain names", () => {
