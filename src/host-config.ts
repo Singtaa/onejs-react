@@ -1597,8 +1597,13 @@ export const hostConfig = {
     hideTextInstance(textInstance: TextInstance) {
         textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
     },
-    unhideInstance(instance: Instance, _props: BaseProps) {
-        instance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.Flex;
+    unhideInstance(instance: Instance, props: BaseProps) {
+        // Restore what the element asked for rather than forcing Flex: its own
+        // display: "none", or no inline value so its USS classes decide.
+        const own = props.style?.display;
+        instance.element.style.display = own === "none"
+            ? CS.UnityEngine.UIElements.DisplayStyle.None
+            : own === "flex" ? CS.UnityEngine.UIElements.DisplayStyle.Flex : undefined;
     },
     unhideTextInstance(textInstance: TextInstance, _text: string) {
         textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.Flex;

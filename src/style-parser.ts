@@ -168,6 +168,7 @@ const ENUM_MAPPINGS: Record<string, { enum: () => Record<string, number>, values
             "center": "Center",
             "space-between": "SpaceBetween",
             "space-around": "SpaceAround",
+            "space-evenly": "SpaceEvenly",
         }
     },
     position: {

@@ -77,7 +77,7 @@ export interface ViewStyle {
   alignItems?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
   alignSelf?: 'auto' | 'flex-start' | 'flex-end' | 'center' | 'stretch';
   alignContent?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
-  justifyContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around';
+  justifyContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
 
   // Positioning
   position?: 'relative' | 'absolute';
@@ -472,14 +472,22 @@ export interface BaseProps {
   onPointerCaptureOut?: PointerEventHandler;
 
   // Mouse events
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerDown. */
   onMouseDown?: MouseEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerUp. */
   onMouseUp?: MouseEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerMove. */
   onMouseMove?: MouseEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerEnter. */
   onMouseEnter?: MouseEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerLeave. */
   onMouseLeave?: MouseEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerEnter. */
   onMouseOver?: MouseEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerLeave. */
   onMouseOut?: MouseEventHandler;
   onWheel?: WheelEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerDown and check e.button === 1. */
   onContextClick?: MouseEventHandler;
 
   // Focus events
@@ -493,13 +501,19 @@ export interface BaseProps {
   onKeyUp?: KeyEventHandler;
 
   // Input events
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onChange. */
   onInput?: ChangeEventHandler;
 
   // Drag events
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
   onDragEnter?: DragEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
   onDragLeave?: DragEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
   onDragUpdated?: DragEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
   onDragPerform?: DragEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
   onDragExited?: DragEventHandler;
 
   // Geometry events
@@ -511,12 +525,17 @@ export interface BaseProps {
   onNavigationCancel?: NavigationEventHandler;
 
   // Tooltip
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTooltip?: () => void;
 
   // Transition events
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionRun?: TransitionEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionStart?: TransitionEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionEnd?: TransitionEventHandler;
+  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionCancel?: TransitionEventHandler;
 
   // Picking mode: controls whether the element receives pointer events
@@ -679,7 +698,7 @@ export interface ImageProps extends BaseProps {
   scaleMode?: 'StretchToFill' | 'ScaleAndCrop' | 'ScaleToFit';
   /** Tint color applied to the image */
   tintColor?: string;
-  /** Source rectangle within the texture (normalized 0-1 coordinates) */
+  /** Region of the texture to show, in texture pixels from the top left. Not for sprites. */
   sourceRect?: { x: number; y: number; width: number; height: number };
   /** UV coordinates for the image */
   uv?: { x: number; y: number; width: number; height: number };

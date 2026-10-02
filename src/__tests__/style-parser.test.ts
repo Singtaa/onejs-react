@@ -321,3 +321,9 @@ describe("style-parser", () => {
         })
     })
 })
+
+describe('justifyContent space-evenly', () => {
+    it('maps to Justify.SpaceEvenly', () => {
+        expect(parseStyleValue('justifyContent', 'space-evenly')).toBe(5)
+    })
+})

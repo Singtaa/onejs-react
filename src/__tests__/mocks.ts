@@ -540,7 +540,7 @@ export function createMockCS() {
                 FlexDirection: { Column: 0, ColumnReverse: 1, Row: 2, RowReverse: 3 },
                 Wrap: { NoWrap: 0, Wrap: 1, WrapReverse: 2 },
                 Align: { Auto: 0, FlexStart: 1, Center: 2, FlexEnd: 3, Stretch: 4 },
-                Justify: { FlexStart: 0, Center: 1, FlexEnd: 2, SpaceBetween: 3, SpaceAround: 4 },
+                Justify: { FlexStart: 0, Center: 1, FlexEnd: 2, SpaceBetween: 3, SpaceAround: 4, SpaceEvenly: 5 },
                 Position: { Relative: 0, Absolute: 1 },
                 Overflow: { Visible: 0, Hidden: 1 },
                 DisplayStyle: { Flex: 0, None: 1 },

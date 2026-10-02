@@ -724,3 +724,17 @@ describe('components', () => {
         });
     });
 });
+
+describe('FrostedGlass tint', () => {
+    it('reads every colour form style accepts', async () => {
+        const { frostedGlassTint } = await import('../components');
+        const red = frostedGlassTint('#ff0000') as unknown as MockColor;
+        expect([red.r, red.g, red.b, red.a]).toEqual([1, 0, 0, 1]);
+        const named = frostedGlassTint('white') as unknown as MockColor;
+        expect([named.r, named.g, named.b]).toEqual([1, 1, 1]);
+        const rgba = frostedGlassTint('rgba(255, 0, 0, 0.5)') as unknown as MockColor;
+        expect([rgba.r, rgba.a]).toEqual([1, 0.5]);
+        const fallback = frostedGlassTint(undefined) as unknown as MockColor;
+        expect(fallback.a).toBeCloseTo(0.15);
+    });
+});

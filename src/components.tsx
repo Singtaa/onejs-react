@@ -35,6 +35,7 @@ import type {
 
 import { TextureFXBuilder, buildTextureFX, type TextureFXBuild } from './texturefx';
 import { useRowPortals } from './rows';
+import { parseColor } from './style-parser';
 
 declare const CS: any
 declare function useExtensions(typeRef: any): void
@@ -359,13 +360,13 @@ export const TreeView = forwardRef<VisualElement, TreeViewProps>((props, ref) =>
 });
 TreeView.displayName = 'TreeView';
 
+/** FrostedGlass's tint: any colour `style` accepts, or a faint white. Internal. */
+export function frostedGlassTint(tint: string | undefined) {
+  return (tint ? parseColor(tint) : null) ?? new CS.UnityEngine.Color(1, 1, 1, 0.15)
+}
+
 export const FrostedGlass = forwardRef<FrostedGlassElement, FrostedGlassProps>(({ blur, tint, ...rest }, ref) => {
-  const parsedTint = useMemo(() => {
-    if (!tint) return new CS.UnityEngine.Color(1, 1, 1, 0.15)
-    const m = tint.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)/)
-    if (m) return new CS.UnityEngine.Color(+m[1] / 255, +m[2] / 255, +m[3] / 255, m[4] != null ? +m[4] : 1)
-    return new CS.UnityEngine.Color(1, 1, 1, 0.15)
-  }, [tint])
+  const parsedTint = useMemo(() => frostedGlassTint(tint), [tint])
   return <ojs-frostedglass ref={ref} blurRadius={blur ?? 10} tintColor={parsedTint} {...rest} />;
 });
 FrostedGlass.displayName = 'FrostedGlass';

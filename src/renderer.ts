@@ -1,5 +1,5 @@
 import Reconciler from 'react-reconciler';
-import type { ReactNode, ReactPortal } from 'react';
+import { version as reactVersion, type ReactNode, type ReactPortal } from 'react';
 import { hostConfig, type Container } from './host-config';
 import type { RenderContainer } from './types';
 
@@ -12,7 +12,7 @@ const reconciler = Reconciler(hostConfig);
 // This enables React DevTools to inspect the component tree
 reconciler.injectIntoDevTools({
     bundleType: 1, // 0 for prod, 1 for dev
-    version: '19.0.0',
+    version: reactVersion,
     rendererPackageName: 'onejs-react',
 });
 
@@ -61,7 +61,7 @@ export function render(element: ReactNode, container: RenderContainer): void {
   if (!root) {
     root = createContainer(
       container as Container,
-      0, // LegacyRoot (0) vs ConcurrentRoot (1)
+      0, // the root tag; react-reconciler 0.31 makes every root concurrent whatever this says
       null, // hydrationCallbacks
       false, // isStrictMode
       null, // concurrentUpdatesByDefaultOverride
@@ -190,6 +190,6 @@ export function getDebugInfo() {
     return {
         activeRoots: roots.size,
         reconcilerVersion: '0.31.0',
-        reactVersion: '19.0.0',
+        reactVersion,
     };
 }

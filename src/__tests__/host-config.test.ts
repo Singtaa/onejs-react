@@ -809,14 +809,25 @@ describe('host-config', () => {
             expect(instance.element.style.display).toBe(DisplayStyle.None);
         });
 
-        it('unhideInstance sets display to DisplayStyle.Flex', () => {
+        it('unhideInstance clears the inline display, so USS decides again', () => {
             const instance = createInstance('ojs-view', {});
             const DisplayStyle = (globalThis as any).CS.UnityEngine.UIElements.DisplayStyle;
             instance.element.style.display = DisplayStyle.None;
 
             unhideInstance(instance, {});
 
-            expect(instance.element.style.display).toBe(DisplayStyle.Flex);
+            expect(instance.element.style.display).toBeUndefined();
+        });
+
+        it('unhideInstance restores the element\'s own display: none', () => {
+            const props = { style: { display: 'none' } } as BaseProps;
+            const instance = createInstance('ojs-view', props);
+            const DisplayStyle = (globalThis as any).CS.UnityEngine.UIElements.DisplayStyle;
+
+            hideInstance(instance);
+            unhideInstance(instance, props);
+
+            expect(instance.element.style.display).toBe(DisplayStyle.None);
         });
     });
 
