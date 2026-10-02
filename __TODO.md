@@ -99,31 +99,21 @@ Test type errors fixed by:
 - Creating wrapper functions for test helpers
 
 ### 5. Error Boundaries ✅
-Added `ErrorBoundary` component with:
+`ErrorBoundary` follows react-error-boundary's shape:
 - Default fallback UI
-- Custom fallback (ReactNode or function with error details)
-- `onError` callback for logging
-- `reset()` method to recover
+- `fallbackRender={({ error, errorInfo, reset }) => ...}` (`errorInfo` is null on the first fallback render)
+- `resetKeys`: resets when an entry changes
+- `onError` and `onReset` callbacks; the root logs each caught error once
+- `fallback` (node or `(error, errorInfo) => node`) kept, deprecated
 - `formatError()` helper function
 
 ```tsx
 import { ErrorBoundary } from "onejs-react"
 
-// Basic usage
-<ErrorBoundary>
-  <MyComponent />
-</ErrorBoundary>
-
-// With custom fallback
-<ErrorBoundary fallback={<Label>Error!</Label>}>
-  <MyComponent />
-</ErrorBoundary>
-
-// With error details
-<ErrorBoundary fallback={(error, info) => (
-  <Label>Error: {error.message}</Label>
+<ErrorBoundary resetKeys={[levelId]} fallbackRender={({ error, reset }) => (
+    <Button text={`${error.message}: retry`} onClick={reset} />
 )}>
-  <MyComponent />
+    <Level id={levelId} />
 </ErrorBoundary>
 ```
 

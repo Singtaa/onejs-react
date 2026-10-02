@@ -1,153 +1,157 @@
 import { Component, type ReactNode, type ErrorInfo } from "react"
 import { View, Label } from "./components"
 
-declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void }
+/** What `fallbackRender` receives. */
+export interface FallbackProps {
+    /** The error a descendant threw. */
+    error: Error
+    /**
+     * React's details about the throw, including `componentStack`. Null on the
+     * first fallback render: React renders the fallback before it hands the
+     * boundary this object, then renders again once it has.
+     */
+    errorInfo: ErrorInfo | null
+    /** Clear the error and render the children again. */
+    reset: () => void
+}
+
+/** Why the boundary reset, as `onReset` receives it. */
+export type ErrorBoundaryResetDetails =
+    | { reason: "imperative-api" }
+    | { reason: "keys"; prev: readonly unknown[]; next: readonly unknown[] }
 
 export interface ErrorBoundaryProps {
-    children: ReactNode
+    children?: ReactNode
     /**
-     * Optional fallback to render when an error occurs.
-     * Can be a ReactNode or a function that receives error details.
+     * Render this instead of the children after one of them throws. Call
+     * `reset` to try the children again, typically from a retry button.
+     *
+     * @example
+     * <ErrorBoundary fallbackRender={({ error, reset }) => (
+     *     <Button text={`${error.message}: retry`} onClick={reset} />
+     * )}>
      */
-    fallback?: ReactNode | ((error: Error, errorInfo: ErrorInfo) => ReactNode)
+    fallbackRender?: (props: FallbackProps) => ReactNode
     /**
-     * Optional callback when an error is caught.
-     * Use this for logging or error reporting.
+     * When any entry changes (compared with `Object.is`), a boundary showing
+     * its fallback resets and renders the children again. Pass what the
+     * failure depended on, such as the level or the item id.
      */
+    resetKeys?: readonly unknown[]
+    /**
+     * @deprecated Use `fallbackRender`, which also receives `reset`. A node
+     * still renders as is; a function still receives `(error, errorInfo)`,
+     * with `errorInfo` null on the first fallback render.
+     */
+    fallback?: ReactNode | ((error: Error, errorInfo: ErrorInfo | null) => ReactNode)
+    /** Called once per caught error, for reporting. The runtime already logs it. */
     onError?: (error: Error, errorInfo: ErrorInfo) => void
-    /**
-     * Optional callback when the boundary resets.
-     */
-    onReset?: () => void
+    /** Called after the boundary resets, from `reset` or from a changed `resetKeys`. */
+    onReset?: (details: ErrorBoundaryResetDetails) => void
 }
 
 interface ErrorBoundaryState {
-    hasError: boolean
     error: Error | null
     errorInfo: ErrorInfo | null
 }
 
+const cleared: ErrorBoundaryState = { error: null, errorInfo: null }
+
+function keysChanged(prev: readonly unknown[] = [], next: readonly unknown[] = []): boolean {
+    return prev.length !== next.length || prev.some((key, i) => !Object.is(key, next[i]))
+}
+
 /**
- * Error boundary component for catching and displaying React errors.
+ * Catches errors thrown while rendering its children and shows a fallback
+ * instead of unmounting the whole tree. Each caught error is logged once, by
+ * the root (see `render`).
  *
- * @example Basic usage with default fallback
+ * @example Retry from the fallback
  * ```tsx
- * <ErrorBoundary>
- *   <MyComponent />
- * </ErrorBoundary>
- * ```
- *
- * @example Custom fallback UI
- * ```tsx
- * <ErrorBoundary fallback={<Label>Something went wrong</Label>}>
- *   <MyComponent />
- * </ErrorBoundary>
- * ```
- *
- * @example Fallback function with error details
- * ```tsx
- * <ErrorBoundary
- *   fallback={(error, info) => (
+ * <ErrorBoundary fallbackRender={({ error, reset }) => (
  *     <View>
- *       <Label>Error: {error.message}</Label>
- *       <Label>Stack: {info.componentStack}</Label>
+ *         <Label text={error.message} />
+ *         <Button text="Retry" onClick={reset} />
  *     </View>
- *   )}
- * >
- *   <MyComponent />
+ * )}>
+ *     <Inventory />
  * </ErrorBoundary>
  * ```
  *
- * @example Error logging
+ * @example Start over when the input changes
  * ```tsx
- * <ErrorBoundary onError={(error, info) => logError(error, info)}>
- *   <MyComponent />
+ * <ErrorBoundary resetKeys={[levelId]} fallbackRender={() => <Label text="Level failed to load" />}>
+ *     <Level id={levelId} />
  * </ErrorBoundary>
  * ```
+ *
+ * With neither `fallbackRender` nor `fallback`, a red panel shows the message.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    constructor(props: ErrorBoundaryProps) {
-        super(props)
-        this.state = {
-            hasError: false,
-            error: null,
-            errorInfo: null,
-        }
-    }
+    state: ErrorBoundaryState = cleared
 
     static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-        return { hasError: true, error }
+        return { error, errorInfo: null }
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+        // No logging here: the root's onCaughtError (renderer.ts) logs every
+        // caught error once, for this boundary and for any other.
         this.setState({ errorInfo })
-
-        // Log to console with helpful formatting
-        console.error("[OneJS React] Error caught by ErrorBoundary:")
-        console.error("  Error:", error.message)
-        if (error.stack) {
-            console.error("  Stack:", error.stack)
-        }
-        if (errorInfo.componentStack) {
-            console.error("  Component Stack:", errorInfo.componentStack)
-        }
-
-        // Call user-provided error handler
         this.props.onError?.(error, errorInfo)
     }
 
+    componentDidUpdate(prevProps: ErrorBoundaryProps, prevState: ErrorBoundaryState): void {
+        // Only a boundary that was already showing its fallback resets. The
+        // update that catches the error can carry new keys too, and resetting
+        // then would rethrow straight away.
+        if (prevState.error === null || this.state.error === null) return
+        if (!keysChanged(prevProps.resetKeys, this.props.resetKeys)) return
+        this.setState(cleared)
+        this.props.onReset?.({ reason: "keys", prev: prevProps.resetKeys ?? [], next: this.props.resetKeys ?? [] })
+    }
+
     /**
-     * Reset the error boundary to try rendering children again.
-     * Useful after the underlying issue has been fixed.
+     * Clear the error and render the children again. `fallbackRender` receives
+     * this as `reset`, which is the way to call it.
      */
     reset = (): void => {
-        this.setState({
-            hasError: false,
-            error: null,
-            errorInfo: null,
-        })
-        this.props.onReset?.()
+        if (this.state.error === null) return
+        this.setState(cleared)
+        this.props.onReset?.({ reason: "imperative-api" })
     }
 
     render(): ReactNode {
-        if (this.state.hasError) {
-            const { fallback } = this.props
-            const { error, errorInfo } = this.state
+        const { error, errorInfo } = this.state
+        if (error === null) return this.props.children
 
-            // Render custom fallback if provided
-            if (fallback !== undefined) {
-                if (typeof fallback === "function") {
-                    return fallback(error!, errorInfo!)
-                }
-                return fallback
-            }
+        const { fallbackRender, fallback } = this.props
+        if (fallbackRender) return fallbackRender({ error, errorInfo, reset: this.reset })
+        if (typeof fallback === "function") return fallback(error, errorInfo)
+        if (fallback !== undefined) return fallback
 
-            // Default fallback UI
-            return (
-                <View style={{
-                    padding: 16,
-                    backgroundColor: "#2d1b1b",
-                    borderColor: "#ff4444",
-                    borderWidth: 2,
+        return (
+            <View style={{
+                padding: 16,
+                backgroundColor: "#2d1b1b",
+                borderColor: "#ff4444",
+                borderWidth: 2,
+            }}>
+                <Label style={{
+                    color: "#ff6666",
+                    fontSize: 16,
+                    marginBottom: 8,
                 }}>
-                    <Label style={{
-                        color: "#ff6666",
-                        fontSize: 16,
-                        marginBottom: 8,
-                    }}>
-                        Something went wrong
-                    </Label>
-                    <Label style={{
-                        color: "#ffaaaa",
-                        fontSize: 12,
-                    }}>
-                        {error?.message || "Unknown error"}
-                    </Label>
-                </View>
-            )
-        }
-
-        return this.props.children
+                    Something went wrong
+                </Label>
+                <Label style={{
+                    color: "#ffaaaa",
+                    fontSize: 12,
+                }}>
+                    {error.message || "Unknown error"}
+                </Label>
+            </View>
+        )
     }
 }
 

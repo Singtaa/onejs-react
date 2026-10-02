@@ -386,7 +386,7 @@ Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `
 
 ## Other exports
 
-- `ErrorBoundary`, `formatError`: catch render errors with a fallback (`fallback`, `onError`, `reset()`)
+- `ErrorBoundary`, `formatError`: catch render errors and show `fallbackRender={({ error, errorInfo, reset }) => ...}` instead; `resetKeys` resets it when an entry changes, `onError` and `onReset` report. `errorInfo` is null on the first fallback render. The root logs each caught error once. `fallback` (a node, or `(error, errorInfo) => node`) still works and is deprecated.
 - `useParticles(ref, config)` / `createParticles`: C#-owned 2D particle systems (see the OneJS runtime's `Particles/`)
 - `Transform2D`, `useVectorContent`: transforms and auto-repaint for raw `Painter2D` drawing
 - `TextureFXBuilder`, `buildTextureFX`: the builder behind `<TextureFX build={...}>`

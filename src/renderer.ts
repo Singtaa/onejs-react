@@ -38,6 +38,19 @@ const createContainer = reconciler.createContainer as unknown as (
   transitionCallbacks: null
 ) => ReturnType<typeof reconciler.createContainer>;
 
+// The one log line for an error a boundary caught, whichever boundary caught
+// it. The message, the JS stack and the component stack go out in a single
+// console.error, so the Unity Console shows one entry per error rather than
+// one per part.
+function logCaughtError(error: unknown, errorInfo: unknown): void {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const componentStack = (errorInfo as { componentStack?: string } | null)?.componentStack;
+  const parts = [`[OneJS React] Error caught by an error boundary: ${err.message}`];
+  if (err.stack) parts.push(err.stack);
+  if (componentStack) parts.push(`Component stack:${componentStack}`);
+  console.error(parts.join('\n'));
+}
+
 // Register unmountAll as a runtime teardown hook exactly once. The OneJS runtime
 // (QuickJSUIBridge.Dispose) invokes __runTeardown() right before destroying the JS
 // context on hot reload / stop. Unmounting here fires useEffect/useLayoutEffect
@@ -67,7 +80,7 @@ export function render(element: ReactNode, container: RenderContainer): void {
       null, // concurrentUpdatesByDefaultOverride
       '', // identifierPrefix
       (error) => console.error('[OneJS React] Uncaught error:', error),
-      (error) => console.error('[OneJS React] Error caught by boundary:', error),
+      logCaughtError,
       (error) => console.error('[OneJS React] Recoverable error:', error),
       null // transitionCallbacks
     );

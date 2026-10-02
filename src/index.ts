@@ -28,7 +28,7 @@ export type { PortalProps } from './portal';
 
 // Error Handling
 export { ErrorBoundary, formatError } from './error-boundary';
-export type { ErrorBoundaryProps } from './error-boundary';
+export type { ErrorBoundaryProps, FallbackProps, ErrorBoundaryResetDetails } from './error-boundary';
 
 // Responsive Design
 export {
