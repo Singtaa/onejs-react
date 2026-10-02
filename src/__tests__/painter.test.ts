@@ -119,7 +119,7 @@ describe("Painter colours as hex", () => {
     })
 
     it("names a colour it cannot read", () => {
-        expect(() => new Painter().fillColor("red")).toThrow(/not a colour/)
+        expect(() => new Painter().fillColor("red?")).toThrow(/Painter: "red\?" is not a colour/)
     })
 
     it("draws a circle as a full arc", () => {

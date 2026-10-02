@@ -54,6 +54,10 @@ export type { PathSink } from './transform';
 // Batched vector drawing: single-crossing command buffer (see painter.ts)
 export { Painter, drawing, useDrawing, batchedVisualContent, useBatchedVectorContent } from './painter';
 
+// Colours
+export { toRGBA, NAMED_COLORS } from './color';
+export type { ColorInput, RGBA } from './color';
+
 // Frames
 export { useFrame, setFrameClock } from './frame';
 export type { FrameClock } from './frame';
@@ -79,7 +83,7 @@ export type {
 export { ShaderEffect, ShaderProgram, TextureFX, Flame } from './components';
 export type { FlameProps, TextureFXProps } from './components';
 export { TextureFXBuilder, buildTextureFX, MAX_TEXTUREFX_LAYERS } from './texturefx';
-export type { TextureFXBuild, LayerHandle, NoiseOptions, ShapeOptions, BlendMode, ShapeKind, SDFKind, SDFParams, SDFCommonOptions } from './texturefx';
+export type { TextureFXBuild, LayerHandle, TextureFXNoise, TextureFXBlend, TextureFXStop, TextureFXStops, NoiseOptions, ShapeOptions, BlendMode, ShapeKind, SDFKind, SDFParams, SDFCommonOptions } from './texturefx';
 export type { ShaderEffectProps, ShaderProgramProps, CompiledProgram, EncodedProgram } from './types';
 
 // Sync Hooks & C# Interop Utilities

@@ -7,6 +7,7 @@
 // Declaring the dependency here means the package carries its own requirement.
 
 import type { ReactNode } from 'react';
+import type { ColorInput } from './color';
 
 /**
  * Length value: can be a number (pixels) or string with unit
@@ -835,8 +836,8 @@ export interface ImageElement extends VisualElement {
 export interface FrostedGlassProps extends BaseProps {
   /** Blur radius in screen pixels. Higher = more blurry. Default: 10. */
   blur?: number;
-  /** Tint color overlaid on the blurred background (CSS color string). */
-  tint?: string;
+  /** Tint overlaid on the blurred background: any colour OneJS takes. */
+  tint?: ColorInput;
 }
 
 /** Internal props for the ojs-frostedglass intrinsic element */
@@ -1114,8 +1115,8 @@ export interface ShaderEffectProps extends BaseProps {
   vectors?: Record<string, [number, number, number, number]>;
   /** float4 array properties, as flat arrays of 4 floats per element. */
   vectorArrays?: Record<string, number[]>;
-  /** Colour properties as CSS hex strings. */
-  colors?: Record<string, string>;
+  /** Colour properties: any colour OneJS takes (hex, rgb(), a CSS name, [r, g, b, a]). */
+  colors?: Record<string, ColorInput>;
   /**
    * Texture properties. A string names a built-in procedural texture
    * ("noise", "noise:2", "flame-mask", "radial-mask"); anything else is
@@ -1123,7 +1124,7 @@ export interface ShaderEffectProps extends BaseProps {
    */
   textures?: Record<string, string | unknown>;
   /** Gradient stops built into a 256x1 ramp texture. Alpha is carried through. */
-  ramp?: string[];
+  ramp?: ColorInput[];
   /** Shader property the ramp binds to. Default "_Ramp". */
   rampProperty?: string;
   /** Freeze the effect's clock. */

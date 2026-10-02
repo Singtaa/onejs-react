@@ -5,6 +5,8 @@
  * into Unity UI Toolkit compatible values.
  */
 
+import { tryRGBA } from "./color"
+
 // Unity UIElements types accessed via CS global
 declare const CS: {
     UnityEngine: {
@@ -53,34 +55,6 @@ interface CSColor {
 interface CSLength {
     value: number;
     unit: number;
-}
-
-// Named CSS colors (common subset)
-const NAMED_COLORS: Record<string, [number, number, number, number]> = {
-    transparent: [0, 0, 0, 0],
-    black: [0, 0, 0, 1],
-    white: [1, 1, 1, 1],
-    red: [1, 0, 0, 1],
-    green: [0, 0.502, 0, 1],  // CSS green is #008000
-    blue: [0, 0, 1, 1],
-    yellow: [1, 1, 0, 1],
-    cyan: [0, 1, 1, 1],
-    magenta: [1, 0, 1, 1],
-    orange: [1, 0.647, 0, 1],
-    purple: [0.502, 0, 0.502, 1],
-    pink: [1, 0.753, 0.796, 1],
-    brown: [0.647, 0.165, 0.165, 1],
-    gray: [0.502, 0.502, 0.502, 1],
-    grey: [0.502, 0.502, 0.502, 1],
-    silver: [0.753, 0.753, 0.753, 1],
-    gold: [1, 0.843, 0, 1],
-    navy: [0, 0, 0.502, 1],
-    teal: [0, 0.502, 0.502, 1],
-    olive: [0.502, 0.502, 0, 1],
-    maroon: [0.502, 0, 0, 1],
-    aqua: [0, 1, 1, 1],
-    lime: [0, 1, 0, 1],
-    fuchsia: [1, 0, 1, 1],
 }
 
 // Style properties that expect length values
@@ -313,61 +287,14 @@ function createColor(r: number, g: number, b: number, a: number): CSColor {
 }
 
 /**
- * Parse hex color string into RGBA components
- * Supports: #rgb, #rgba, #rrggbb, #rrggbbaa
- */
-function parseHexColor(hex: string): CSColor | null {
-    const len = hex.length
-    const isShort = len === 3 || len === 4
-    const isLong = len === 6 || len === 8
-    if (!isShort && !isLong) return null
-
-    const step = isShort ? 1 : 2
-    const parse = (i: number): number => {
-        const slice = hex.slice(i * step, i * step + step)
-        const expanded = isShort ? slice + slice : slice
-        return parseInt(expanded, 16) / 255
-    }
-
-    const r = parse(0), g = parse(1), b = parse(2)
-    const a = (len === 4 || len === 8) ? parse(3) : 1
-    return createColor(r, g, b, a)
-}
-
-/**
- * Parse a color value from various formats
- * @param value: "#fff", "#ffffff", "#ffffffff", "rgb(255,0,0)", "rgba(255,0,0,0.5)", "red"
+ * Parse a color value in any form OneJS accepts (see ColorInput in color.ts)
  * @returns Unity Color struct or null if invalid
  */
-export function parseColor(value: string): CSColor | null {
-    if (typeof value !== "string") return null
-
-    const trimmed = value.trim().toLowerCase()
-
-    // Named colors
-    if (NAMED_COLORS[trimmed]) {
-        const [r, g, b, a] = NAMED_COLORS[trimmed]
-        return new CS.UnityEngine.Color(r, g, b, a)
-    }
-
-    // Hex colors
-    if (trimmed.startsWith("#")) {
-        return parseHexColor(trimmed.slice(1))
-    }
-
-    // rgb(r, g, b) or rgba(r, g, b, a): supports both integer and percentage values
-    const rgbMatch = trimmed.match(/^rgba?\s*\(\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*(?:,\s*([\d.]+))?\s*\)$/)
-    if (rgbMatch) {
-        const isPercent = rgbMatch[2] === "%"
-        const divisor = isPercent ? 100 : 255
-        const r = parseFloat(rgbMatch[1]) / divisor
-        const g = parseFloat(rgbMatch[3]) / divisor
-        const b = parseFloat(rgbMatch[5]) / divisor
-        const a = rgbMatch[7] !== undefined ? parseFloat(rgbMatch[7]) : 1
-        return createColor(r, g, b, a)
-    }
-
-    return null
+export function parseColor(value: unknown): CSColor | null {
+    const rgba = tryRGBA(value)
+    if (rgba === null) return null
+    const [r, g, b, a] = rgba
+    return createColor(r, g, b, a)
 }
 
 /**

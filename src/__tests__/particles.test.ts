@@ -103,7 +103,7 @@ describe("particles wire schema", () => {
     })
 
     it("rejects malformed colors", () => {
-        expect(() => toWire({ emitters: [{ colorOverLife: ["#12345"] }] })).toThrow(/invalid color/)
+        expect(() => toWire({ emitters: [{ colorOverLife: ["#12345"] }] })).toThrow(/colorOverLife: "#12345" is not a colour/)
     })
 
     it("normalizes the aspect range", () => {

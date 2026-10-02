@@ -182,3 +182,33 @@ describe("TextureFX SDF shapes", () => {
         expect(c.vectorArrays._LScale.slice(0, 4)).toEqual([4, 4, 3, 2])
     })
 })
+
+/**
+ * TextureFX speaks image fx's vocabulary: threshold(low, high) and a ramp of
+ * stops, so a chain moved from one to the other reads the same.
+ */
+describe("TextureFX shares image fx's words", () => {
+    it("threshold(low, high) is the same stretch erode(low, high - low) made", () => {
+        const a = buildTextureFX((fx) => { fx.noise(); fx.threshold(0.2, 0.6) })
+        expect(a.floats._Threshold).toBe(0.2)
+        expect(a.floats._Softness).toBeCloseTo(0.4)
+    })
+
+    it("ramp takes any colour, and stops placed with at", () => {
+        const even = buildTextureFX((fx) => { fx.noise(); fx.ramp(["black", [1, 0, 0, 1], { r: 1, g: 1, b: 1 }]) })
+        expect(even.ramp).toEqual(["black", [1, 0, 0, 1], { r: 1, g: 1, b: 1 }])
+
+        const placed = buildTextureFX((fx) => {
+            fx.noise()
+            fx.ramp([{ color: "#000", at: 0 }, { color: "#fff", at: 0.25, alpha: 0.5 }, { color: "#fff", at: 1 }])
+        })
+        const ramp = placed.ramp as number[][]
+        // Resampled to evenly spaced stops the shader's ramp texture reads
+        expect(ramp.length).toBeGreaterThan(8)
+        expect(ramp[0]).toEqual([0, 0, 0, 1])
+        expect(ramp[ramp.length - 1]).toEqual([1, 1, 1, 1])
+        const quarter = ramp[Math.round(0.25 * (ramp.length - 1))]!
+        expect(quarter[0]).toBeCloseTo(1, 1)
+        expect(quarter[3]).toBeCloseTo(0.5, 1)
+    })
+})

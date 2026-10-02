@@ -36,6 +36,7 @@ import type {
 import { TextureFXBuilder, buildTextureFX, type TextureFXBuild } from './texturefx';
 import { useRowPortals } from './rows';
 import { parseColor } from './style-parser';
+import type { ColorInput } from './color';
 
 declare const CS: any
 declare function useExtensions(typeRef: any): void
@@ -361,7 +362,7 @@ export const TreeView = forwardRef<VisualElement, TreeViewProps>((props, ref) =>
 TreeView.displayName = 'TreeView';
 
 /** FrostedGlass's tint: any colour `style` accepts, or a faint white. Internal. */
-export function frostedGlassTint(tint: string | undefined) {
+export function frostedGlassTint(tint: ColorInput | undefined) {
   return (tint ? parseColor(tint) : null) ?? new CS.UnityEngine.Color(1, 1, 1, 0.15)
 }
 
@@ -503,7 +504,7 @@ TextureFX.displayName = 'TextureFX';
 
 export interface FlameProps extends Omit<ShaderEffectProps, 'shader' | 'floats' | 'vectorArrays' | 'ramp' | 'colors' | 'textures'> {
   /** Gradient from coolest to hottest. The first stop should be transparent. */
-  colors?: string[];
+  colors?: ColorInput[];
   /** Overall animation rate. Default 1. */
   speed?: number;
   /** Erosion cutoff: higher eats the flame back to fewer, sharper licks. Default 0.30. */
@@ -541,7 +542,7 @@ export const Flame = forwardRef<any, FlameProps>(
         softness: 0.05,
         falloff: topFalloff ?? 0.55,
       }).multiply();
-      fx.erode(threshold ?? 0.30, softness ?? 1.0);
+      fx.threshold(threshold ?? 0.30, (threshold ?? 0.30) + (softness ?? 1.0));
       fx.ramp(colors ?? FIRE_RAMP);
       fx.setSpeed(speed ?? 1);
     }, [colors, speed, threshold, softness, width, taper, topFalloff, gain]);

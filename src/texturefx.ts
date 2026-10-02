@@ -7,7 +7,7 @@
  *             fx.noise({ scale: [3, 4], seed: 1, scroll: [0.03, -0.35] })
  *             fx.noise({ scale: [6, 8], seed: 2, scroll: [-0.05, -0.62] }).multiply()
  *             fx.shape("flame", { width: 0.44, taper: 0.7 }).multiply()
- *             fx.erode(0.10, 0.30)
+ *             fx.threshold(0.10, 0.40)
  *             fx.ramp(["#00000000", "#c22200", "#ff6a10", "#fff4d2"])
  *         }}
  *     />
@@ -20,6 +20,8 @@
  * Noise is computed in the shader from a seed rather than sampled, so effects need
  * no textures and scrolling never repeats.
  */
+
+import { toRGBA, type ColorInput, type RGBA } from "./color";
 
 /** Order matters: these indices are the shader's `src` and `blend` encodings. */
 const SRC = { noise: 0, shape: 1, constant: 2, sdf: 3 } as const;
@@ -45,14 +47,62 @@ const SDF = {
     quadraticCircle: 38, hyperbola: 39, coolS: 40, circleWave: 41,
 } as const;
 
-export type BlendMode = keyof typeof BLEND;
+/** How a TextureFX layer combines with the layers under it. */
+export type TextureFXBlend = keyof typeof BLEND;
+/** @deprecated Use `TextureFXBlend`; image fx has its own `BlendMode`. */
+export type BlendMode = TextureFXBlend;
 export type ShapeKind = keyof typeof SHAPE;
 export type SDFKind = keyof typeof SDF;
+
+/** A ramp colour placed along the gradient, as image fx's ramp takes it. */
+export interface TextureFXStop {
+    color: ColorInput;
+    /** Position along the gradient, 0..1. */
+    at: number;
+    /** Opacity 0..1, replacing the colour's own. */
+    alpha?: number;
+}
+
+/** Colours spaced evenly, or stops placed with `at`. */
+export type TextureFXStops = readonly ColorInput[] | readonly TextureFXStop[];
+
+/** How many evenly spaced colours a placed ramp is resampled to. */
+const RAMP_SAMPLES = 64;
+
+function isPlacedStop(s: unknown): s is TextureFXStop {
+    return typeof s === "object" && s !== null && "at" in s && "color" in s;
+}
+
+/** Placed stops to evenly spaced colours, interpolating linearly between them. */
+function resampleStops(stops: TextureFXStops): RGBA[] {
+    const placed = (stops as readonly (ColorInput | TextureFXStop)[]).map((s, i) => {
+        if (!isPlacedStop(s)) return { at: stops.length === 1 ? 0 : i / (stops.length - 1), rgba: toRGBA(s, "TextureFX ramp") };
+        const rgba = toRGBA(s.color, "TextureFX ramp");
+        if (s.alpha !== undefined) rgba[3] = s.alpha;
+        return { at: s.at, rgba };
+    }).sort((a, b) => a.at - b.at);
+
+    const out: RGBA[] = [];
+    for (let i = 0; i < RAMP_SAMPLES; i++) {
+        const t = i / (RAMP_SAMPLES - 1);
+        let hi = placed.findIndex((p) => p.at >= t);
+        if (hi === -1) hi = placed.length - 1;
+        const lo = Math.max(0, hi - 1);
+        const a = placed[lo]!, b = placed[hi]!;
+        const span = b.at - a.at;
+        const f = span <= 0 ? (t >= b.at ? 1 : 0) : Math.min(1, Math.max(0, (t - a.at) / span));
+        out.push([0, 1, 2, 3].map((c) => a.rgba[c]! + (b.rgba[c]! - a.rgba[c]!) * f) as RGBA);
+    }
+    return out;
+}
 
 /** Must match MAX_LAYERS in OneJS/TextureFX.shader. */
 export const MAX_TEXTUREFX_LAYERS = 6;
 
-export interface NoiseOptions {
+/** @deprecated Use `TextureFXNoise`; image fx has its own `NoiseOptions`. */
+export type NoiseOptions = TextureFXNoise;
+
+export interface TextureFXNoise {
     /**
      * Repeats across the element, so it is element-relative: the same scale on a
      * bigger element gives bigger features, and an effect that reads well at one
@@ -321,10 +371,11 @@ const pair = (v: number | [number, number] | undefined, d: number): [number, num
  */
 export class TextureFXBuilder {
     readonly layers: Layer[] = [];
-    threshold = 0;
+    /** Where the threshold stretch starts, and how wide it is. */
+    cutoff = 0;
     softness = 1;
     speed = 1;
-    colors: string[] = ["#00000000", "#ffffffff"];
+    colors: (ColorInput | RGBA)[] = ["#00000000", "#ffffffff"];
 
     private push(layer: Layer): LayerHandle {
         if (this.layers.length >= MAX_TEXTUREFX_LAYERS) {
@@ -348,7 +399,7 @@ export class TextureFXBuilder {
     }
 
     /** Scrolling fBm value noise. The workhorse: two of these multiplied is fire, smoke or water. */
-    noise(o: NoiseOptions = {}): LayerHandle {
+    noise(o: TextureFXNoise = {}): LayerHandle {
         return this.push({
             src: SRC.noise,
             blend: BLEND.set,
@@ -440,18 +491,32 @@ export class TextureFXBuilder {
     }
 
     /**
-     * Erodes the accumulated field to a defined edge before colouring. This is what
-     * turns a soft blob into licks and wisps; without it everything looks like fog.
+     * Keeps what lies between `low` and `high`, stretched to 0..1, before
+     * colouring: below is empty, above is full. This is what turns a soft blob
+     * into licks and wisps; without it everything looks like fog. The same word
+     * and numbers as image fx's `threshold`.
      */
+    threshold(low: number, high: number): this {
+        this.cutoff = low;
+        this.softness = high - low;
+        return this;
+    }
+
+    /** @deprecated Use `threshold(low, low + softness)`, the name image fx uses. */
     erode(threshold: number, softness = 0.3): this {
-        this.threshold = threshold;
+        // Set directly: low + softness - low is not always softness in floats
+        this.cutoff = threshold;
         this.softness = softness;
         return this;
     }
 
-    /** Gradient the eroded value indexes. Alpha is carried, so cutoff lives here too. */
-    ramp(colors: string[]): this {
-        this.colors = colors;
+    /**
+     * The gradient the thresholded value indexes. Alpha is carried, so cutoff
+     * lives here too. Takes colours spaced evenly, or stops placed with `at`
+     * (and an optional `alpha`), the shapes image fx's `ramp` takes.
+     */
+    ramp(stops: TextureFXStops): this {
+        this.colors = stops.some(isPlacedStop) ? resampleStops(stops) : [...stops as readonly ColorInput[]];
         return this;
     }
 
@@ -483,7 +548,7 @@ export class TextureFXBuilder {
         return {
             floats: {
                 _LayerCount: this.layers.length,
-                _Threshold: this.threshold,
+                _Threshold: this.cutoff,
                 _Softness: this.softness,
                 _Speed: this.speed,
             },

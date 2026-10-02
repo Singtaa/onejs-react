@@ -1,6 +1,7 @@
 import type {HostConfig} from 'react-reconciler';
 import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback} from './types';
 import {parseStyleValue, parseColor} from './style-parser';
+import {toRGBA} from './color';
 import {flattenTree} from './treeview';
 import type {TreeViewItem} from './types';
 
@@ -1643,14 +1644,6 @@ export const hostConfig = {
 
 // MARK: ShaderFX
 
-/** "#rgb" | "#rrggbb" | "#rrggbbaa" -> [r, g, b, a] floats. */
-function shaderHexToRgba(c: string): [number, number, number, number] {
-    let h = c.startsWith('#') ? c.slice(1) : c;
-    if (h.length === 3 || h.length === 4) h = h.split('').map((d) => d + d).join('');
-    if (h.length !== 6 && h.length !== 8) throw new Error(`[onejs shaderfx] invalid color "${c}"`);
-    const n = (i: number) => parseInt(h.slice(i, i + 2), 16) / 255;
-    return [n(0), n(2), n(4), h.length === 8 ? n(6) : 1];
-}
 
 /**
  * A uniform name the program never declared, warned once per program.
@@ -1871,7 +1864,7 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     }
     if (props.colors && !shaderShallowEq(props.colors, oldProps?.colors)) {
         for (const k in props.colors) {
-            const [r, g, b, a] = shaderHexToRgba(props.colors[k]);
+            const [r, g, b, a] = toRGBA(props.colors[k], `ShaderEffect colors.${k}`);
             el.SetColor(k, r, g, b, a);
         }
     }
@@ -1905,10 +1898,10 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     }
     if (props.ramp !== undefined) {
         const same = oldProps?.ramp && oldProps.ramp.length === props.ramp.length
-            && props.ramp.every((c: string, i: number) => c === oldProps.ramp[i]);
+            && props.ramp.every((c: unknown, i: number) => shaderValueEq(c, oldProps.ramp[i]));
         if (!same) {
             const flat: number[] = [];
-            for (const c of props.ramp) flat.push(...shaderHexToRgba(c));
+            for (const c of props.ramp) flat.push(...toRGBA(c, 'TextureFX ramp'));
             el.SetRamp(props.rampProperty ?? '_Ramp', flat);
         }
     }

@@ -35,6 +35,7 @@
 import { useEffect, useRef, type DependencyList, type RefObject } from "react"
 import type { VisualElement } from "./types"
 import { useAttachToRef } from "./attach"
+import { toRGBA, type ColorInput } from "./color"
 
 // MARK: CS interop surface
 
@@ -67,7 +68,8 @@ declare const CS: {
 export type ParticleRange = number | [number, number]
 
 /** "#rgb" | "#rrggbb" | "#rrggbbaa" | [r, g, b, a?] with 0..1 floats. */
-export type ParticleColor = string | [number, number, number, number?]
+/** Any colour OneJS takes: hex, rgb(), a CSS name, [r, g, b, a] or { r, g, b, a }. */
+export type ParticleColor = ColorInput
 
 export type EmitterShape =
     | { type: "point" }
@@ -272,19 +274,9 @@ function range(v: ParticleRange | undefined, min: number, max: number): [number,
     return v
 }
 
-function parseColor(c: ParticleColor): { r: number; g: number; b: number; a: number } {
-    if (typeof c !== "string") {
-        return { r: c[0], g: c[1], b: c[2], a: c[3] ?? 1 }
-    }
-    let h = c.startsWith("#") ? c.slice(1) : c
-    if (h.length === 3 || h.length === 4) {
-        h = h.split("").map((d) => d + d).join("")
-    }
-    if (h.length !== 6 && h.length !== 8) {
-        throw new Error(`[onejs particles] invalid color "${c}"`)
-    }
-    const n = (i: number) => parseInt(h.slice(i, i + 2), 16) / 255
-    return { r: n(0), g: n(2), b: n(4), a: h.length === 8 ? n(6) : 1 }
+function parseColor(c: ParticleColor, what: string): { r: number; g: number; b: number; a: number } {
+    const [r, g, b, a] = toRGBA(c, what)
+    return { r, g, b, a }
 }
 
 function evenT(index: number, length: number): number {
@@ -323,9 +315,10 @@ export function toWire(config: ParticlesConfig): WireDoc {
         const colorKeys: WireColorKey[] = colorSrc.length === 0
             ? [{ t: 0, r: 1, g: 1, b: 1, a: 1 }]
             : colorSrc.map((entry, i) => {
-                const explicit = typeof entry === "object" && entry !== null && !Array.isArray(entry)
+                // A keyed entry is { t, color }; a bare { r, g, b } is a colour
+                const explicit = typeof entry === "object" && entry !== null && "color" in entry
                 const t = explicit ? (entry as { t: number }).t : evenT(i, colorSrc.length)
-                const c = parseColor(explicit ? (entry as { color: ParticleColor }).color : entry as ParticleColor)
+                const c = parseColor(explicit ? (entry as { color: ParticleColor }).color : entry as ParticleColor, "colorOverLife")
                 return { t, ...c }
             })
 
@@ -337,7 +330,7 @@ export function toWire(config: ParticlesConfig): WireDoc {
                     ? { t: evenT(i, sizeSrc.length), v: entry }
                     : { t: entry.t, v: entry.v })
 
-        const tintPalette: WireRGBA[] = (e.tintPalette ?? []).map(parseColor)
+        const tintPalette: WireRGBA[] = (e.tintPalette ?? []).map((c) => parseColor(c, "tintPalette"))
 
         return {
             rate: e.rate ?? 0,

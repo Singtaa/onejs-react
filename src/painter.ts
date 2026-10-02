@@ -30,6 +30,7 @@ import { useRef, useEffect, type DependencyList, type RefObject } from "react"
 import type { VisualElement, MeshGenerationContext, GenerateVisualContentCallback } from "./types"
 import { useAttachToRef } from "./attach"
 import { subscribeFrame } from "./frame"
+import { toRGBA, type ColorInput } from "./color"
 
 declare const CS: {
     OneJS: {
@@ -71,18 +72,15 @@ const OP_DASH_PATTERN = 18
  *   p.arc(..., Painter.ArcDirection.CounterClockwise)
  *   p.fill(Painter.FillRule.OddEven)
  */
-/** "#rgb", "#rrggbb" or "#rrggbbaa" to 0..1 components; opacity overrides the alpha. */
-export function paintColor(c: string | number, g?: number, b?: number, a = 1): [number, number, number, number] {
+/**
+ * Any colour OneJS accepts (see ColorInput) to 0..1 components, or four
+ * numbers as they are. With a colour, a second number overrides its alpha.
+ */
+export function paintColor(c: ColorInput | number, g?: number, b?: number, a = 1): [number, number, number, number] {
     if (typeof c === "number") return [c, g ?? 0, b ?? 0, a]
-    const m = /^#([0-9a-fA-F]{3,8})$/.exec(c.trim())
-    if (m === null) throw new Error(`[onejs-react] Painter: "${c}" is not a colour; use #rgb, #rrggbb or #rrggbbaa`)
-    const h = m[1]!
-    const grab = (i: number, n: number) => parseInt(n === 1 ? h[i]! + h[i]! : h.slice(i * 2, i * 2 + 2), 16) / 255
-    const opacity = g
-    if (h.length === 3) return [grab(0, 1), grab(1, 1), grab(2, 1), opacity ?? 1]
-    if (h.length === 6) return [grab(0, 2), grab(1, 2), grab(2, 2), opacity ?? 1]
-    if (h.length === 8) return [grab(0, 2), grab(1, 2), grab(2, 2), opacity ?? grab(3, 2)]
-    throw new Error(`[onejs-react] Painter: "${c}" is not a colour; use #rgb, #rrggbb or #rrggbbaa`)
+    const rgba = toRGBA(c, "Painter")
+    if (g !== undefined) rgba[3] = g
+    return rgba
 }
 
 export class Painter {
@@ -144,25 +142,25 @@ export class Painter {
 
     lineWidth(w: number): this { this._buf.push(OP_LINE_WIDTH, w); return this }
     /**
-     * Fill colour: a hex string with an optional opacity, or four 0..1 floats.
+     * Fill colour: any colour OneJS takes (hex, rgb(), a CSS name, [r, g, b, a])
+     * with an optional opacity, or four 0..1 floats.
      *
      *     p.fillColor("#ff9e33")          p.fillColor("#ff9e33", 0.5)
-     *     p.fillColor(1, 0.62, 0.2, 1)
+     *     p.fillColor("orange")           p.fillColor(1, 0.62, 0.2, 1)
      *
-     * The string form is the one to write; every other colour in OneJS is a
-     * hex string, and four positional floats were the least readable line in
-     * every painter game.
+     * The colour form is the one to write: four positional floats were the
+     * least readable line in every painter game.
      */
-    fillColor(color: string, opacity?: number): this
+    fillColor(color: ColorInput, opacity?: number): this
     fillColor(r: number, g: number, b: number, a?: number): this
-    fillColor(c: string | number, g?: number, b?: number, a: number = 1): this {
+    fillColor(c: ColorInput | number, g?: number, b?: number, a: number = 1): this {
         const [r, gg, bb, aa] = paintColor(c, g, b, a)
         this._buf.push(OP_FILL_COLOR, r, gg, bb, aa); return this
     }
     /** Stroke colour, written like fillColor. */
-    strokeColor(color: string, opacity?: number): this
+    strokeColor(color: ColorInput, opacity?: number): this
     strokeColor(r: number, g: number, b: number, a?: number): this
-    strokeColor(c: string | number, g?: number, b?: number, a: number = 1): this {
+    strokeColor(c: ColorInput | number, g?: number, b?: number, a: number = 1): this {
         const [r, gg, bb, aa] = paintColor(c, g, b, a)
         this._buf.push(OP_STROKE_COLOR, r, gg, bb, aa); return this
     }
