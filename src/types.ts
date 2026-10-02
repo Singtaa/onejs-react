@@ -255,8 +255,31 @@ export interface ViewStyle {
 }
 
 // Event types
-export interface PointerEventData {
+
+/**
+ * What every handler receives, whatever the event: the bootstrap builds one
+ * synthetic event per dispatch (`__makeSyntheticEvent` in
+ * QuickJSBootstrap.js.txt) and copies the event's own fields onto it.
+ *
+ * `target` / `currentTarget` are raw C# handles, not `VisualElement` proxies.
+ * Compare them against `ref.current?.__csHandle` to check element identity.
+ * `preventDefault()` also stops the native UI Toolkit behaviour where the
+ * bridge mirrors it (pointer, click, wheel, key and navigation events);
+ * `stopPropagation()` stops the JS bubble only.
+ */
+export interface OneJSEvent {
   type: string;
+  /** C# handle of the element the event happened on. */
+  target: number;
+  /** C# handle of the element whose handler is running. */
+  currentTarget: number;
+  defaultPrevented: boolean;
+  propagationStopped: boolean;
+  preventDefault(): void;
+  stopPropagation(): void;
+}
+
+export interface PointerEventData extends OneJSEvent {
   /** Panel x, measured from the top left of the whole panel. */
   x: number;
   /** Panel y. */
@@ -272,11 +295,11 @@ export interface PointerEventData {
   localY: number;
   button: number;
   pointerId: number;
+  /** @deprecated Never sent by the bridge yet: always undefined. */
   modifiers?: number;
 }
 
-export interface MouseEventData {
-  type: string;
+export interface MouseEventData extends OneJSEvent {
   /** Panel x. See PointerEventData. */
   x: number;
   y: number;
@@ -284,17 +307,16 @@ export interface MouseEventData {
   localX: number;
   localY: number;
   button: number;
+  /** @deprecated Never sent by the bridge yet: always undefined. */
   modifiers?: number;
 }
 
-export interface WheelEventData {
-  type: string;
+export interface WheelEventData extends OneJSEvent {
   deltaX: number;
   deltaY: number;
 }
 
-export interface KeyEventData {
-  type: string;
+export interface KeyEventData extends OneJSEvent {
   keyCode: number;
   key: string;
   char: string;
@@ -304,49 +326,25 @@ export interface KeyEventData {
   meta: boolean;
 }
 
-export interface ChangeEventData<T = unknown> {
-  type: string;
+export interface ChangeEventData<T = unknown> extends OneJSEvent {
   value: T;
 }
 
 /**
- * Shape of the synthetic event object passed to focus / blur handlers at
- * runtime. Matches `QuickJSBootstrap.__dispatchEvent` (see
- * `OneJS/Resources/OneJS/QuickJSBootstrap.js.txt:980-1031`), every synthetic
- * event carries `target` / `currentTarget` as integer C# handles plus the
- * propagation-control surface, and the C# bridge's `OnFocusIn` / `OnFocusOut`
- * dispatch an empty data object, so focus events add no fields beyond the
- * base.
- *
- * `relatedTarget` is intentionally absent: the C# bridge serializes `{}` for
- * focus events and never includes it. Any code that previously depended on
- * `e.relatedTarget` at runtime has been silently receiving `undefined`.
- *
- * `target` / `currentTarget` are raw C# handles, not `VisualElement` proxies.
- * Resolve them via `CS.OneJS.QuickJSNative.GetObjectByHandle(handle)` when an
- * element reference is needed, or compare them directly against
- * `ref.current?.__csHandle` to check element identity.
+ * Focus and blur add no fields to the base: the C# bridge's `OnFocusIn` /
+ * `OnFocusOut` dispatch an empty data object. `relatedTarget` is intentionally
+ * absent, because the bridge never sends it.
  */
-export interface FocusEventData {
-  type: string;
-  target: number;
-  currentTarget: number;
-  preventDefault(): void;
-  stopPropagation(): void;
-  defaultPrevented: boolean;
-  propagationStopped: boolean;
-}
+export type FocusEventData = OneJSEvent;
 
-export interface DragEventData {
-  type: string;
+export interface DragEventData extends OneJSEvent {
   x: number;
   y: number;
   // Drag-specific properties
   getData?: (type: string) => unknown;
 }
 
-export interface GeometryEventData {
-  type: string;
+export interface GeometryEventData extends OneJSEvent {
   oldRect: { x: number; y: number; width: number; height: number };
   newRect: { x: number; y: number; width: number; height: number };
 }
@@ -368,14 +366,12 @@ export type NavigationDirection =
   | 'next'
   | 'previous';
 
-export interface NavigationEventData {
-  type: string;
+export interface NavigationEventData extends OneJSEvent {
   direction?: NavigationDirection;
   modifiers?: number;
 }
 
-export interface TransitionEventData {
-  type: string;
+export interface TransitionEventData extends OneJSEvent {
   styleProperty: string;
   elapsedTime: number;
 }
@@ -385,7 +381,7 @@ export type MouseEventHandler = (event: MouseEventData) => void;
 export type WheelEventHandler = (event: WheelEventData) => void;
 export type KeyEventHandler = (event: KeyEventData) => void;
 export type ChangeEventHandler<T = unknown> = (event: ChangeEventData<T>) => void;
-export type FocusEventHandler = (event?: FocusEventData) => void;
+export type FocusEventHandler = (event: FocusEventData) => void;
 export type DragEventHandler = (event: DragEventData) => void;
 export type GeometryEventHandler = (event: GeometryEventData) => void;
 export type NavigationEventHandler = (event: NavigationEventData) => void;
