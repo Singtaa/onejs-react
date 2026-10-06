@@ -318,6 +318,26 @@ describe('host-config', () => {
             expect(getStyleValue(instance.element.style.width)).toBe(200);
         });
 
+        it('reads element.style only for an update that removes a key', () => {
+            const instance = createInstance('ojs-view', { style: { width: 100, height: 50 } });
+            const element = getMockElement(instance);
+            let reads = 0;
+            const style = element.style;
+            Object.defineProperty(element, 'style', { get: () => { reads++; return style; }, configurable: true });
+            // The mock StyleBridge writes through element.style; the real one is a single crossing
+            const bridge = (globalThis as any).CS.OneJS.StyleBridge;
+            const apply = vi.spyOn(bridge, 'ApplyStyles').mockImplementation(() => {});
+
+            commitUpdate(instance, 'ojs-view', { style: { width: 100, height: 50 } }, { style: { width: 200, height: 50 } });
+            expect(reads).toBe(0);
+
+            commitUpdate(instance, 'ojs-view', { style: { width: 200, height: 50 } }, { style: { width: 200 } });
+            expect(reads).toBe(1);
+            expect(style.height).toBeUndefined();
+            expect(apply).toHaveBeenCalledTimes(1);
+            apply.mockRestore();
+        });
+
         it('clears removed style properties', () => {
             const instance = createInstance(
                 'ojs-view',
@@ -880,6 +900,50 @@ describe('host-config', () => {
             commitTextUpdate(textInstance, 'Old text', 'New text');
 
             expect(textInstance.element.text).toBe('New text');
+        });
+
+        // Each read or write of element.text is a crossing on a real bridge
+        function countText(element: unknown) {
+            const counts = { reads: 0, writes: 0 };
+            let value = (element as { text: string }).text;
+            Object.defineProperty(element, 'text', {
+                get: () => { counts.reads++; return value; },
+                set: (v: string) => { counts.writes++; value = v; },
+                configurable: true,
+            });
+            return counts;
+        }
+
+        it('a merged text update tells only the parent, once, and reads nothing back', () => {
+            const parent = createInstance('ojs-text', {});
+            const a = createTextInstance('score ');
+            const b = createTextInstance('1');
+            appendInitialChild(parent, a);
+            appendInitialChild(parent, b);
+            expect(getMockElement(parent).text).toBe('score 1');
+
+            const parentCounts = countText(parent.element);
+            const aCounts = countText(a.element);
+            const bCounts = countText(b.element);
+            commitTextUpdate(b, '1', '2');
+
+            expect(getMockElement(parent).text).toBe('score 2');
+            expect(parentCounts).toEqual({ reads: 1, writes: 1 }); // the read is the assertion's
+            expect(aCounts).toEqual({ reads: 0, writes: 0 });
+            expect(bCounts).toEqual({ reads: 0, writes: 0 });
+        });
+
+        it('an unmerged text child carries the text it was given while merged', () => {
+            const parent = createInstance('ojs-text', {});
+            const t = createTextInstance('old');
+            appendInitialChild(parent, t);
+            commitTextUpdate(t, 'old', 'new');
+
+            appendChild(parent, createInstance('ojs-view', {}));
+
+            expect(getMockElement(parent).children).toContain(t.element);
+            expect(t.element.text).toBe('new');
+            expect(getMockElement(parent).text).toBe('');
         });
     });
 

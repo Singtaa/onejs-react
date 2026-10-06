@@ -200,6 +200,10 @@ export interface Instance {
     mergedTextChildren?: Instance[];
     // For merged text children: reference to parent they're merged into
     mergedInto?: Instance;
+    // For text instances: the string React last gave it. A merged child's own
+    // element is not drawn, so its text is kept here and its element is told
+    // only when it is unmerged: reading element.text back is a crossing.
+    text?: string;
     // Set to true when a non-text child is added, disabling further text merging
     hasMixedContent?: boolean;
     // For vector drawing: track the current generateVisualContent callback
@@ -558,7 +562,9 @@ function resolveForBatch(value: unknown): unknown {
 
 // Clear style properties that are no longer in the new style
 function clearRemovedStyles(element: CSObject, previous: FlatStyle, next: FlatStyle) {
-    const s = element.style;
+    // Fetched only once a key is gone: reading element.style is a crossing,
+    // and most updates remove nothing
+    let s: Record<string, unknown> | undefined;
     for (const key of previous.keys()) {
         if (!next.has(key)) {
             if (key === "backgroundImage") {
@@ -566,7 +572,7 @@ function clearRemovedStyles(element: CSObject, previous: FlatStyle, next: FlatSt
                 CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
             } else {
                 // Setting to undefined clears the inline style, falling back to USS
-                s[key] = undefined;
+                (s ??= element.style)[key] = undefined;
             }
         }
     }
@@ -816,7 +822,7 @@ function rebuildMergedText(instance: Instance) {
         instance.element.text = '';
         return;
     }
-    instance.element.text = children.map(c => c.element.text || '').join('');
+    instance.element.text = children.map(c => c.text ?? '').join('');
 }
 
 // Check if a child should be merged into parent's text property
@@ -835,9 +841,11 @@ function unmergTextChildren(parentInstance: Instance) {
     // Clear parent's merged text
     parentInstance.element.text = '';
 
-    // Add each merged text child as an actual visual child
+    // Add each merged text child as an actual visual child, carrying the text
+    // it was given while merged, which went only to the parent
     for (const child of children) {
         child.mergedInto = undefined;
+        child.element.text = child.text ?? '';
         nodeAdd(parentInstance.element, child.element);
     }
 
@@ -1460,6 +1468,7 @@ export const hostConfig = {
         element.text = text;
         return {
             element,
+            text,
             type: 'text',
             props: {},
             eventHandlers: new Map(),
@@ -1543,10 +1552,13 @@ export const hostConfig = {
     },
 
     commitTextUpdate(textInstance: Instance, _oldText: string, newText: string) {
-        textInstance.element.text = newText;
-        // If this text is merged into a parent, rebuild the parent's concatenated text
+        textInstance.text = newText;
+        // A merged text shows only through its parent's concatenated text, so
+        // that is the one element told: one crossing, not three
         if (textInstance.mergedInto) {
             rebuildMergedText(textInstance.mergedInto);
+        } else {
+            textInstance.element.text = newText;
         }
     },
 
