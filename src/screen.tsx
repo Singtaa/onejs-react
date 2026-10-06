@@ -8,6 +8,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { escapeClassName } from "./class-names"
 
 // Globals from QuickJS environment
 declare const __root: {
@@ -78,6 +79,10 @@ function calculateBreakpoints(width: number, height: number): ScreenContextValue
     return { width, height, breakpoint, isSm, isMd, isLg, isXl, is2xl }
 }
 
+// "2xl" cannot start a USS class, so the root carries the escaped "_2xl" that
+// the Tailwind generator's 2xl: rules name as their ancestor.
+const CLASS_2XL = escapeClassName("2xl")
+
 /**
  * Apply breakpoint classes to root element (mobile-first cascading)
  */
@@ -89,14 +94,14 @@ function applyBreakpointClasses(screen: ScreenContextValue) {
     __root.RemoveFromClassList("md")
     __root.RemoveFromClassList("lg")
     __root.RemoveFromClassList("xl")
-    __root.RemoveFromClassList("2xl")
+    __root.RemoveFromClassList(CLASS_2XL)
 
     // Mobile-first: apply ALL matching breakpoints, not just highest
     if (screen.isSm) __root.AddToClassList("sm")
     if (screen.isMd) __root.AddToClassList("md")
     if (screen.isLg) __root.AddToClassList("lg")
     if (screen.isXl) __root.AddToClassList("xl")
-    if (screen.is2xl) __root.AddToClassList("2xl")
+    if (screen.is2xl) __root.AddToClassList(CLASS_2XL)
 }
 
 export interface ScreenProviderProps {

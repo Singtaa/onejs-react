@@ -21,6 +21,7 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 | `src/image-cache.ts` | `<Image src>` loading and its texture cache (`clearImageCache`, and the teardown release) |
 | `src/portal.tsx` | `<Portal>` and the shared overlay layer |
 | `src/error-boundary.tsx` | `ErrorBoundary`, `formatError` |
+| `src/class-names.ts` | `escapeClassName`: a Tailwind class name as USS can hold it (`2xl:p-4` is `_2xl_c_p-4`), matching onejs-unity's generator |
 | `src/screen.tsx` | Responsive design: ScreenProvider, useBreakpoint, useScreenSize, useResponsive, useMediaQuery |
 | `src/hooks.ts` | C# sync hooks (`useFrameSync`, `useFrameSyncWith`, `useThrottledSync`, `useEventSync`) and `toArray` |
 | `src/style-parser.ts` | Converts style values (`"100px"`, `"#ff0000"`, enums) to the plain data `StyleBridge` reads |

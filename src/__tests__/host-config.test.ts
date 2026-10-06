@@ -483,6 +483,22 @@ describe('host-config', () => {
             expect(el.hasClass('bar')).toBe(true);
         });
 
+        it('escapes a breakpoint prefix the way the Tailwind generator does', () => {
+            // A USS class cannot start with a digit, so the generator writes
+            // 2xl:p-4 as _2xl_c_p-4. The element has to carry that same name.
+            const instance = createInstance(
+                'ojs-view',
+                { className: '2xl:p-4 md:p-2' },
+                null as any,
+                null,
+                null
+            );
+
+            const el = getMockElement(instance);
+            expect(el.hasClass('_2xl_c_p-4')).toBe(true);
+            expect(el.hasClass('md_c_p-2')).toBe(true);
+        });
+
         it('handles multiple spaces in className', () => {
             const instance = createInstance(
                 'ojs-view',

@@ -161,6 +161,21 @@ describe("a nested ScreenProvider", () => {
         unmount(container as any)
     })
 
+    it("marks the root _2xl, the ancestor class the generator's 2xl: rules name", async () => {
+        // ".2xl" is not a USS class selector, so 2xl: rules hang off "._2xl".
+        installPanel(2160, 540)
+        const container = createMockContainer()
+        render(
+            <ScreenProvider>
+                <Probe seen={{}} />
+            </ScreenProvider>,
+            container as any,
+        )
+        await flushMicrotasks()
+        expect([...classes].sort()).toEqual(["_2xl", "lg", "md", "sm", "xl"])
+        unmount(container as any)
+    })
+
     it("measures the panel when there is no outer provider, as it always did", async () => {
         installPanel(2160, 540)
         const seen: { bp?: string; w?: number } = {}
