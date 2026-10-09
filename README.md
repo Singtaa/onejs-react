@@ -54,7 +54,7 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 
 Custom C# elements: `registerElement(name, CS.My.Element)` then `createComponent<Props>(name)`.
 
-**Controlled inputs** work as in React DOM. A `TextField`, `Toggle`, `Slider` or registered field (a `DropdownField`, say) given `value` always shows that value: after `onChange` runs, and the update it made has committed, the reconciler writes `value` back with `SetValueWithoutNotify` if the control disagrees. So a handler that rejects or caps a change (`onChange={e => setName(e.value.slice(0, 12))}`) keeps the control in step, and `value` without `onChange` is read only. Leave `value` out for an uncontrolled control.
+**Controlled inputs** work as in React DOM. A `TextField`, `Toggle`, `Slider` or registered field (a `DropdownField`, say) given `value` always shows that value: after `onChange` runs, and the update it made has committed, the reconciler writes `value` back with `SetValueWithoutNotify` if the control disagrees. So a handler that rejects or caps a change (`onChange={e => setName(e.value.slice(0, 12))}`) keeps the control in step, and `value` without `onChange` is read only. Leave `value` out for an uncontrolled control. A `value` React writes fires no `onChange`, as in React DOM: only what the user changes does.
 
 **Raw text in JSX** (e.g., `<View>Hello</View>`) creates a `TextElement`, providing semantic distinction from explicit `<Label>` components.
 
@@ -214,7 +214,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
 | `image-cache.test.tsx` | `<Image>` textures destroyed on teardown, after the tree unmounts |
-| `controlled-inputs.test.tsx` | Controlled `value` re-asserted after a rejected or transformed change |
+| `controlled-inputs.test.tsx` | Controlled `value` re-asserted after a rejected or transformed change, and a `value` React writes firing no `onChange` |
 | `error-boundary.test.tsx` | `ErrorBoundary`: `fallbackRender`, `reset`, `resetKeys`, one log per caught error |
 | `portal.test.tsx` | `<Portal>` overlay layer |
 | `bubbling.test.tsx` | Parent links the bootstrap bubbles along: app and portaled events reach a listener on `__root` |
