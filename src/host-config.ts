@@ -87,7 +87,9 @@ declare const CS: {
         StyleBridge: {
             ApplyStyles: (element: CSObject, styles: Record<string, unknown>) => void;
             ClearsNull?: boolean;
+            UpdatesClasses?: boolean;
             AddClassesBatch: (element: CSObject, classes: string[]) => void;
+            UpdateClasses: (element: CSObject, removed: string[], added: string[]) => void;
         };
         NodeBridge: {
             Add: (parentHandle: number, childHandle: number) => void;
@@ -208,6 +210,9 @@ export interface Instance {
     // For text instances: hidden by a Suspense boundary showing its fallback. A
     // merged text is hidden by leaving it out of its parent's text
     hidden?: boolean;
+    // For text instances: the TextElement, once something has asked for
+    // `element`. A text merged into its parent's text never does.
+    textElement?: CSObject;
     // Set to true when a non-text child is added, disabling further text merging
     hasMixedContent?: boolean;
     // For vector drawing: track the current generateVisualContent callback
@@ -616,24 +621,35 @@ function applyClassName(element: CSObject, className: string | undefined) {
     }
 }
 
-// Update className selectively: only add/remove what changed
+// Update className selectively: only add/remove what changed, in one crossing
+// as mount's AddClassesBatch is
 function updateClassNames(element: CSObject, oldClassName: string | undefined, newClassName: string | undefined) {
     const oldClasses = parseClassNames(oldClassName);
     const newClasses = parseClassNames(newClassName);
+    const removed: string[] = [];
+    const added: string[] = [];
+    for (const cls of oldClasses) if (!newClasses.has(cls)) removed.push(cls);
+    for (const cls of newClasses) if (!oldClasses.has(cls)) added.push(cls);
+    if (removed.length === 0 && added.length === 0) return;
 
-    // Remove classes that are no longer present
-    for (const cls of oldClasses) {
-        if (!newClasses.has(cls)) {
-            element.RemoveFromClassList(cls);
-        }
+    if (bridgeUpdatesClasses()) {
+        CS.OneJS.StyleBridge.UpdateClasses(element, removed, added);
+        return;
     }
+    for (const cls of removed) element.RemoveFromClassList(cls);
+    for (const cls of added) element.AddToClassList(cls);
+}
 
-    // Add classes that are new
-    for (const cls of newClasses) {
-        if (!oldClasses.has(cls)) {
-            element.AddToClassList(cls);
-        }
+let updatesClasses: boolean | undefined
+
+// A OneJS whose StyleBridge says UpdatesClasses takes a className update in one
+// call. An older one has no UpdateClasses, so it gets a call per class.
+function bridgeUpdatesClasses(): boolean {
+    if (updatesClasses === undefined) {
+        // A missing static reads as a truthy proxy, so compare with true
+        try { updatesClasses = CS.OneJS.StyleBridge.UpdatesClasses === true } catch { updatesClasses = false }
     }
+    return updatesClasses
 }
 
 // Track parent-child relationships for event bubbling
@@ -852,12 +868,14 @@ function unmergTextChildren(parentInstance: Instance) {
 
     // Add each merged text child as an actual visual child, carrying the text
     // it was given while merged, which went only to the parent, and hidden if
-    // Suspense hid it
+    // Suspense hid it. A text with no element yet is made with its text; one
+    // something asked for while merged is told the text it missed.
     for (const child of children) {
         child.mergedInto = undefined;
-        child.element.text = child.text ?? '';
+        if (child.textElement) child.textElement.text = child.text ?? '';
         if (child.hidden) child.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
         nodeAdd(parentInstance.element, child.element);
+        trackParent(child.element, parentInstance.element);
     }
 
     // Clear the merged children list
@@ -1477,20 +1495,26 @@ export const hostConfig = {
     },
 
     createTextInstance(text: string) {
-        // Create a TextElement for implicit text content
-        // Using TextElement (not Label) for semantic clarity:
-        // - TextElement = raw text content in JSX
-        // - Label = explicit <Label> component
-        const element = new CS.UnityEngine.UIElements.TextElement();
-        element.text = text;
-        return {
-            element,
+        // Raw text in JSX is a TextElement (an explicit <Label> is a Label),
+        // made the first time something asks for `element`. A text merged into
+        // its parent's text is drawn by the parent and never asks, which saves
+        // the two crossings, construct and set text, each one cost at mount.
+        const instance: Instance = {
+            get element() {
+                if (!instance.textElement) {
+                    const element = new CS.UnityEngine.UIElements.TextElement();
+                    element.text = instance.text ?? '';
+                    instance.textElement = element;
+                }
+                return instance.textElement;
+            },
             text,
             type: 'text',
             props: {},
             eventHandlers: new Map(),
             appliedStyle: EMPTY_STYLE,
         };
+        return instance;
     },
 
     appendInitialChild(parentInstance: Instance, child: Instance) {
@@ -1499,8 +1523,8 @@ export const hostConfig = {
         } else {
             handleNonTextChild(parentInstance);
             nodeAdd(parentInstance.element, child.element);
+            trackParent(child.element, parentInstance.element);
         }
-        trackParent(child.element, parentInstance.element);
     },
 
     appendChild(parentInstance: Instance, child: Instance) {
@@ -1509,8 +1533,8 @@ export const hostConfig = {
         } else {
             handleNonTextChild(parentInstance);
             nodeAdd(parentInstance.element, child.element);
+            trackParent(child.element, parentInstance.element);
         }
-        trackParent(child.element, parentInstance.element);
     },
 
     appendChildToContainer(container: Container, child: Instance) {
@@ -1526,8 +1550,8 @@ export const hostConfig = {
         } else {
             handleNonTextChild(parentInstance);
             insertElementBefore(parentInstance.element, child.element, beforeChild.element);
+            trackParent(child.element, parentInstance.element);
         }
-        trackParent(child.element, parentInstance.element);
     },
 
     insertInContainerBefore(container: Container, child: Instance, beforeChild: Instance) {
@@ -1537,6 +1561,7 @@ export const hostConfig = {
 
     removeChild(parentInstance: Instance, child: Instance) {
         if (child.mergedInto === parentInstance) {
+            // Merged, it was never linked to the parent: nothing to undo
             removeMergedTextChild(parentInstance, child);
         } else {
             __eventAPI.removeAllEventListeners(child.element);
@@ -1545,8 +1570,8 @@ export const hostConfig = {
             // parentInstance.element.Remove(child.element) keeps unmount from throwing
             // when the root was cleared before React tore the tree down (hot reload).
             nodeRemoveFromHierarchy(child.element);
+            untrackParent(child.element);
         }
-        untrackParent(child.element);
     },
 
     removeChildFromContainer(container: Container, child: Instance) {

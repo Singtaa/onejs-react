@@ -638,6 +638,11 @@ export function createMockCS() {
                         element.AddToClassList(cls);
                     }
                 },
+                UpdatesClasses: true,
+                UpdateClasses: (element: MockVisualElement, removed: string[], added: string[]) => {
+                    for (const cls of removed) element.RemoveFromClassList(cls);
+                    for (const cls of added) element.AddToClassList(cls);
+                },
             },
             // Mirrors the real CS.OneJS.NodeBridge: resolve element handles and
             // delegate to the same tree ops the slow path would have called.

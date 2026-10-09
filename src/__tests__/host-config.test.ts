@@ -641,6 +641,32 @@ describe('host-config', () => {
             expect(el.hasClass('foo')).toBe(false);
             expect(el.hasClass('bar')).toBe(false);
         });
+
+        // Each class added or removed was its own crossing
+        it('sends an update as one UpdateClasses call, with what went and what came', () => {
+            const instance = createInstance('ojs-view', { className: 'a b c' });
+            const el = getMockElement(instance);
+            const bridge = (globalThis as any).CS.OneJS.StyleBridge;
+            const update = vi.spyOn(bridge, 'UpdateClasses');
+
+            commitUpdate(instance, 'ojs-view', { className: 'a b c' }, { className: 'a d e' });
+
+            expect(update).toHaveBeenCalledTimes(1);
+            expect(update.mock.calls[0].slice(1)).toEqual([['b', 'c'], ['d', 'e']]);
+            for (const cls of ['a', 'd', 'e']) expect(el.ClassListContains(cls)).toBe(true);
+            for (const cls of ['b', 'c']) expect(el.ClassListContains(cls)).toBe(false);
+            update.mockRestore();
+        });
+
+        it('sends nothing when the classes are the same in another order', () => {
+            const instance = createInstance('ojs-view', { className: 'a b' });
+            const update = vi.spyOn((globalThis as any).CS.OneJS.StyleBridge, 'UpdateClasses');
+
+            commitUpdate(instance, 'ojs-view', { className: 'a b' }, { className: 'b  a' });
+
+            expect(update).not.toHaveBeenCalled();
+            update.mockRestore();
+        });
     });
 
     describe('event handlers', () => {
@@ -949,6 +975,51 @@ describe('host-config', () => {
             expect(parentCounts).toEqual({ reads: 1, writes: 1 }); // the read is the assertion's
             expect(aCounts).toEqual({ reads: 0, writes: 0 });
             expect(bCounts).toEqual({ reads: 0, writes: 0 });
+        });
+
+        // A merged text is drawn by its parent's text: making it an element of
+        // its own cost two crossings (construct, set text) for nothing
+        it('a merged text makes no element until it is unmerged', () => {
+            const parent = createInstance('ojs-text', {});
+            const a = createTextInstance('score ');
+            const b = createTextInstance('1');
+            appendInitialChild(parent, a);
+            appendInitialChild(parent, b);
+            commitTextUpdate(b, '1', '2');
+            removeChild(parent, a);
+
+            expect(a.textElement).toBeUndefined();
+            expect(b.textElement).toBeUndefined();
+            expect(getMockElement(parent).text).toBe('2');
+
+            appendChild(parent, createInstance('ojs-view', {}));
+
+            expect(b.textElement).toBeDefined();
+            expect(b.element.text).toBe('2');
+            expect(getMockElement(parent).children[0]).toBe(b.element);
+        });
+
+        it('a text beside an element is made with its text when placed', () => {
+            const parent = createInstance('ojs-view', {});
+            const t = createTextInstance('hi');
+            expect(t.textElement).toBeUndefined();
+
+            appendInitialChild(parent, t);
+
+            expect(getMockElement(parent).children).toContain(t.textElement);
+            expect(t.textElement?.text).toBe('hi');
+        });
+
+        it('a text made while merged is told the text it missed when unmerged', () => {
+            const parent = createInstance('ojs-text', {});
+            const t = createTextInstance('old');
+            appendInitialChild(parent, t);
+            void t.element; // asking for it makes it, with the text it has now
+            commitTextUpdate(t, 'old', 'new');
+
+            appendChild(parent, createInstance('ojs-view', {}));
+
+            expect(t.element.text).toBe('new');
         });
 
         it('an unmerged text child carries the text it was given while merged', () => {
