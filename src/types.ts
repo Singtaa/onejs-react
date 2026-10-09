@@ -238,6 +238,12 @@ export interface ViewStyle {
    */
   transformOrigin?: any;
 
+  // Filters, as USS writes them
+  /** Unity 6.3+. Filter functions applied to the element: "blur(4px) grayscale(50%)", or "none" */
+  filter?: string;
+  /** Unity 6.6+. Filter functions applied to what is behind the element: "blur(8px)", or "none" */
+  backdropFilter?: string;
+
   // Transition
   /** Delay before transitions start. Pass a C# StyleList. */
   transitionDelay?: any;

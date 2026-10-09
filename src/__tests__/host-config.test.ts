@@ -13,7 +13,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { hostConfig, type Instance } from "../host-config";
 import { MockVisualElement, MockLength, MockColor, MockShaderEffectElement, getEventAPI } from "./mocks";
-import type { BaseProps } from "../types";
+import type { BaseProps, ViewStyle } from "../types";
 
 // Props type that includes component-specific properties for testing
 type TestProps = BaseProps & {
@@ -165,6 +165,16 @@ describe('host-config', () => {
             expect(getStyleValue(instance.element.style.height)).toBe(50);
             // Color properties are now wrapped in MockColor
             expect(instance.element.style.backgroundColor).toBeInstanceOf(MockColor);
+        });
+
+        // USS filter functions (filter from Unity 6.3, backdropFilter from 6.6) go
+        // to C# as written: StyleBridge reads the text into Unity's filter list.
+        it('sends filter and backdropFilter through as USS text', () => {
+            const style: ViewStyle = { filter: 'blur(4px) grayscale(50%)', backdropFilter: 'blur(6px)' };
+            const instance = createInstance('ojs-view', { style }, null as any, null, null);
+
+            expect(instance.element.style.filter).toBe('blur(4px) grayscale(50%)');
+            expect(instance.element.style.backdropFilter).toBe('blur(6px)');
         });
 
         it('tracks applied style keys', () => {
