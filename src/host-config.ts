@@ -862,26 +862,32 @@ function handleNonTextChild(parentInstance: Instance) {
     }
 }
 
+// A text child's place in its parent's merged list, emptied first when it
+// already has one: React places a text it is moving without removing it (keyed
+// fragments holding texts, reordered), as an element's Add moves it rather than
+// adding it twice
+function mergedTextChildrenWithout(parentInstance: Instance, child: Instance): Instance[] {
+    const children = parentInstance.mergedTextChildren ??= [];
+    const index = children.indexOf(child);
+    if (index >= 0) children.splice(index, 1);
+    return children;
+}
+
 // Append a text child to a text-merging parent
 function appendMergedTextChild(parentInstance: Instance, child: Instance) {
-    if (!parentInstance.mergedTextChildren) {
-        parentInstance.mergedTextChildren = [];
-    }
-    parentInstance.mergedTextChildren.push(child);
+    mergedTextChildrenWithout(parentInstance, child).push(child);
     child.mergedInto = parentInstance;
     rebuildMergedText(parentInstance);
 }
 
 // Insert a text child before another in a text-merging parent
 function insertMergedTextChild(parentInstance: Instance, child: Instance, beforeChild: Instance) {
-    if (!parentInstance.mergedTextChildren) {
-        parentInstance.mergedTextChildren = [];
-    }
-    const index = parentInstance.mergedTextChildren.indexOf(beforeChild);
+    const children = mergedTextChildrenWithout(parentInstance, child);
+    const index = children.indexOf(beforeChild);
     if (index >= 0) {
-        parentInstance.mergedTextChildren.splice(index, 0, child);
+        children.splice(index, 0, child);
     } else {
-        parentInstance.mergedTextChildren.push(child);
+        children.push(child);
     }
     child.mergedInto = parentInstance;
     rebuildMergedText(parentInstance);

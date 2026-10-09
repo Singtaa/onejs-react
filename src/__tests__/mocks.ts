@@ -82,9 +82,11 @@ export class MockVisualElement {
         createdElements.push(this);
     }
 
-    // Child management methods
+    // Child management methods. Add moves a child the element already has to
+    // the end, as UI Toolkit's does, rather than leaving it where it was
     Add(child: MockVisualElement): void {
-        if (child && !this._children.includes(child)) {
+        if (child) {
+            child.RemoveFromHierarchy();
             this._children.push(child);
             child._parent = this;
         }
