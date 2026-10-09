@@ -14,7 +14,7 @@ import { render, unmount } from "../renderer"
 import { registerElement } from "../host-config"
 import { TextField, Toggle, Slider, View, createComponent } from "../components"
 import type { BaseProps } from "../types"
-import { createMockContainer, flushMicrotasks, getEventAPI, MockVisualElement, type MockSlider } from "./mocks"
+import { createMockContainer, flushMicrotasks, getEventAPI, MockVisualElement } from "./mocks"
 
 /** The change listener the reconciler registered on `el`, if any. */
 function changeListener(el: MockVisualElement): ((e: unknown) => void) | undefined {
@@ -174,9 +174,8 @@ describe("controlled inputs re-assert their value", () => {
     })
 
     it("sees the new props when writing the value prop itself raises a change", async () => {
-        // Unity's value setter sends ChangeEvent synchronously when nothing else
-        // is dispatching. A re-assert that read the old props here would put the
-        // old value back over the one React just wrote.
+        // A re-assert that read the old props here would put the old value back
+        // over the one React just wrote.
         let setVolume: (n: number) => void = () => {}
         function Volume() {
             const [volume, set] = useState(50)
@@ -184,24 +183,90 @@ describe("controlled inputs re-assert their value", () => {
             return <Slider value={volume} onChange={e => set(e.value)} />
         }
         const { container, el } = await mount(<Volume />)
-        const slider = el as MockSlider
-        let current = slider.value
-        Object.defineProperty(slider, "value", {
-            get: () => current,
-            set: (v: unknown) => {
-                if (v === current) return
-                const previousValue = current
-                current = v
-                changeListener(slider)?.({ type: "change", value: v, previousValue, target: slider.__csHandle, currentTarget: slider.__csHandle })
-            },
-            configurable: true,
-        })
-        // The real one writes without notifying, so the mock's must bypass the setter too
-        ;(slider as any).SetValueWithoutNotify = vi.fn((v: unknown) => { current = v })
+        notifiesLikeUnity(el)
 
         setVolume(80)
         await flushMicrotasks()
-        expect(slider.value).toBe(80)
+        expect(el.value).toBe(80)
+        unmount(container as any)
+    })
+})
+
+/**
+ * Gives `el` Unity's value setter, which raises ChangeEvent synchronously when
+ * the value changes, and a SetValueWithoutNotify that does not.
+ */
+function notifiesLikeUnity(el: MockVisualElement) {
+    let current = el.value
+    Object.defineProperty(el, "value", {
+        get: () => current,
+        set: (v: unknown) => {
+            if (v === current) return
+            const previousValue = current
+            current = v
+            changeListener(el)?.({ type: "change", value: v, previousValue, target: el.__csHandle, currentTarget: el.__csHandle })
+        },
+        configurable: true,
+    })
+    ;(el as any).SetValueWithoutNotify = vi.fn((v: unknown) => { current = v })
+}
+
+// React DOM fires no onChange for a value it writes, only for one the user makes
+describe("a value React writes is not a change", () => {
+    for (const [name, Control, from, to] of [
+        ["TextField", TextField, "a", "b"],
+        ["Toggle", Toggle, false, true],
+        ["Slider", Slider, 10, 20],
+    ] as const) {
+        it(`a ${name} given a new value fires no onChange`, async () => {
+            const onChange = vi.fn()
+            let setValue: (v: unknown) => void = () => {}
+            function Controlled() {
+                const [value, set] = useState<unknown>(from)
+                setValue = set
+                return React.createElement(Control as any, { value, onChange })
+            }
+            const { container, el } = await mount(<Controlled />)
+            notifiesLikeUnity(el)
+
+            setValue(to)
+            await flushMicrotasks()
+            expect(el.value).toBe(to)
+            expect(onChange).not.toHaveBeenCalled()
+            unmount(container as any)
+        })
+    }
+
+    it("a registered field given a new value fires no onChange", async () => {
+        class MockEnumField extends MockVisualElement {
+            constructor() { super("UnityEngine.UIElements.EnumField") }
+        }
+        registerElement("enum-test", MockEnumField)
+        const Field = createComponent<BaseProps & { value?: string, onChange?: (e: { value: string }) => void }>("enum-test")
+        const onChange = vi.fn()
+        let setValue: (v: string) => void = () => {}
+        function Controlled() {
+            const [value, set] = useState("Easy")
+            setValue = set
+            return <Field value={value} onChange={onChange} />
+        }
+        const { container, el } = await mount(<Controlled />)
+        notifiesLikeUnity(el)
+
+        setValue("Hard")
+        await flushMicrotasks()
+        expect(el.value).toBe("Hard")
+        expect(onChange).not.toHaveBeenCalled()
+        unmount(container as any)
+    })
+
+    it("a user's change still reaches onChange", async () => {
+        const onChange = vi.fn()
+        const { container, el } = await mount(<TextField onChange={onChange} />)
+        notifiesLikeUnity(el)
+
+        el.value = "typed"
+        expect(onChange).toHaveBeenCalledTimes(1)
         unmount(container as any)
     })
 })
