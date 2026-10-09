@@ -54,6 +54,8 @@ const removeChildFromContainer = hostConfig.removeChildFromContainer!;
 const clearContainer = hostConfig.clearContainer!;
 const hideInstance = hostConfig.hideInstance!;
 const unhideInstance = hostConfig.unhideInstance!;
+const hideTextInstance = hostConfig.hideTextInstance!;
+const unhideTextInstance = hostConfig.unhideTextInstance!;
 const commitTextUpdate = hostConfig.commitTextUpdate!;
 const prepareUpdate = hostConfig.prepareUpdate!;
 
@@ -1021,6 +1023,40 @@ describe('host-config', () => {
             unhideInstance(instance, props);
 
             expect(instance.element.style.display).toBe(DisplayStyle.None);
+        });
+
+        // A Suspense boundary that suspends again hides the texts it showed. A
+        // merged text shows only through its parent's text, so that is what hides it
+        it('a merged text Suspense hides leaves its parent\'s text, and is back once shown', () => {
+            const parent = createInstance('ojs-text', {});
+            const [count, label, fallback] = ['count ', 'L1', 'wait'].map(t => createTextInstance(t));
+            appendInitialChild(parent, count);
+            appendInitialChild(parent, label);
+
+            hideTextInstance(label);
+            appendChild(parent, fallback);
+            expect(getMockElement(parent).text).toBe('count wait');
+
+            removeChild(parent, fallback);
+            unhideTextInstance(label, 'L1');
+            expect(getMockElement(parent).text).toBe('count L1');
+        });
+
+        it('a hidden merged text stays hidden when its parent unmerges', () => {
+            const parent = createInstance('ojs-text', {});
+            const [count, label] = ['count ', 'L1'].map(t => createTextInstance(t));
+            appendInitialChild(parent, count);
+            appendInitialChild(parent, label);
+            hideTextInstance(label);
+
+            appendChild(parent, createInstance('ojs-view', {}));
+
+            const DisplayStyle = (globalThis as any).CS.UnityEngine.UIElements.DisplayStyle;
+            expect(label.element.style.display).toBe(DisplayStyle.None);
+            expect(count.element.style.display).not.toBe(DisplayStyle.None);
+
+            unhideTextInstance(label, 'L1');
+            expect(label.element.style.display).toBe(DisplayStyle.Flex);
         });
     });
 
