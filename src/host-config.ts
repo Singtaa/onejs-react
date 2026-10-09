@@ -205,6 +205,9 @@ export interface Instance {
     // element is not drawn, so its text is kept here and its element is told
     // only when it is unmerged: reading element.text back is a crossing.
     text?: string;
+    // For text instances: hidden by a Suspense boundary showing its fallback. A
+    // merged text is hidden by leaving it out of its parent's text
+    hidden?: boolean;
     // Set to true when a non-text child is added, disabling further text merging
     hasMixedContent?: boolean;
     // For vector drawing: track the current generateVisualContent callback
@@ -826,7 +829,9 @@ function rebuildMergedText(instance: Instance) {
         instance.element.text = '';
         return;
     }
-    instance.element.text = children.map(c => c.text ?? '').join('');
+    let text = '';
+    for (const c of children) if (!c.hidden) text += c.text ?? '';
+    instance.element.text = text;
 }
 
 // Check if a child should be merged into parent's text property
@@ -846,10 +851,12 @@ function unmergTextChildren(parentInstance: Instance) {
     parentInstance.element.text = '';
 
     // Add each merged text child as an actual visual child, carrying the text
-    // it was given while merged, which went only to the parent
+    // it was given while merged, which went only to the parent, and hidden if
+    // Suspense hid it
     for (const child of children) {
         child.mergedInto = undefined;
         child.element.text = child.text ?? '';
+        if (child.hidden) child.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
         nodeAdd(parentInstance.element, child.element);
     }
 
@@ -1683,7 +1690,9 @@ export const hostConfig = {
         instance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
     },
     hideTextInstance(textInstance: TextInstance) {
-        textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
+        textInstance.hidden = true;
+        if (textInstance.mergedInto) rebuildMergedText(textInstance.mergedInto);
+        else textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.None;
     },
     unhideInstance(instance: Instance, props: BaseProps) {
         // Restore what the element asked for rather than forcing Flex: its own
@@ -1694,7 +1703,9 @@ export const hostConfig = {
             : own === "flex" ? CS.UnityEngine.UIElements.DisplayStyle.Flex : undefined;
     },
     unhideTextInstance(textInstance: TextInstance, _text: string) {
-        textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.Flex;
+        textInstance.hidden = false;
+        if (textInstance.mergedInto) rebuildMergedText(textInstance.mergedInto);
+        else textInstance.element.style.display = CS.UnityEngine.UIElements.DisplayStyle.Flex;
     },
 
     // Text content
