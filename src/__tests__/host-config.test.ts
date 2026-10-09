@@ -278,7 +278,8 @@ describe('host-config', () => {
             const spy = spyApplyStyles();
 
             commitUpdate(instance, 'ojs-view', before, { style: { width: 100 } });
-            expect(spy).not.toHaveBeenCalled();
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(spy.mock.calls[0][1]).toEqual({ height: null });
             expect(instance.element.style.height).toBeUndefined();
             expect(getStyleValue(instance.element.style.width)).toBe(100);
         });

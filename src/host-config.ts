@@ -461,21 +461,27 @@ function applyStyle(element: CSObject, style: ViewStyle | undefined): FlatStyle 
     return flat;
 }
 
-// Move an element from the style it was last sent to a new one: clear the
-// longhands that are gone, send only the ones whose value changed. Returns the
-// new style flattened, for the next update.
+// Move an element from the style it was last sent to a new one: send the
+// longhands whose value changed and the ones that are gone, which go as null
+// and clear. Returns the new style flattened, for the next update.
 function updateStyle(element: CSObject, previous: FlatStyle, style: ViewStyle | undefined): FlatStyle {
     const next = flattenStyle(style);
-    clearRemovedStyles(element, previous, next);
     const changed: string[] = [];
     for (const [key, value] of next) {
         if (!previous.has(key) || !Object.is(previous.get(key), value)) changed.push(key);
+    }
+    for (const key of previous.keys()) {
+        if (!next.has(key)) changed.push(key);
     }
     sendStyles(element, next, changed);
     return next;
 }
 
-// Send the given longhands of a flattened style.
+// Send the given longhands of a flattened style. A key the style no longer has
+// goes as null: StyleBridge clears it to StyleKeyword.Null, so the sheet's value
+// shows again, and warns once rather than throwing for a key this Unity lacks.
+// (Assigning undefined through element.style set the property's default
+// instead, width 0 or opacity 0, and threw for an unknown key.)
 //
 // One crossing for all of them: the values are parsed into plain data (see
 // style-parser.ts) and handed to CS.OneJS.StyleBridge.ApplyStyles together.
@@ -492,7 +498,7 @@ function sendStyles(element: CSObject, flat: FlatStyle, keys: Iterable<string>) 
             continue;
         }
         batched ??= {};
-        batched[key] = resolveForBatch(parseStyleValue(key, value));
+        batched[key] = value === undefined ? null : resolveForBatch(parseStyleValue(key, value));
     }
     if (batched) CS.OneJS.StyleBridge.ApplyStyles(element, batched);
 }
@@ -558,24 +564,6 @@ function resolveForBatch(value: unknown): unknown {
         return Number(value)
     }
     return value
-}
-
-// Clear style properties that are no longer in the new style
-function clearRemovedStyles(element: CSObject, previous: FlatStyle, next: FlatStyle) {
-    // Fetched only once a key is gone: reading element.style is a crossing,
-    // and most updates remove nothing
-    let s: Record<string, unknown> | undefined;
-    for (const key of previous.keys()) {
-        if (!next.has(key)) {
-            if (key === "backgroundImage") {
-                // Special handling for backgroundImage: use GPUBridge to clear
-                CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
-            } else {
-                // Setting to undefined clears the inline style, falling back to USS
-                (s ??= element.style)[key] = undefined;
-            }
-        }
-    }
 }
 
 // Parse className string into a Set of escaped class names.
