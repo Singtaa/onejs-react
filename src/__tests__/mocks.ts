@@ -625,7 +625,9 @@ export function createMockCS() {
             StyleBridge: {
                 ApplyStyles: (element: MockVisualElement, styles: Record<string, unknown>) => {
                     for (const key in styles) {
-                        element.style[key] = fromStyleWire(styles[key]);
+                        // null clears the inline value, as StyleKeyword.Null does
+                        if (styles[key] === null) delete element.style[key];
+                        else element.style[key] = fromStyleWire(styles[key]);
                     }
                 },
                 AddClassesBatch: (element: MockVisualElement, classes: string[]) => {
