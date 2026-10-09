@@ -278,7 +278,8 @@ describe('host-config', () => {
             const spy = spyApplyStyles();
 
             commitUpdate(instance, 'ojs-view', before, { style: { width: 100 } });
-            expect(spy).not.toHaveBeenCalled();
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(spy.mock.calls[0][1]).toEqual({ height: null });
             expect(instance.element.style.height).toBeUndefined();
             expect(getStyleValue(instance.element.style.width)).toBe(100);
         });
@@ -328,23 +329,28 @@ describe('host-config', () => {
             expect(getStyleValue(instance.element.style.width)).toBe(200);
         });
 
-        it('reads element.style only for an update that removes a key', () => {
+        // A removed key goes to StyleBridge as null, in the same batch as the keys
+        // that changed: StyleBridge clears it to the Null keyword, so the sheet's
+        // value shows again. Assigning undefined through element.style instead set
+        // the property's default (width 0, opacity 0, an empty filter) and threw
+        // for a key this Unity lacks, which unmounted the app.
+        it('clears a removed key through StyleBridge as null, in one crossing with the changes', () => {
             const instance = createInstance('ojs-view', { style: { width: 100, height: 50 } });
             const element = getMockElement(instance);
             let reads = 0;
             const style = element.style;
             Object.defineProperty(element, 'style', { get: () => { reads++; return style; }, configurable: true });
-            // The mock StyleBridge writes through element.style; the real one is a single crossing
             const bridge = (globalThis as any).CS.OneJS.StyleBridge;
             const apply = vi.spyOn(bridge, 'ApplyStyles').mockImplementation(() => {});
 
             commitUpdate(instance, 'ojs-view', { style: { width: 100, height: 50 } }, { style: { width: 200, height: 50 } });
-            expect(reads).toBe(0);
+            commitUpdate(instance, 'ojs-view', { style: { width: 200, height: 50 } }, { style: { width: 300 } });
 
-            commitUpdate(instance, 'ojs-view', { style: { width: 200, height: 50 } }, { style: { width: 200 } });
-            expect(reads).toBe(1);
-            expect(style.height).toBeUndefined();
-            expect(apply).toHaveBeenCalledTimes(1);
+            expect(reads).toBe(0);
+            expect(apply).toHaveBeenCalledTimes(2);
+            const removal = apply.mock.calls[1][1] as Record<string, unknown>;
+            expect(removal).toHaveProperty('height', null);
+            expect(Object.keys(removal).sort()).toEqual(['height', 'width']);
             apply.mockRestore();
         });
 
