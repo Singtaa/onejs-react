@@ -623,6 +623,7 @@ export function createMockCS() {
             // host-config sends plain data, and this reads it the way StyleBridge
             // does (see fromStyleWire), so assertions see the struct C# would set.
             StyleBridge: {
+                ClearsNull: true,
                 ApplyStyles: (element: MockVisualElement, styles: Record<string, unknown>) => {
                     for (const key in styles) {
                         // null clears the inline value, as StyleKeyword.Null does

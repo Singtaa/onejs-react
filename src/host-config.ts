@@ -86,6 +86,7 @@ declare const CS: {
         };
         StyleBridge: {
             ApplyStyles: (element: CSObject, styles: Record<string, unknown>) => void;
+            ClearsNull?: boolean;
             AddClassesBatch: (element: CSObject, classes: string[]) => void;
         };
         NodeBridge: {
@@ -471,10 +472,25 @@ function updateStyle(element: CSObject, previous: FlatStyle, style: ViewStyle | 
         if (!previous.has(key) || !Object.is(previous.get(key), value)) changed.push(key);
     }
     for (const key of previous.keys()) {
-        if (!next.has(key)) changed.push(key);
+        if (next.has(key)) continue;
+        if (bridgeClearsNull()) changed.push(key);
+        else if (key === "backgroundImage") CS.OneJS.GPU.GPUBridge.ClearElementBackgroundImage(element);
+        else element.style[key] = undefined;
     }
     sendStyles(element, next, changed);
     return next;
+}
+
+let clearsNull: boolean | undefined
+
+// A OneJS whose StyleBridge says ClearsNull clears a style sent as null. An older
+// one reads null as an error, so it gets the style proxy, as onejs-react used before.
+function bridgeClearsNull(): boolean {
+    if (clearsNull === undefined) {
+        // A missing static reads as a truthy proxy, so compare with true
+        try { clearsNull = CS.OneJS.StyleBridge.ClearsNull === true } catch { clearsNull = false }
+    }
+    return clearsNull
 }
 
 // Send the given longhands of a flattened style. A key the style no longer has
