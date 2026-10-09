@@ -955,6 +955,35 @@ describe('host-config', () => {
             expect(t.element.text).toBe('new');
             expect(getMockElement(parent).text).toBe('');
         });
+
+        // React moves a text without removing it first, as when keyed fragments
+        // holding texts are reordered: [a, b, c] to [c, a, b] places a and b again
+        it('a merged text moved before a sibling shows once, in its new place', () => {
+            const parent = createInstance('ojs-text', {});
+            const [a, b, c] = ['a', 'b', 'c'].map(t => createTextInstance(t));
+            for (const t of [a, b, c]) appendInitialChild(parent, t);
+
+            appendChild(parent, a);
+            appendChild(parent, b);
+            expect(getMockElement(parent).text).toBe('cab');
+
+            insertBefore(parent, b, c);
+            expect(getMockElement(parent).text).toBe('bca');
+        });
+
+        it('a moved merged text unmerges once, in its new place', () => {
+            const parent = createInstance('ojs-text', {});
+            const [a, b] = ['a', 'b'].map(t => createTextInstance(t));
+            appendInitialChild(parent, a);
+            appendInitialChild(parent, b);
+            insertBefore(parent, b, a);
+
+            appendChild(parent, createInstance('ojs-view', {}));
+
+            const children = getMockElement(parent).children;
+            expect(children.slice(0, 2)).toEqual([b.element, a.element]);
+            expect(children).toHaveLength(3);
+        });
     });
 
     describe('visibility', () => {
