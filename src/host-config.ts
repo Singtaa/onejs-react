@@ -778,9 +778,16 @@ const VALUE_CONTROL_TYPES = new Set(['ojs-textfield', 'ojs-toggle', 'ojs-slider'
 function reassertValue(instance: Instance) {
     const value = (instance.props as Record<string, unknown>).value;
     if (value == null) return;
-    const el = instance.element as any;
-    if (el.value === value) return;
-    if (VALUE_CONTROL_TYPES.has(instance.type)) {
+    if ((instance.element as any).value === value) return;
+    writeValue(instance.element, instance.type, value);
+}
+
+// Writes a value React set without raising ChangeEvent, as React DOM writes an
+// input's value without firing onChange: only what the user changes is a
+// change. Unity's value setter raises one synchronously.
+function writeValue(element: CSObject, type: string, value: unknown) {
+    const el = element as any;
+    if (VALUE_CONTROL_TYPES.has(type)) {
         el.SetValueWithoutNotify(value);
         return;
     }
@@ -964,10 +971,13 @@ function insertElementBefore(parentEl: CSObject, childEl: CSObject, beforeChildE
 // MARK: Component-specific prop handlers
 
 // Apply common props (text, value, label): skip unchanged values
-function applyCommonProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
+function applyCommonProps(element: CSObject, type: string, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     const el = element as any;
     if (props.text !== undefined && props.text !== oldProps?.text) el.text = props.text as string;
-    if (props.value !== undefined && props.value !== oldProps?.value) el.value = props.value;
+    if (props.value !== undefined && props.value !== oldProps?.value) {
+        if (VALUE_CONTROL_TYPES.has(type)) writeValue(element, type, props.value);
+        else el.value = props.value;
+    }
     if (props.label !== undefined && props.label !== oldProps?.label) el.label = props.label as string;
 }
 
@@ -1298,11 +1308,12 @@ const RESERVED_PROPS = new Set([
 ]);
 
 // Forward non-reserved props directly to C# element (for custom elements): skip unchanged
-function applyCustomProps(element: CSObject, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
+function applyCustomProps(element: CSObject, type: string, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     for (const [key, value] of Object.entries(props)) {
         if (value === undefined || RESERVED_PROPS.has(key)) continue;
         if (value === oldProps?.[key]) continue;
-        (element as any)[key] = value;
+        if (key === 'value') writeValue(element, type, value);
+        else (element as any)[key] = value;
     }
 }
 
@@ -1310,7 +1321,7 @@ function applyCustomProps(element: CSObject, props: Record<string, unknown>, old
 function applyComponentProps(element: CSObject, type: string, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {
     // Custom elements: forward all non-reserved props directly to C# element
     if (!BUILT_IN_TYPES.has(type)) {
-        applyCustomProps(element, props, oldProps);
+        applyCustomProps(element, type, props, oldProps);
         return;
     }
 
@@ -1318,11 +1329,11 @@ function applyComponentProps(element: CSObject, type: string, props: Record<stri
     // Unity's Slider clamps value to [lowValue, highValue], so range must be set first
     if (type === 'ojs-slider') {
         applySliderProps(element, props, oldProps);
-        applyCommonProps(element, props, oldProps);
+        applyCommonProps(element, type, props, oldProps);
         return;
     }
 
-    applyCommonProps(element, props, oldProps);
+    applyCommonProps(element, type, props, oldProps);
 
     if (type === 'ojs-textfield') {
         applyTextFieldProps(element, props, oldProps);

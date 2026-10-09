@@ -85,10 +85,12 @@ describe("controlled inputs re-assert their value", () => {
             return <TextField value={name} onChange={e => setName(e.value)} />
         }
         const { container, el } = await mount(<Name />)
+        el.SetValueWithoutNotify.mockClear()
 
         userChanges(el, "Ada")
         expect(el.value).toBe("Ada")
-        expect(el.SetValueWithoutNotify).not.toHaveBeenCalled()
+        // Only the new value, as React commits it
+        expect(el.SetValueWithoutNotify.mock.calls).toEqual([["Ada"]])
         unmount(container as any)
     })
 
