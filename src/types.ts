@@ -306,6 +306,12 @@ export interface PointerEventData extends OneJSEvent {
   modifiers?: number;
 }
 
+/**
+ * UI Toolkit's mouse events, which it raises from the primary pointer beside
+ * the pointer events. onMouseOver, onMouseOut, onMouseDown, onMouseUp and
+ * onMouseMove bubble; onMouseEnter and onMouseLeave reach only the element
+ * entered or left. Prefer the pointer events, which also cover touch and pen.
+ */
 export interface MouseEventData extends OneJSEvent {
   /** Panel x. See PointerEventData. */
   x: number;
@@ -344,13 +350,6 @@ export interface ChangeEventData<T = unknown> extends OneJSEvent {
  */
 export type FocusEventData = OneJSEvent;
 
-export interface DragEventData extends OneJSEvent {
-  x: number;
-  y: number;
-  // Drag-specific properties
-  getData?: (type: string) => unknown;
-}
-
 export interface GeometryEventData extends OneJSEvent {
   oldRect: { x: number; y: number; width: number; height: number };
   newRect: { x: number; y: number; width: number; height: number };
@@ -378,8 +377,25 @@ export interface NavigationEventData extends OneJSEvent {
   modifiers?: number;
 }
 
+/**
+ * A TextField's text changing as the user types, before onChange reports the
+ * committed value. Bubbles.
+ */
+export interface InputEventData extends OneJSEvent {
+  /** The text now. */
+  value: string;
+  /** The text before this edit. */
+  previousValue: string;
+}
+
+/**
+ * A USS transition running, starting, ending or being cancelled, one event per
+ * property as in the DOM. Bubbles.
+ */
 export interface TransitionEventData extends OneJSEvent {
-  styleProperty: string;
+  /** The USS property name, such as "background-color". */
+  propertyName: string;
+  /** Seconds the transition had run, excluding any delay. */
   elapsedTime: number;
 }
 
@@ -389,9 +405,9 @@ export type WheelEventHandler = (event: WheelEventData) => void;
 export type KeyEventHandler = (event: KeyEventData) => void;
 export type ChangeEventHandler<T = unknown> = (event: ChangeEventData<T>) => void;
 export type FocusEventHandler = (event: FocusEventData) => void;
-export type DragEventHandler = (event: DragEventData) => void;
 export type GeometryEventHandler = (event: GeometryEventData) => void;
 export type NavigationEventHandler = (event: NavigationEventData) => void;
+export type InputEventHandler = (event: InputEventData) => void;
 export type TransitionEventHandler = (event: TransitionEventData) => void;
 
 // Vector Drawing Types: Re-export from unity-types (CS.* namespace)
@@ -478,24 +494,15 @@ export interface BaseProps {
   onPointerCapture?: PointerEventHandler;
   onPointerCaptureOut?: PointerEventHandler;
 
-  // Mouse events
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerDown. */
+  // Mouse events (primary pointer only; see MouseEventData)
   onMouseDown?: MouseEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerUp. */
   onMouseUp?: MouseEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerMove. */
   onMouseMove?: MouseEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerEnter. */
   onMouseEnter?: MouseEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerLeave. */
   onMouseLeave?: MouseEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerEnter. */
   onMouseOver?: MouseEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerLeave. */
   onMouseOut?: MouseEventHandler;
   onWheel?: WheelEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onPointerDown and check e.button === 1. */
-  onContextClick?: MouseEventHandler;
 
   // Focus events
   onFocus?: FocusEventHandler;
@@ -508,20 +515,7 @@ export interface BaseProps {
   onKeyUp?: KeyEventHandler;
 
   // Input events
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use onChange. */
-  onInput?: ChangeEventHandler;
-
-  // Drag events
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
-  onDragEnter?: DragEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
-  onDragLeave?: DragEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
-  onDragUpdated?: DragEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
-  onDragPerform?: DragEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. Use pointer events with pointer capture. */
-  onDragExited?: DragEventHandler;
+  onInput?: InputEventHandler;
 
   // Geometry events
   onGeometryChanged?: GeometryEventHandler;
@@ -531,18 +525,10 @@ export interface BaseProps {
   onNavigationSubmit?: NavigationEventHandler;
   onNavigationCancel?: NavigationEventHandler;
 
-  // Tooltip
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
-  onTooltip?: () => void;
-
   // Transition events
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionRun?: TransitionEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionStart?: TransitionEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionEnd?: TransitionEventHandler;
-  /** @deprecated Not delivered by OneJS yet: this handler never fires. */
   onTransitionCancel?: TransitionEventHandler;
 
   // Picking mode: controls whether the element receives pointer events

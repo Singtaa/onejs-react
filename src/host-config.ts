@@ -315,7 +315,11 @@ export function registerElement(name: string, constructor: new (...args: any[]) 
     TYPE_MAP[key] = () => new constructor();
 }
 
-// Event prop to event type mapping
+// Event prop to event type mapping: every event the bridge delivers, and only those.
+// The container's EventEncodingPlaymodeTests fires each at a real panel and fails
+// when this list names an event that never arrives, or misses one that does.
+// UI Toolkit's drag, tooltip and context click events have no prop: it raises
+// them only in Editor windows, never on a runtime panel.
 const EVENT_PROPS: Record<string, string> = {
     // Click
     onClick: 'click',
@@ -339,7 +343,6 @@ const EVENT_PROPS: Record<string, string> = {
     onMouseOver: 'mouseover',
     onMouseOut: 'mouseout',
     onWheel: 'wheel',
-    onContextClick: 'contextclick',
 
     // Focus events
     onFocus: 'focus',
@@ -355,13 +358,6 @@ const EVENT_PROPS: Record<string, string> = {
     onChange: 'change',
     onInput: 'input',
 
-    // Drag events
-    onDragEnter: 'dragenter',
-    onDragLeave: 'dragleave',
-    onDragUpdated: 'dragupdated',
-    onDragPerform: 'dragperform',
-    onDragExited: 'dragexited',
-
     // Geometry events
     onGeometryChanged: 'geometrychanged',
 
@@ -369,9 +365,6 @@ const EVENT_PROPS: Record<string, string> = {
     onNavigationMove: 'navigationmove',
     onNavigationSubmit: 'navigationsubmit',
     onNavigationCancel: 'navigationcancel',
-
-    // Tooltip
-    onTooltip: 'tooltip',
 
     // Transition events
     onTransitionRun: 'transitionrun',
