@@ -1058,7 +1058,7 @@ export interface CompiledProgram<Names extends string = string> {
    * Texture names in slot order.
    *
    * The same reason the uniform names are here: both backends address a
-   * texture as `_Tex0` to `_Tex3`, so a host handed the name an author wrote
+   * texture by slot, `_Tex0`, `_Tex1` and on, so a host handed the name an author wrote
    * had nothing to set. Optional, and a program built without it binds no
    * textures rather than binding the wrong ones.
    */

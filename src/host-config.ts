@@ -1999,7 +1999,7 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         /**
          * A program's textures go by SLOT, the way its uniforms do.
          *
-         * Both backends declare _Tex0 to _Tex3, so a material property named
+         * Both backends declare _Tex0, _Tex1 and on, so a material property named
          * after what the author wrote ("grain") reached neither: the picture
          * came out as whatever an unbound sampler is, in the browser and after
          * an eject alike, with nothing said about it. The names ride with the

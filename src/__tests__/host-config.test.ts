@@ -1507,7 +1507,7 @@ describe('ShaderProgram uniforms', () => {
     });
 
     it('binds a texture by the slot the program gave it, not by its name', () => {
-        // Both backends declare _Tex0 to _Tex3, so a material property named
+        // Both backends declare _Tex0, _Tex1 and on, so a material property named
         // "grain" reached neither and the picture came out of an unbound
         // sampler, quietly, in the browser and after an eject alike.
         const p = { ...program(['warp'], 'tex'), textures: ['grain', 'mask'] };
