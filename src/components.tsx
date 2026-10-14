@@ -38,7 +38,7 @@ import { useRowPortals } from './rows';
 import { parseColor } from './style-parser';
 import { loadImageAsset, loadImageAssetAsync, resolveAssetPath, isUrlPath } from './image-cache';
 
-export { clearImageCache } from './image-cache';
+export { clearImageCache, setImageBase } from './image-cache';
 import type { ColorInput } from './color';
 
 declare const CS: any

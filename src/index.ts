@@ -13,6 +13,7 @@ export {
   TreeView,
   FrostedGlass,
   clearImageCache,
+  setImageBase,
   createComponent,
 } from './components';
 

@@ -29,6 +29,27 @@ const _imagePending = new Map<string, Promise<any>>()
 // cache it was meant for is gone
 let _generation = 0
 
+// Where a host said the app's files are, or null for OneJS's own convention
+// (assets/ in the working directory, StreamingAssets/onejs/assets in a player)
+let _hostBase: string | null = null
+// Under _hostBase, where the carts the app uses keep theirs ("" for straight under it)
+let _hostUsedCarts = ""
+
+/**
+ * Says where `<Image src>` finds the app's files, for a host that keeps them
+ * somewhere other than OneJS's convention: a cart at a Unity project's root
+ * reads its files where they sit in the editor and from
+ * StreamingAssets/onejs/carts/<folder> in a player (Specs/ROOT_CARTS.md in the
+ * OneJS container). Its build calls this before the cart runs. A src starting
+ * with "@" is a used cart's file, under `usedCarts` when one is given.
+ *
+ * Null puts OneJS's convention back. Apps never call this.
+ */
+export function setImageBase(base: string | null, options: { usedCarts?: string } = {}): void {
+    _hostBase = base === null ? null : base.replace(/[\\/]+$/, "")
+    _hostUsedCarts = base === null ? "" : (options.usedCarts ?? "").replace(/^\/+|\/+$/g, "")
+}
+
 // On Android, streamingAssetsPath is a jar:file://...apk!/assets URL; on WebGL
 // it's http(s). System.IO.File can't read those: they need UnityWebRequest.
 export function isUrlPath(path: string): boolean {
@@ -49,6 +70,10 @@ export function resolveAssetPath(src: string): string {
     // Absolute paths bypass asset resolution entirely
     if (Path.IsPathRooted(src)) {
         return src
+    }
+    if (_hostBase !== null) {
+        const name = src.replace(/^\.\//, "")
+        return _hostUsedCarts !== "" && name.startsWith("@") ? `${_hostBase}/${_hostUsedCarts}/${name}` : `${_hostBase}/${name}`
     }
     if (CS.UnityEngine.Application.isEditor) {
         const workingDir = typeof (globalThis as any).__workingDir === "string"
