@@ -1382,6 +1382,56 @@ describe('ShaderProgram uniforms', () => {
         });
     });
 
+    /**
+     * `pixelated` shows a picture smaller than its element as hard-edged
+     * pixels, as CSS's image-rendering: pixelated does. Off, the element
+     * smooths it, as it always has.
+     */
+    describe('pixelated', () => {
+        it('turns hard pixels on and off with the prop, and leaves a new element smooth', () => {
+            const smooth = createInstance('ojs-shaderfx', { program: program([], 'px1') } as any, null as any, null, null);
+            expect((smooth.element as any).Pixelated).toBe(false);
+
+            const props = { program: program([], 'px2'), resolution: [4, 4], pixelated: true } as any;
+            const instance = createInstance('ojs-shaderfx', props, null as any, null, null);
+            const el = instance.element as any;
+            expect(el.Pixelated).toBe(true);
+            commitUpdate(instance, 'ojs-shaderfx', props, { ...props, pixelated: false });
+            expect(el.Pixelated).toBe(false);
+            commitUpdate(instance, 'ojs-shaderfx', { ...props, pixelated: false }, { ...props, pixelated: true });
+            expect(el.Pixelated).toBe(true);
+            // Removing the prop is turning it off.
+            const { pixelated: _, ...without } = props;
+            commitUpdate(instance, 'ojs-shaderfx', props, without);
+            expect(el.Pixelated).toBe(false);
+        });
+
+        it('works on a shader as well as a program', () => {
+            const el = createInstance('ojs-shaderfx', { shader: 'OneJS/Fire', pixelated: true } as any, null as any, null, null).element as any;
+            expect(el.Pixelated).toBe(true);
+        });
+
+        it('says once that a OneJS before 3.9.11 smooths the picture anyway', () => {
+            const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+            try {
+                MockShaderEffectElement.pixelates = false;
+                const a = createInstance('ojs-shaderfx', { program: program([], 'px3'), pixelated: true } as any, null as any, null, null);
+                createInstance('ojs-shaderfx', { program: program([], 'px4'), pixelated: true } as any, null as any, null, null);
+                expect((a.element as any).Pixelated).toBeUndefined();
+                const lines = error.mock.calls.filter((c) => String(c[0]).includes('pixelated'));
+                expect(lines).toHaveLength(1);
+                expect(String(lines[0]![0])).toContain('OneJS 3.9.11');
+                // Nothing to say when nobody asked for it.
+                error.mockClear();
+                createInstance('ojs-shaderfx', { program: program([], 'px5') } as any, null as any, null, null);
+                expect(error).not.toHaveBeenCalled();
+            } finally {
+                MockShaderEffectElement.pixelates = true;
+                error.mockRestore();
+            }
+        });
+    });
+
     it('sets a declared uniform by its slot', () => {
         const instance = createInstance('ojs-shaderfx',
             { program: program(['warp', 'hue']), uniforms: { hue: 0.25 } } as any,

@@ -719,6 +719,10 @@ export class MockShaderEffectElement extends MockVisualElement {
     static steps: boolean | undefined = true;
     /** A OneJS that keeps the previous frame, counts frames and hands over the step. */
     AcceptsSteppedPrograms: boolean | undefined = MockShaderEffectElement.steps;
+    /** Whether a new element has `Pixelated`, so a test can stand in for a OneJS before 3.9.11. */
+    static pixelates = true;
+    /** Hard-edged pixels when the picture is smaller than the element. Off on a new element. */
+    Pixelated: boolean | undefined = MockShaderEffectElement.pixelates ? false : undefined;
     SetProgram = vi.fn();
     RecordProgram = vi.fn();
     WantsWebSource = false;

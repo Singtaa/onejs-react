@@ -1832,6 +1832,25 @@ function acceptsSteppedPrograms(el: any): boolean {
 /** The OneJS that first steps a program, for the one line an older one gets. */
 const STEPPED_ONEJS = '3.9.1';
 
+/** Whether the element can show hard pixels: OneJS from 3.9.11 has `Pixelated`. */
+function canPixelate(el: any): boolean {
+    try { return typeof el.Pixelated === 'boolean'; } catch { return false; }
+}
+
+/** The OneJS that first shows hard pixels, for the one line an older one gets. */
+const PIXELATED_ONEJS = '3.9.11';
+
+/**
+ * `pixelated` on a OneJS that cannot, said once. The picture still draws,
+ * smoothed, so this is a line and not a refusal.
+ */
+let reportedNoPixelated = false;
+function reportNoPixelated() {
+    if (reportedNoPixelated) return;
+    reportedNoPixelated = true;
+    console.error(`[onejs-react] pixelated needs OneJS ${PIXELATED_ONEJS} or newer; this one smooths the picture. Update OneJS.`);
+}
+
 /** Whether a program reads anything a host keeps between frames. A program built before `reads` existed reads none. */
 function readsBetweenFrames(p: any): boolean {
     const r = p.reads;
@@ -2034,5 +2053,12 @@ function applyShaderFxProps(el: any, props: any, oldProps?: any) {
     }
     if (props.paused !== undefined && props.paused !== oldProps?.paused) {
         if (props.paused) el.Pause(); else el.Resume();
+    }
+    // Hard-edged pixels for a picture smaller than its element. Removing the
+    // prop turns them off, back to the smoothing the element always did.
+    const pixelated = props.pixelated === true;
+    if (pixelated !== (oldProps?.pixelated === true)) {
+        if (canPixelate(el)) el.Pixelated = pixelated;
+        else if (pixelated) reportNoPixelated();
     }
 }

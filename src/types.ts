@@ -1113,6 +1113,13 @@ export interface ShaderEffectProps extends BaseProps {
   shader: string;
   /** Render size in px. Omit to follow the element's own layout size. */
   resolution?: [number, number];
+  /**
+   * Show the picture as hard-edged pixels when it is smaller than the
+   * element, as CSS's `image-rendering: pixelated` does: with `resolution`
+   * at [32, 32], each pixel is a crisp block. Off by default, which smooths
+   * it. Needs OneJS 3.9.11.
+   */
+  pixelated?: boolean;
   /** Scalar shader properties. */
   floats?: Record<string, number>;
   /** float4 shader properties. */
