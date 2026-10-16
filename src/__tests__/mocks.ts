@@ -619,6 +619,7 @@ export function createMockCS() {
             },
             ShaderFX: {
                 ShaderEffectElement: MockShaderEffectElement,
+                ShaderPass: MockShaderPass,
             },
             // Mirrors the real CS.OneJS.StyleBridge batched path: ApplyStyles writes
             // each style value onto element.style; AddClassesBatch adds each class.
@@ -733,6 +734,10 @@ export class MockShaderEffectElement extends MockVisualElement {
     SetUniform = vi.fn();
     SetProgramTexture = vi.fn();
     SetProgramBuiltinTexture = vi.fn();
+    /** Whether a new element reads passes, so a test can stand in for a OneJS before 3.9.11. */
+    static readsPasses = true;
+    AcceptsPasses: boolean | undefined = MockShaderEffectElement.readsPasses ? true : undefined;
+    SetProgramPass = vi.fn(() => true);
     SetVector = vi.fn();
     SetVectorArray = vi.fn();
     SetColor = vi.fn();
@@ -742,6 +747,33 @@ export class MockShaderEffectElement extends MockVisualElement {
 
     constructor() {
         super('OneJS.ShaderFX.ShaderEffectElement');
+    }
+}
+
+/**
+ * A program drawn into a texture, not shown: what usePass makes. The program
+ * calls are an element's, plus the size it takes from what reads it.
+ */
+export class MockShaderPass {
+    /** Every pass made since the last reset, in order. */
+    static made: MockShaderPass[] = [];
+    AcceptsCompiledPrograms = true;
+    AcceptsSteppedPrograms = true;
+    AcceptsPasses = true;
+    SetProgram = vi.fn();
+    RecordProgram = vi.fn();
+    WantsWebSource = false;
+    SetProgramWeb = vi.fn();
+    SetResolution = vi.fn();
+    Scale = 1;
+    SetUniform = vi.fn();
+    SetProgramTexture = vi.fn();
+    SetProgramBuiltinTexture = vi.fn();
+    SetProgramPass = vi.fn(() => true);
+    Dispose = vi.fn();
+
+    constructor() {
+        MockShaderPass.made.push(this);
     }
 }
 

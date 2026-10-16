@@ -86,6 +86,8 @@ export type { FlameProps, TextureFXProps } from './components';
 export { TextureFXBuilder, buildTextureFX, MAX_TEXTUREFX_LAYERS } from './texturefx';
 export type { TextureFXBuild, LayerHandle, TextureFXNoise, TextureFXBlend, TextureFXStop, TextureFXStops, NoiseOptions, ShapeOptions, BlendMode, ShapeKind, SDFKind, SDFParams, SDFCommonOptions } from './texturefx';
 export type { ShaderEffectProps, ShaderProgramProps, CompiledProgram, EncodedProgram } from './types';
+export { usePass, Pass } from './pass';
+export type { PassOptions } from './pass';
 
 // Sync Hooks & C# Interop Utilities
 export { useFrameSync, useFrameSyncWith, useThrottledSync, useEventSync, toArray } from './hooks';

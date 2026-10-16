@@ -7,6 +7,49 @@
 import {toRGBA} from './color';
 
 /**
+ * A program drawn into a texture every frame, made by `usePass`. Hand it to
+ * `textures` on a ShaderProgram or another pass, under the name of a
+ * texture2D the reading program declares.
+ */
+export class Pass {
+    /**
+     * The C# ShaderPass that draws it, or null on a OneJS without passes.
+     * @internal
+     */
+    readonly target: any;
+
+    /** @internal */
+    constructor(target: any) {
+        this.target = target;
+    }
+}
+
+/** Whether the element or pass reads passes: OneJS from 3.9.11 says so. */
+function acceptsPasses(el: any): boolean {
+    try { return el.AcceptsPasses === true; } catch { return false; }
+}
+
+/**
+ * Passes on a OneJS that has none, said once. A program reading one reads
+ * nothing from it there, which is still a picture, so this is a line and not
+ * a refusal.
+ */
+let reportedNoPasses = false;
+export function reportNoPasses() {
+    if (reportedNoPasses) return;
+    reportedNoPasses = true;
+    console.error(`[onejs-react] usePass needs OneJS 3.9.11 or newer; a program reading a pass reads nothing from it here. Update OneJS.`);
+}
+
+/** A pass handed to a shader that is not a program, which has no slots to read it by: said once. */
+let warnedPassOnShader = false;
+function warnPassOnShader() {
+    if (warnedPassOnShader) return;
+    warnedPassOnShader = true;
+    console.warn(`[onejs-react] ShaderEffect: a pass is read by a ShaderProgram's texture2D; a shader by name cannot read one.`);
+}
+
+/**
  * A uniform name the program never declared, warned once per program.
  *
  * Names are strings on both sides, so a typo in `uniforms={{ wrap: v }}` type
@@ -267,12 +310,17 @@ export function applyShaderFxProps(el: any, props: any, oldProps?: any) {
                     warnUnknownTexture(props.program?.hash, k, slots);
                     continue;
                 }
-                // A string names a built-in procedural texture; anything else is a CS Texture.
-                if (typeof t === 'string') el.SetProgramBuiltinTexture(slot, t);
+                // A pass, drawn before this reads it; a string, a built-in
+                // procedural texture; anything else, a CS Texture.
+                if (t instanceof Pass) {
+                    if (t.target && acceptsPasses(el)) el.SetProgramPass(slot, t.target);
+                    else reportNoPasses();
+                } else if (typeof t === 'string') el.SetProgramBuiltinTexture(slot, t);
                 else if (t) el.SetProgramTexture(slot, t);
                 continue;
             }
-            if (typeof t === 'string') el.SetBuiltinTexture(k, t);
+            if (t instanceof Pass) warnPassOnShader();
+            else if (typeof t === 'string') el.SetBuiltinTexture(k, t);
             else if (t) el.SetTexture(k, t);
         }
     }
