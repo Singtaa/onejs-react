@@ -835,7 +835,7 @@ function applyVisualContentCallback(instance: Instance, props: BaseProps) {
     }
 }
 
-// MARK: Text Merging
+// Text Merging
 // Rebuild concatenated text from merged text children
 function rebuildMergedText(instance: Instance) {
     const children = instance.mergedTextChildren;
@@ -961,7 +961,7 @@ function insertElementBefore(parentEl: CSObject, childEl: CSObject, beforeChildE
     nodeInsert(parentEl, target, childEl);
 }
 
-// MARK: Component-specific prop handlers
+// Component-specific prop handlers
 
 // Apply common props (text, value, label): skip unchanged values
 function applyCommonProps(element: CSObject, type: string, props: Record<string, unknown>, oldProps?: Record<string, unknown>) {

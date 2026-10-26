@@ -260,7 +260,7 @@ export function createComponent<P extends BaseProps = BaseProps>(
     return Component;
 }
 
-// MARK: ShaderFX
+// ShaderFX
 
 /**
  * Runs a shader into this element's background, one blit per frame.

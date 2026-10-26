@@ -8,7 +8,7 @@
 // Track all created elements for test assertions
 let createdElements: MockVisualElement[] = [];
 
-// MARK: Unity Types
+// Unity Types
 
 /**
  * Mock Unity Color struct
@@ -338,7 +338,7 @@ export class MockListView extends MockVisualElement {
     _fireSelectionChanged() { this._selectionHandlers.forEach(h => h()); }
     _fireItemsChosen() { this._chosenHandlers.forEach(h => h()); }
 
-    // MARK: virtualization model
+    // virtualization model
     //
     // UI Toolkit keeps a pool of row elements and moves the visible window over
     // the data, so a row element that showed index 3 is later rebound to index

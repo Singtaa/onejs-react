@@ -37,7 +37,7 @@ import type { VisualElement } from "./types"
 import { useAttachToRef } from "./attach"
 import { toRGBA, type ColorInput } from "./color"
 
-// MARK: CS interop surface
+// CS interop surface
 
 interface CSParticleSystem {
     SetEmitterPos(index: number, x: number, y: number): void
@@ -62,7 +62,7 @@ declare const CS: {
     }
 }
 
-// MARK: Config types (ergonomic)
+// Config types (ergonomic)
 
 /** A fixed value or a [min, max] range sampled uniformly per particle. */
 export type ParticleRange = number | [number, number]
@@ -209,7 +209,7 @@ export interface ParticlesConfig {
     emitters: EmitterConfig[]
 }
 
-// MARK: Wire schema (must match ParticleWire.cs)
+// Wire schema (must match ParticleWire.cs)
 
 export interface WireColorKey { t: number; r: number; g: number; b: number; a: number }
 export interface WireFloatKey { t: number; v: number }
@@ -383,7 +383,7 @@ export function toWire(config: ParticlesConfig): WireDoc {
     }
 }
 
-// MARK: Imperative handles
+// Imperative handles
 
 export interface EmitterHandle {
     /** Moves the emitter (element-local px). One crossing; fine per-frame. */
