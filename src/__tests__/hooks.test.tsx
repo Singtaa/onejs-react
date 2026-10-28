@@ -1199,6 +1199,74 @@ describe("useEventSync when the event's own accessor throws (#152)", () => {
     })
 })
 
+describe("useEventSync when the value's getter throws (#152)", () => {
+    const thrown = "[QuickJS Invoke Error] GetProp on MyGame.Main.Counter failed: NullReferenceException: Object reference not set to an instance of an object"
+
+    it("reports the getter's exception once while it keeps failing", async () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const main = createMockCSharpObject({})
+        Object.defineProperty(main.proxy, "Counter", { get() { throw new Error(thrown) } })
+        let captured: unknown = "unset"
+
+        function TestComponent() {
+            captured = useEventSync(main.proxy, "Counter")
+            return null
+        }
+
+        const container = createMockContainer()
+        expect(() => render(<TestComponent />, container as any)).not.toThrow()
+        await flushMicrotasks()
+        main.fire("OnCounterChanged")
+        main.fire("OnCounterChanged")
+        await flushMicrotasks()
+        expect(captured).toBeUndefined()
+        expect(error).toHaveBeenCalledTimes(1)
+        expect((error.mock.calls[0][1] as Error).message).toBe(thrown)
+        error.mockRestore()
+        unmount(container as any)
+    })
+
+    it("reports a getter of the explicit form that throws", async () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const main = createMockCSharpObject({})
+
+        function TestComponent() {
+            useEventSync(() => { throw new TypeError("no score yet") }, [[main.proxy, "OnScoreChanged"]])
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        expect(error).toHaveBeenCalledTimes(1)
+        expect((error.mock.calls[0][1] as Error).message).toBe("no score yet")
+        error.mockRestore()
+        unmount(container as any)
+    })
+
+    it("stays quiet about a property C# says is not there", async () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const main = createMockCSharpObject({})
+        Object.defineProperty(main.proxy, "Counter", {
+            get() { throw new Error("[QuickJS] Property not found: MyGame.Main.Counter") },
+        })
+        let captured: unknown = "unset"
+
+        function TestComponent() {
+            captured = useEventSync(main.proxy, "Counter")
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        expect(captured).toBeUndefined()
+        expect(error).not.toHaveBeenCalled()
+        error.mockRestore()
+        unmount(container as any)
+    })
+})
+
 describe("useEventSync when the event does not exist", () => {
     it("warns naming the missing event", async () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {})

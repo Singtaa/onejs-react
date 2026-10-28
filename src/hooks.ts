@@ -475,16 +475,47 @@ function warnMissingEvent(source: object, eventName: string): void {
     console.warn(`useEventSync: ${describeSource(source)} has no event "${eventName}", so this value will never update. Declare \`public event Action ${eventName}\` in C#, or pass the event names explicitly: useEventSync(getter, [[source, "EventName"]]).`)
 }
 
+function errorMessage(error: unknown): string {
+    return typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message: unknown }).message)
+        : String(error)
+}
+
 /**
  * Whether C# failed a call because the type has no method by that name, as
  * QuickJSNative.Dispatch words it: "[QuickJS] Method not found: <Type>.<member>".
  * The container's EventSyncPlaymodeTests holds the two sides to the same text.
  */
 function isMissingMethod(error: unknown, member: string): boolean {
-    const message = typeof error === "object" && error !== null && "message" in error
-        ? String((error as { message: unknown }).message)
-        : String(error)
+    const message = errorMessage(error)
     return message.startsWith("[QuickJS] Method not found: ") && message.endsWith(`.${member}`)
+}
+
+/** Whether C# failed a read because the type has no such member, as Dispatch words it. */
+function isMissingProperty(error: unknown): boolean {
+    return errorMessage(error).startsWith("[QuickJS] Property not found: ")
+}
+
+const READ_FAILED: unique symbol = Symbol("READ_FAILED")
+
+/**
+ * Reads useEventSync's value. A member C# says is not there reads as
+ * undefined, as it would on a plain object. Anything else the getter throws is
+ * reported, once until a read succeeds again, so an event that fires every
+ * frame does not repeat it.
+ */
+function readValue<T>(getter: () => T, failing: { current: boolean }): T | typeof READ_FAILED {
+    try {
+        const result = getter()
+        failing.current = false
+        return result
+    } catch (error) {
+        if (!isMissingProperty(error) && !failing.current) {
+            failing.current = true
+            console.error("useEventSync: reading the value threw, so it keeps the last value it read:", error)
+        }
+        return READ_FAILED
+    }
 }
 
 function useEventSyncImpl<T>(
@@ -492,18 +523,21 @@ function useEventSyncImpl<T>(
     events: EventSource[],
     deps: readonly unknown[]
 ): T {
-    const [value, setValue] = useState<T>(() => {
-        try { return getter() } catch { return undefined as T }
-    })
     const getterRef = useRef(getter)
     getterRef.current = getter
+    const failing = useRef(false)
+
+    const [value, setValue] = useState<T>(() => {
+        const result = readValue(getter, failing)
+        return result === READ_FAILED ? undefined as T : result
+    })
 
     useEffect(() => {
-        try { setValue(getterRef.current()) } catch {}
-
         const handler = () => {
-            try { setValue(getterRef.current()) } catch {}
+            const result = readValue(getterRef.current, failing)
+            if (result !== READ_FAILED) setValue(result)
         }
+        handler()
 
         const subscribed: EventSource[] = []
         for (const [source, eventName] of events) {
