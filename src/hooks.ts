@@ -471,6 +471,22 @@ function describeSource(source: object): string {
     return typeof typeName === "string" && typeName ? typeName : "the source object"
 }
 
+function warnMissingEvent(source: object, eventName: string): void {
+    console.warn(`useEventSync: ${describeSource(source)} has no event "${eventName}", so this value will never update. Declare \`public event Action ${eventName}\` in C#, or pass the event names explicitly: useEventSync(getter, [[source, "EventName"]]).`)
+}
+
+/**
+ * Whether C# failed a call because the type has no method by that name, as
+ * QuickJSNative.Dispatch words it: "[QuickJS] Method not found: <Type>.<member>".
+ * The container's EventSyncPlaymodeTests holds the two sides to the same text.
+ */
+function isMissingMethod(error: unknown, member: string): boolean {
+    const message = typeof error === "object" && error !== null && "message" in error
+        ? String((error as { message: unknown }).message)
+        : String(error)
+    return message.startsWith("[QuickJS] Method not found: ") && message.endsWith(`.${member}`)
+}
+
 function useEventSyncImpl<T>(
     getter: () => T,
     events: EventSource[],
@@ -489,24 +505,35 @@ function useEventSyncImpl<T>(
             try { setValue(getterRef.current()) } catch {}
         }
 
+        const subscribed: EventSource[] = []
         for (const [source, eventName] of events) {
-            // A C# proxy hands back an add_ function for any name and throws
-            // when it is called, so a missing event surfaces in the catch.
+            const addName = `add_${eventName}`
+            const addFn = (source as any)[addName]
+            if (typeof addFn !== "function") {
+                warnMissingEvent(source, eventName)
+                continue
+            }
+            // A C# proxy hands back an add_ function for any name, so a missing
+            // event fails only when it is called. Any other failure is the
+            // event's own add accessor throwing, which is the user's to see.
             try {
-                const addFn = (source as any)[`add_${eventName}`]
-                if (typeof addFn !== "function") throw new TypeError(`no add_${eventName}`)
                 addFn(handler)
-            } catch {
-                console.warn(`useEventSync: ${describeSource(source)} has no event "${eventName}", so this value will never update. Declare \`public event Action ${eventName}\` in C#, or pass the event names explicitly: useEventSync(getter, [[source, "EventName"]]).`)
+                subscribed.push([source, eventName])
+            } catch (error) {
+                if (isMissingMethod(error, addName)) warnMissingEvent(source, eventName)
+                else console.error(`useEventSync: subscribing to "${eventName}" on ${describeSource(source)} threw, so this value will never update:`, error)
             }
         }
 
         return () => {
-            for (const [source, eventName] of events) {
+            for (const [source, eventName] of subscribed) {
+                const removeFn = (source as any)[`remove_${eventName}`]
+                if (typeof removeFn !== "function") continue
                 try {
-                    const removeFn = (source as any)[`remove_${eventName}`]
-                    if (typeof removeFn === "function") removeFn(handler)
-                } catch {}
+                    removeFn(handler)
+                } catch (error) {
+                    console.error(`useEventSync: unsubscribing from "${eventName}" on ${describeSource(source)} threw:`, error)
+                }
             }
         }
     }, deps)

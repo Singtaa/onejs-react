@@ -1095,6 +1095,110 @@ describe("useEventSync with a C# type as the source", () => {
     })
 })
 
+describe("useEventSync when the event's own accessor throws (#152)", () => {
+    const thrown = "[QuickJS Invoke Error] Method on MyGame.Main.add_OnCounterChanged failed: NullReferenceException: Object reference not set to an instance of an object"
+
+    it("reports the accessor's exception instead of calling the event missing", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const main = {
+            __csType: "MyGame.Main",
+            Counter: 1,
+            add_OnCounterChanged() { throw new Error(thrown) },
+        }
+
+        function TestComponent() {
+            useEventSync(main, "Counter")
+            return null
+        }
+
+        const container = createMockContainer()
+        expect(() => render(<TestComponent />, container as any)).not.toThrow()
+        await flushMicrotasks()
+        expect(warn).not.toHaveBeenCalled()
+        expect(error).toHaveBeenCalledTimes(1)
+        expect(String(error.mock.calls[0][0])).toContain("OnCounterChanged")
+        expect(String(error.mock.calls[0][0])).toContain("MyGame.Main")
+        expect((error.mock.calls[0][1] as Error).message).toBe(thrown)
+        warn.mockRestore()
+        error.mockRestore()
+        unmount(container as any)
+    })
+
+    it("does not call the event missing when C# cannot find a different method", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const main = {
+            __csType: "MyGame.Main",
+            Counter: 1,
+            // The accessor ran and called something C# does not have.
+            add_OnCounterChanged() { throw new Error("[QuickJS] Method not found: MyGame.State.Subscribe") },
+        }
+
+        function TestComponent() {
+            useEventSync(main, "Counter")
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        expect(warn).not.toHaveBeenCalled()
+        expect(error).toHaveBeenCalledTimes(1)
+        warn.mockRestore()
+        error.mockRestore()
+        unmount(container as any)
+    })
+
+    it("does not unsubscribe from an event it never subscribed to", async () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        let removes = 0
+        const main = {
+            __csType: "MyGame.Main",
+            Counter: 1,
+            add_OnCounterChanged() { throw new Error(thrown) },
+            remove_OnCounterChanged() { removes++ },
+        }
+
+        function TestComponent() {
+            useEventSync(main, "Counter")
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        unmount(container as any)
+        expect(removes).toBe(0)
+        error.mockRestore()
+    })
+
+    it("reports a remove accessor that throws on unmount", async () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const removeThrew = "[QuickJS Invoke Error] Method on MyGame.Main.remove_OnCounterChanged failed: NullReferenceException: Object reference not set to an instance of an object"
+        const main = {
+            __csType: "MyGame.Main",
+            Counter: 1,
+            add_OnCounterChanged() {},
+            remove_OnCounterChanged() { throw new Error(removeThrew) },
+        }
+
+        function TestComponent() {
+            useEventSync(main, "Counter")
+            return null
+        }
+
+        const container = createMockContainer()
+        render(<TestComponent />, container as any)
+        await flushMicrotasks()
+        expect(error).not.toHaveBeenCalled()
+        unmount(container as any)
+        expect(error).toHaveBeenCalledTimes(1)
+        expect((error.mock.calls[0][1] as Error).message).toBe(removeThrew)
+        error.mockRestore()
+    })
+})
+
 describe("useEventSync when the event does not exist", () => {
     it("warns naming the missing event", async () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
@@ -1113,12 +1217,12 @@ describe("useEventSync when the event does not exist", () => {
         warn.mockRestore()
         unmount(container as any)
     })
-    it("warns instead of throwing when the C# side rejects the subscription", async () => {
+    it("warns when C# says the add method does not exist", async () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
         const player = {
             __csType: "MyGame.Player",
             Health: 100,
-            add_OnHealthChanged() { throw new Error("[QuickJS] Method not found") },
+            add_OnHealthChanged() { throw new Error("[QuickJS] Method not found: MyGame.Player.add_OnHealthChanged") },
         }
 
         function TestComponent() {

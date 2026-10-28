@@ -391,7 +391,7 @@ Supports objects with `.Count` (List, IList) or `.Length` (C# arrays). Returns `
 - `useFrameSync(getter, selectOrDeps?, deps?)`: polls a C# value every frame and re-renders when it (or the selected fields) change
 - `useFrameSyncWith(getter, isEqual, deps?)`: the same with a custom comparison
 - `useThrottledSync(getter, intervalMs, deps?)`: polls on an interval instead of every frame
-- `useEventSync(getter, [[source, "EventName"], ...], deps?)` or `useEventSync(source, "Health")` (reads `source.Health` on `OnHealthChanged`): re-reads when a C# event fires, no polling
+- `useEventSync(getter, [[source, "EventName"], ...], deps?)` or `useEventSync(source, "Health")` (reads `source.Health` on `OnHealthChanged`): re-reads when a C# event fires, no polling. An event the source does not have warns; an add or remove accessor that throws is logged as an error carrying its C# exception
 
 ## Other exports
 
