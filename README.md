@@ -19,6 +19,7 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 | `src/renderer.ts` | `render`, `unmount`, `unmountAll`, `createPortal`, `flushSync`, `batchedUpdates`, `getDebugInfo` |
 | `src/components.tsx` | Component wrappers (View, Text, ... FrostedGlass, ShaderEffect, TextureFX, Flame), `createComponent`, `clearImageCache` |
 | `src/image-cache.ts` | `<Image src>` loading and its texture cache (`clearImageCache`, and the teardown release) |
+| `src/keep-state.ts` | Component state across a hot reload: the capture JSRunner asks for, and the first render that starts from it |
 | `src/portal.tsx` | `<Portal>` and the shared overlay layer |
 | `src/error-boundary.tsx` | `ErrorBoundary`, `formatError` |
 | `src/class-names.ts` | `escapeClassName`: a Tailwind class name as USS can hold it (`2xl:p-4` is `_2xl_c_p-4`), matching onejs-unity's generator |
@@ -135,6 +136,18 @@ render(<App />, __root)
 
 The first `render()` call registers the renderer's teardown as a runtime teardown hook (`globalThis.__onTeardown`). The OneJS runtime invokes it right before destroying the JS context on hot reload / stop. It runs `unmountAll`, so component cleanups run while the context is still alive (without this, cleanups would be skipped on hot reload and stale C# subscriptions, e.g. from `useEventSync`, would leak across reloads). Then it destroys every Texture2D and VectorImage the `<Image src>` cache decoded (`DestroyImmediate` in edit mode, `Destroy` in play mode), so an edit-mode save does not leave one copy of every image behind. A texture taken from an `<Image>` (`ref.current.image`) and kept by C# past the reload is destroyed with the rest. `clearImageCache()` only forgets the cache: an `<Image>` on screen may still be showing one of its textures.
 
+### Keeping component state across a hot reload
+
+A hot reload still destroys the context and runs the new bundle in a fresh one. Before it does, JSRunner (with *Keep component state on reload* on, the default) calls `globalThis.__onejsCaptureState()`. That records every function component's `useState`, `useReducer` and `useRef` values as JSON in `__bridge.ReloadSnapshot`, keyed by the component's path from its root (type name, then key or index, at each level) and by its hook names from `_debugHookTypes`. The new context gets the JSON back as `__onejsReloadSnapshot`. Each root's first `render()` then renders synchronously with React's hooks dispatcher wrapped (`withRestoredHooks`). A mounting component at a saved path gets its saved value as the initial value of each `useState`, `useReducer` and `useRef` whose name matches at that index, so its first render and its mount effects already see it.
+
+It fails towards a fresh start:
+
+- **A component starts fresh** when, after the render, its hook names differ from the saved ones. The root renders again without it, then with nothing kept if that still does not settle.
+- **A state hook that holds anything other than data** (a function, a C# object, a class instance) starts its whole component fresh. Data means primitives, plain objects, arrays, `undefined`, `NaN`, dates, maps and sets. A ref holding something else (usually an element) starts at its initial value, and React fills it as usual.
+- **If the first render with kept state throws**, or an error boundary catches during it, the root renders from scratch. Those errors are not logged; one from the fresh render is.
+
+`__onejsTakeReloadReport()` gives JSRunner one line for its `Reloaded` log, for example `kept state in 9 components; 2 started fresh (Grid: its hooks changed; Picker: its state holds a function or a C# object)`. A root first rendered after JSRunner has read the report logs its own line. `keep-state.test.tsx` pins every React internal this reads: the dispatcher and owner in React's shared internals, the slots each hook takes, and the shape of state and ref hooks. A React upgrade that moves one fails there, by name.
+
 ### Type Hierarchy
 
 ```
@@ -216,6 +229,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
 | `image-cache.test.tsx` | `<Image>` textures destroyed on teardown, after the tree unmounts |
+| `keep-state.test.tsx` | State kept across a simulated hot reload, every fallback to a fresh start, and the React internals it reads |
 | `controlled-inputs.test.tsx` | Controlled `value` re-asserted after a rejected or transformed change, and a `value` React writes firing no `onChange` |
 | `error-boundary.test.tsx` | `ErrorBoundary`: `fallbackRender`, `reset`, `resetKeys`, one log per caught error |
 | `portal.test.tsx` | `<Portal>` overlay layer |

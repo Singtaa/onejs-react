@@ -3,6 +3,7 @@ import { version as reactVersion, type ReactNode, type ReactPortal } from 'react
 import { hostConfig, setSyncRunner, type Container } from './host-config';
 import type { RenderContainer } from './types';
 import { releaseImageCache } from './image-cache';
+import { captureState, takeSavedRoot, canRestore, withRestoredHooks, checkRestore, without, noteCheck, noteFallback, takeReport, type SavedRoot } from './keep-state';
 
 declare const console: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
@@ -80,25 +81,81 @@ function ensureTeardownHook(): void {
   }
 }
 
+// While a root's first render after a hot reload starts from kept state, its errors are
+// collected here instead of logged: one means the kept state does not fit the new code, and
+// the root renders again from scratch, which logs as usual if it fails too.
+let keptStateErrors: unknown[] | null = null;
+
+function createRoot(container: RenderContainer): ReturnType<typeof reconciler.createContainer> {
+  const root = createContainer(
+    container as Container,
+    0, // the root tag; react-reconciler 0.31 makes every root concurrent whatever this says
+    null, // hydrationCallbacks
+    false, // isStrictMode
+    null, // concurrentUpdatesByDefaultOverride
+    '', // identifierPrefix
+    (error) => (keptStateErrors ? keptStateErrors.push(error) : console.error('[OneJS React] Uncaught error:', error)),
+    (error, info) => (keptStateErrors ? keptStateErrors.push(error) : logCaughtError(error, info)),
+    (error) => (keptStateErrors ? keptStateErrors.push(error) : console.error('[OneJS React] Recoverable error:', error)),
+    null // transitionCallbacks
+  );
+  roots.set(container, root);
+  return root;
+}
+
+/**
+ * A root's first render after a hot reload, starting hooks from the state the old context
+ * kept (keep-state.ts). Rendered synchronously, so the result can be checked before anything
+ * else runs: a throw means rendering from scratch; a restored component whose hooks turn out
+ * to have changed means rendering again without it, then from scratch if that does not
+ * settle. Returns false when the caller should render from scratch.
+ */
+function renderKeepingState(element: ReactNode, container: RenderContainer, saved: SavedRoot): boolean {
+  const r = reconciler as any;
+  if (!canRestore() || typeof r.updateContainerSync !== 'function' || typeof r.flushSyncWork !== 'function') return false;
+  let keep = saved;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const root = createRoot(container);
+    const errors: unknown[] = (keptStateErrors = []);
+    let restored = new Set<string>();
+    try {
+      restored = withRestoredHooks(keep, () => {
+        r.updateContainerSync(element, root, null, null);
+        r.flushSyncWork();
+      });
+    } catch (e) {
+      errors.push(e);
+    } finally {
+      keptStateErrors = null;
+    }
+    if (errors.length > 0) {
+      unmount(container);
+      const e = errors[0];
+      noteFallback(`the first render with the kept state threw (${e instanceof Error ? e.message : String(e)})`);
+      return false;
+    }
+    const check = checkRestore(root, saved, restored);
+    const changed = check.fresh.filter(f => f.why === 'its hooks changed' && f.path in keep).map(f => f.path);
+    if (changed.length === 0) {
+      noteCheck(check);
+      return true;
+    }
+    unmount(container);
+    keep = without(keep, changed);
+  }
+  noteFallback('the kept state did not fit the new code');
+  return false;
+}
+
 export function render(element: ReactNode, container: RenderContainer): void {
   ensureTeardownHook();
 
   let root = roots.get(container);
 
   if (!root) {
-    root = createContainer(
-      container as Container,
-      0, // the root tag; react-reconciler 0.31 makes every root concurrent whatever this says
-      null, // hydrationCallbacks
-      false, // isStrictMode
-      null, // concurrentUpdatesByDefaultOverride
-      '', // identifierPrefix
-      (error) => console.error('[OneJS React] Uncaught error:', error),
-      logCaughtError,
-      (error) => console.error('[OneJS React] Recoverable error:', error),
-      null // transitionCallbacks
-    );
-    roots.set(container, root);
+    const saved = takeSavedRoot();
+    if (saved && renderKeepingState(element, container, saved)) return;
+    root = createRoot(container);
   }
 
   reconciler.updateContainer(element, root, null, () => {});
@@ -134,6 +191,19 @@ export function unmount(container: RenderContainer): void {
   // useEffect (passive) cleanups are queued by the unmount commit, not run by it.
   // Flush them now so they also fire before the context goes away.
   if (typeof r.flushPassiveEffects === 'function') r.flushPassiveEffects();
+}
+
+// Hot reload hooks for JSRunner (QuickJSUIBridge has no other way to reach the renderer):
+// the state of every root, handed to C# before the context goes, and the line saying what
+// the new context kept.
+{
+  const g = globalThis as any;
+  g.__onejsCaptureState = (): number => {
+    const json = captureState(roots.values());
+    if (g.__bridge) g.__bridge.ReloadSnapshot = json;
+    return json.length;
+  };
+  g.__onejsTakeReloadReport = (): string => takeReport();
 }
 
 /**
