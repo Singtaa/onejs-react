@@ -61,7 +61,7 @@ export type { ColorInput, RGBA } from './color';
 
 // Frames
 export { useFrame, setFrameClock } from './frame';
-export type { FrameClock } from './frame';
+export type { FrameClock, FrameCallback } from './frame';
 
 // 2D particle engine control plane (C#-owned sim/render; see OneJS Runtime/Particles)
 export { createParticles, useParticles, toWire } from './particles';

@@ -14,12 +14,21 @@ declare function requestAnimationFrame(callback: (time: number) => void): number
 declare function cancelAnimationFrame(id: number): void
 
 /**
- * Subscribes `onFrame` to frames and returns the unsubscribe function.
- * `onFrame` receives the seconds since the previous frame.
+ * A frame callback: the seconds since the previous frame as the game should
+ * advance by (`dt`, which a host may clamp), and as they really passed
+ * (`realDt`, never clamped).
  */
-export type FrameClock = (onFrame: (dt: number) => void) => () => void
+export type FrameCallback = (dt: number, realDt: number) => void
 
-const listeners = new Set<(dt: number) => void>()
+/**
+ * Subscribes `onFrame` to frames and returns the unsubscribe function.
+ * `onFrame` receives the seconds since the previous frame, and may receive the
+ * unclamped seconds second. A clock that passes only the first gives
+ * `realDt = dt` to every `useFrame`.
+ */
+export type FrameClock = (onFrame: (dt: number, realDt?: number) => void) => () => void
+
+const listeners = new Set<(dt: number, realDt?: number) => void>()
 let frameId = 0
 let lastTime = -1
 
@@ -50,8 +59,8 @@ const animationFrameClock: FrameClock = (onFrame) => {
 let clock: FrameClock = animationFrameClock
 
 /** Internal: subscribes to whichever clock is installed now. */
-export function subscribeFrame(onFrame: (dt: number) => void): () => void {
-    return clock(onFrame)
+export function subscribeFrame(onFrame: FrameCallback): () => void {
+    return clock((dt, realDt) => onFrame(dt, realDt ?? dt))
 }
 
 /**
@@ -67,6 +76,12 @@ export function setFrameClock(next: FrameClock | null): void {
  * Runs `callback` every frame for as long as the component is mounted, with
  * the seconds since the previous frame (0 on the first).
  *
+ * `dt` is what a game should advance by. A host may clamp it (oj holds it to
+ * 100 ms, so a frame after a stall or a hidden tab does not throw everything
+ * through a wall). `realDt` is the time that really passed, never clamped: a
+ * clock on the wall, or a timer that must not run slow after a stall, reads
+ * it. Where nothing clamps, the two are the same.
+ *
  * The callback that runs is the one from the latest render, so it can read
  * state and props directly. `deps` decides when to resubscribe, which is once
  * by default: an inline closure costs nothing extra per render.
@@ -79,11 +94,11 @@ export function setFrameClock(next: FrameClock | null): void {
  * }
  * ```
  */
-export function useFrame(callback: (dt: number) => void, deps: DependencyList = []): void {
+export function useFrame(callback: FrameCallback, deps: DependencyList = []): void {
     const latest = useRef(callback)
     latest.current = callback
 
-    useEffect(() => subscribeFrame((dt) => latest.current(dt)),
+    useEffect(() => subscribeFrame((dt, realDt) => latest.current(dt, realDt)),
         // deps decides when to resubscribe; the callback is read through the ref
         // eslint-disable-next-line react-hooks/exhaustive-deps
         deps)

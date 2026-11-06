@@ -127,4 +127,41 @@ describe("useFrame", () => {
         await flushMicrotasks()
         expect(subscribers.size).toBe(0)
     })
+
+    it("passes a host clock's unclamped seconds second, and dt again when the clock gives one number", async () => {
+        const subscribers = new Set<(dt: number, realDt?: number) => void>()
+        setFrameClock((onFrame) => {
+            subscribers.add(onFrame)
+            return () => subscribers.delete(onFrame)
+        })
+        const seen: Array<[number, number]> = []
+        function App() {
+            useFrame((dt, realDt) => seen.push([dt, realDt]))
+            return null
+        }
+        const container = createMockContainer()
+        render(<App />, container as any)
+        await flushMicrotasks()
+        for (const s of subscribers) s(0.1, 0.35)
+        for (const s of subscribers) s(0.02)
+        expect(seen).toEqual([[0.1, 0.35], [0.02, 0.02]])
+        unmount(container as any)
+        await flushMicrotasks()
+    })
+
+    it("gives realDt equal to dt on the default clock", async () => {
+        const seen: Array<[number, number]> = []
+        function App() {
+            useFrame((dt, realDt) => seen.push([dt, realDt]))
+            return null
+        }
+        const container = createMockContainer()
+        render(<App />, container as any)
+        await flushMicrotasks()
+        frameAt(1000)
+        frameAt(1250)
+        expect(seen).toEqual([[0, 0], [0.25, 0.25]])
+        unmount(container as any)
+        await flushMicrotasks()
+    })
 })
