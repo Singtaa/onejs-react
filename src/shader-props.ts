@@ -24,6 +24,72 @@ export class Pass {
     }
 }
 
+/**
+ * Marks a texture another module owns and lends to whatever reads it. A
+ * registered symbol, so a lender bundled apart from this copy of onejs-react
+ * is still recognised.
+ */
+export const LENT_TEXTURE: unique symbol = Symbol.for('onejs-react.lent-texture');
+
+/**
+ * A texture that exists only while something reads it: ojplay's
+ * `scene.texture`, the 3D scene drawn into a texture instead of the screen.
+ * The first program or pass that reads it asks for it, and the last to stop
+ * (its `textures` changing, or the element or pass going) gives it back, so
+ * nothing is made or drawn for it while nothing reads it.
+ */
+export interface LentTexture {
+    readonly [LENT_TEXTURE]: true;
+    /** The CS Texture to read, or null when there is nothing to lend. */
+    acquire(): unknown;
+    release(): void;
+}
+
+export function isLentTexture(t: unknown): t is LentTexture {
+    return typeof t === 'object' && t !== null && (t as any)[LENT_TEXTURE] === true;
+}
+
+/** What each element or pass has borrowed, by the slot or name it reads it at. */
+const borrowed = new WeakMap<object, Map<string, {source: LentTexture, texture: unknown}>>();
+
+/**
+ * Borrows `source` for `el` at `key`, once however often the props are
+ * applied. Returns the texture to bind: on the first borrow, and again for a
+ * new program, whose material starts with nothing bound.
+ */
+function borrow(el: any, key: string, source: LentTexture, rebind: boolean): unknown {
+    let held = borrowed.get(el);
+    if (!held) borrowed.set(el, held = new Map());
+    const had = held.get(key);
+    if (had?.source === source) return rebind ? had.texture : null;
+    if (had) had.source.release();
+    const texture = source.acquire();
+    held.set(key, {source, texture});
+    return texture;
+}
+
+/** Gives back what `el` borrowed at any key not in `still`. */
+function returnUnread(el: any, still: ReadonlySet<string>) {
+    const held = borrowed.get(el);
+    if (!held) return;
+    for (const [key, {source}] of held) {
+        if (still.has(key)) continue;
+        held.delete(key);
+        source.release();
+    }
+}
+
+/**
+ * Gives back every lent texture an element or pass reads: host-config calls it
+ * when an element is deleted, and usePass when its pass goes.
+ */
+export function releaseLentTextures(el: any) {
+    const held = borrowed.get(el);
+    if (!held) return;
+    borrowed.delete(el);
+    for (const {source} of held.values()) source.release();
+}
+
 /** Whether the element or pass reads passes: OneJS from 3.9.11 says so. */
 function acceptsPasses(el: any): boolean {
     try { return el.AcceptsPasses === true; } catch { return false; }
@@ -321,6 +387,7 @@ export function applyShaderFxProps(el: any, props: any, oldProps?: any) {
          * program because only the program knows which slot owns which.
          */
         const slots = props.program?.textures;
+        const lent = new Set<string>();
         for (const k in props.textures) {
             const t = props.textures[k];
             if (slots) {
@@ -329,19 +396,31 @@ export function applyShaderFxProps(el: any, props: any, oldProps?: any) {
                     warnUnknownTexture(props.program?.hash, k, slots);
                     continue;
                 }
-                // A pass, drawn before this reads it; a string, a built-in
-                // procedural texture; anything else, a CS Texture.
-                if (t instanceof Pass) {
+                // A pass, drawn before this reads it; a lent texture, borrowed
+                // while this reads it; a string, a built-in procedural texture;
+                // anything else, a CS Texture.
+                if (isLentTexture(t)) {
+                    lent.add(`slot ${slot}`);
+                    const texture = borrow(el, `slot ${slot}`, t, newProgram);
+                    if (texture) el.SetProgramTexture(slot, texture);
+                } else if (t instanceof Pass) {
                     if (t.target && acceptsPasses(el)) el.SetProgramPass(slot, t.target);
                     else reportNoPasses();
                 } else if (typeof t === 'string') el.SetProgramBuiltinTexture(slot, t);
                 else if (t) el.SetProgramTexture(slot, t);
                 continue;
             }
-            if (t instanceof Pass) warnPassOnShader();
+            if (isLentTexture(t)) {
+                lent.add(`name ${k}`);
+                const texture = borrow(el, `name ${k}`, t, false);
+                if (texture) el.SetTexture(k, texture);
+            } else if (t instanceof Pass) warnPassOnShader();
             else if (typeof t === 'string') el.SetBuiltinTexture(k, t);
             else if (t) el.SetTexture(k, t);
         }
+        returnUnread(el, lent);
+    } else if (!props.textures && oldProps?.textures) {
+        returnUnread(el, new Set());
     }
     if (props.ramp !== undefined) {
         const same = oldProps?.ramp && oldProps.ramp.length === props.ramp.length

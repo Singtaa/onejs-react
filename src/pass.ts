@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react"
-import { Pass, applyShaderFxProps, reportNoPasses } from "./shader-props"
+import { Pass, applyShaderFxProps, releaseLentTextures, reportNoPasses } from "./shader-props"
 import type { CompiledProgram } from "./types"
 
 export { Pass }
@@ -76,6 +76,10 @@ export function usePass<Names extends string = string>(program: CompiledProgram<
         if (scale !== ((applied.current?.scale as number | undefined) ?? 1)) target.Scale = scale
         applied.current = { ...props, scale }
     })
-    useEffect(() => () => { pass.target?.Dispose() }, [pass])
+    useEffect(() => () => {
+        if (!pass.target) return
+        releaseLentTextures(pass.target)
+        pass.target.Dispose()
+    }, [pass])
     return pass
 }

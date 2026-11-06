@@ -1,7 +1,7 @@
 import type {HostConfig} from 'react-reconciler';
 import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback} from './types';
 import {parseStyleValue, parseColor} from './style-parser';
-import {applyShaderFxProps} from './shader-props';
+import {applyShaderFxProps, releaseLentTextures} from './shader-props';
 import {flattenTree} from './treeview';
 import {escapeClassName} from './class-names';
 import type {TreeViewItem} from './types';
@@ -1697,7 +1697,11 @@ export const hostConfig = {
         return null;
     },
 
-    detachDeletedInstance() {
+    // React calls this for every host instance in a deleted subtree, where
+    // removeChild hears only of the top one: a program deep inside a screen
+    // that closes still gives back the scene texture it read.
+    detachDeletedInstance(instance: Instance) {
+        releaseLentTextures(instance.element);
     },
 
     // Suspense commit support (React 19)

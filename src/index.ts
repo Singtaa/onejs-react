@@ -87,6 +87,8 @@ export { TextureFXBuilder, buildTextureFX, MAX_TEXTUREFX_LAYERS } from './textur
 export type { TextureFXBuild, LayerHandle, TextureFXNoise, TextureFXBlend, TextureFXStop, TextureFXStops, NoiseOptions, ShapeOptions, BlendMode, ShapeKind, SDFKind, SDFParams, SDFCommonOptions } from './texturefx';
 export type { ShaderEffectProps, ShaderProgramProps, CompiledProgram, EncodedProgram } from './types';
 export { usePass, Pass } from './pass';
+export { LENT_TEXTURE, isLentTexture } from './shader-props';
+export type { LentTexture } from './shader-props';
 export type { PassOptions } from './pass';
 
 // Sync Hooks & C# Interop Utilities
