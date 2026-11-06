@@ -58,6 +58,14 @@ export type StyleColor = string;
  */
 export type Texture = object & { readonly __textureBrand?: never };
 
+/**
+ * A font text can draw with: the font asset a game's font loader hands back
+ * (oj's `loadFont` and `useFont`), made from a TrueType or OpenType file.
+ * Opaque for the reason `Texture` is: it is passed to `fontFamily`, never
+ * called.
+ */
+export type Font = object & { readonly __fontBrand?: never };
+
 export interface ViewStyle {
   // Layout: dimensions
   /** Width in pixels or percentage. Examples: 100, "100px", "50%", "auto" */
@@ -162,6 +170,12 @@ export interface ViewStyle {
   whiteSpace?: 'normal' | 'nowrap';
 
   // Typography
+  /**
+   * The font text draws with: one a game loaded (`loadFont`, `useFont`), not a
+   * family's name, since no font is installed by name. Inherited, as on the
+   * web, so a font on a container reaches every Text inside it.
+   */
+  fontFamily?: Font | null;
   /** C# Font object */
   unityFont?: any;
   /** C# FontDefinition object */

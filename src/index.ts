@@ -96,6 +96,7 @@ export type { EventSource } from './hooks';
 // Types
 export type {
   Texture,
+  Font,
   ViewStyle,
   // Event data types
   PointerEventData,
