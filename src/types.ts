@@ -607,7 +607,15 @@ export interface BaseProps {
 }
 
 // Component-specific props
-export interface ViewProps extends BaseProps {}
+export interface ViewProps extends BaseProps {
+  /**
+   * Presses on this View are the game's, not the UI's: a full-screen drag or
+   * tap area keeps its handlers, but ojplay's `overUI` (and so `useStick`)
+   * looks past it, so a stick beside it still moves. A button inside it is
+   * still UI. Adds the class `oj-world` (`PASS_THROUGH_CLASS`).
+   */
+  passThrough?: boolean;
+}
 
 export interface TextProps extends BaseProps {
   text?: string;

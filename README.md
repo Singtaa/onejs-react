@@ -195,6 +195,7 @@ Events in portaled content bubble through the overlay layer to `__root`, as DOM 
 - **Style batching**: an element's parsed styles cross to C# in one `StyleBridge.ApplyStyles` call. Values cross as plain data, so building them makes no C# call: a length is `{ value, unit }` or `{ keyword }`, a colour `{ r, g, b, a }`, an enum the Unity member's name (`"FlexStart"`). Transforms and `unityMaterial` still build their C# structs
 - **Style updates**: only the longhands whose value changed are sent (shorthands expanded first, a later entry winning), and removed ones are cleared
 - **className updates**: Selective add/remove of classes (not full clear + reapply)
+- **passThrough**: a View's `passThrough` adds `PASS_THROUGH_CLASS` (`oj-world`) to its classes, the marker ojplay's `overUI` walks past, so a full-screen drag or tap area keeps its handlers without making every press read as UI. It is folded into the className before the diff, so it survives className changes and goes with the prop
 - **Event handlers**: Registered via `__eventAPI` from QuickJSBootstrap.js. `change` is the exception: one reconciler-owned listener per element calls the latest `onChange` inside `flushSync` and then re-asserts a controlled `value`
 - **Events that fire**: click, pointer (down/up/move/enter/leave/cancel/capture/captureout), focus/blur/focusin/focusout, keydown/keyup, change, wheel, navigation (move/submit/cancel) and geometrychanged. The mouse, contextclick, input, drag, tooltip and transition props are typed but the runtime does not dispatch them yet
 - **Instance structure**: `{ element, type, props, eventHandlers: Map, appliedStyle: Map, changeListener? }` (`appliedStyle` is the style as last sent, longhand to raw value)
@@ -228,6 +229,7 @@ Test suite uses Vitest with mocked Unity CS globals. Tests are in `src/__tests__
 | `host-config.test.ts` | Instance creation, style/className management, events, children |
 | `renderer.test.tsx` | Integration tests: render(), unmount(), createPortal(), React state, effects |
 | `components.test.tsx` | Component wrappers, prop passing, event mapping |
+| `pass-through.test.tsx` | `passThrough` adding its class beside a className, through className changes, and taken away with the prop |
 | `image-cache.test.tsx` | `<Image>` textures destroyed on teardown, after the tree unmounts |
 | `keep-state.test.tsx` | State kept across a simulated hot reload, every fallback to a fresh start, and the React internals it reads |
 | `controlled-inputs.test.tsx` | Controlled `value` re-asserted after a rejected or transformed change, and a `value` React writes firing no `onChange` |

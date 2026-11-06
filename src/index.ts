@@ -88,6 +88,7 @@ export type { TextureFXBuild, LayerHandle, TextureFXNoise, TextureFXBlend, Textu
 export type { ShaderEffectProps, ShaderProgramProps, CompiledProgram, EncodedProgram } from './types';
 export { usePass, Pass } from './pass';
 export { LENT_TEXTURE, isLentTexture } from './shader-props';
+export { PASS_THROUGH_CLASS } from './class-names';
 export type { LentTexture } from './shader-props';
 export type { PassOptions } from './pass';
 

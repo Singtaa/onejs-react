@@ -3,7 +3,7 @@ import type {BaseProps, ViewStyle, VisualElement, GenerateVisualContentCallback}
 import {parseStyleValue, parseColor} from './style-parser';
 import {applyShaderFxProps, releaseLentTextures} from './shader-props';
 import {flattenTree} from './treeview';
-import {escapeClassName} from './class-names';
+import {escapeClassName, PASS_THROUGH_CLASS} from './class-names';
 import type {TreeViewItem} from './types';
 
 // CSObject is an alias for VisualElement: they represent the same C# objects
@@ -597,6 +597,14 @@ function parseClassNames(className: string | undefined): Set<string> {
     );
     _parseCache.set(className, result);
     return result;
+}
+
+// The classes an element carries: its className, and PASS_THROUGH_CLASS with
+// `passThrough`. The same string back when it has no passThrough, so nothing
+// is built for an element that never names it.
+function classNameOf(props: {className?: string, passThrough?: boolean}): string | undefined {
+    if (props.passThrough !== true) return props.className;
+    return props.className ? `${props.className} ${PASS_THROUGH_CLASS}` : PASS_THROUGH_CLASS;
 }
 
 // Apply className(s) to element (with escaping for Tailwind/USS compatibility).
@@ -1296,7 +1304,7 @@ function applyTreeViewProps(element: CSTreeView, props: Record<string, unknown>,
 
 // Props handled by the reconciler infrastructure, not forwarded to C# elements
 const RESERVED_PROPS = new Set([
-    'children', 'key', 'ref', 'style', 'className', 'name', 'pickingMode', 'focusable', 'disabled',
+    'children', 'key', 'ref', 'style', 'className', 'passThrough', 'name', 'pickingMode', 'focusable', 'disabled',
     'onGenerateVisualContent',
     ...Object.keys(EVENT_PROPS),
 ]);
@@ -1366,7 +1374,7 @@ function createInstance(type: string, props: BaseProps): Instance {
         appliedStyle: applyStyle(element, props.style),
     };
 
-    applyClassName(element, props.className);
+    applyClassName(element, classNameOf(props));
     applyEvents(instance, props);
     applyVisualContentCallback(instance, props);
     applyComponentProps(element, type, props as Record<string, unknown>);
@@ -1415,8 +1423,9 @@ function updateInstance(instance: Instance, oldProps: BaseProps, newProps: BaseP
     }
 
     // Update className: selectively add/remove classes
-    if (oldProps.className !== newProps.className) {
-        updateClassNames(element, oldProps.className, newProps.className);
+    const oldClasses = classNameOf(oldProps), newClasses = classNameOf(newProps);
+    if (oldClasses !== newClasses) {
+        updateClassNames(element, oldClasses, newClasses);
     }
 
     // Update events

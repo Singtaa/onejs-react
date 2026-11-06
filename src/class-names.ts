@@ -42,3 +42,11 @@ export function escapeClassName(name: string): string {
     _escapeCache.set(name, escaped)
     return escaped
 }
+
+/**
+ * The class a View's `passThrough` adds: its presses are the game's, not the
+ * UI's. ojplay's overUI walks past an element carrying it, so a full-screen
+ * View with a drag or tap handler does not make every press read as UI. A
+ * cart may also write the class itself; it is the same marker.
+ */
+export const PASS_THROUGH_CLASS = 'oj-world';
