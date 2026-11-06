@@ -1432,6 +1432,55 @@ describe('ShaderProgram uniforms', () => {
         });
     });
 
+    /**
+     * `pixelRatio` draws that many pixels per layout point, for a panel scaled
+     * by the screen's density. A new ratio is a new size, which clears a
+     * program's previous frame, so it is sent only when it changes.
+     */
+    describe('pixelRatio', () => {
+        it('sends the ratio when it changes, and 1 when the prop goes', () => {
+            const props = { program: program([], 'pr1'), pixelRatio: 3 } as any;
+            const instance = createInstance('ojs-shaderfx', props, null as any, null, null);
+            const el = instance.element as any;
+            expect(el.PixelRatio).toBe(3);
+            commitUpdate(instance, 'ojs-shaderfx', props, { ...props });
+            commitUpdate(instance, 'ojs-shaderfx', { ...props }, { ...props, uniforms: {} });
+            expect(el.pixelRatioWrites).toEqual([3]);
+            commitUpdate(instance, 'ojs-shaderfx', props, { ...props, pixelRatio: 2 });
+            const { pixelRatio: _, ...without } = props;
+            commitUpdate(instance, 'ojs-shaderfx', { ...props, pixelRatio: 2 }, without);
+            expect(el.pixelRatioWrites).toEqual([3, 2, 1]);
+            expect(el.PixelRatio).toBe(1);
+        });
+
+        it('sends nothing for an element that never asks, or asks for 1', () => {
+            const a = createInstance('ojs-shaderfx', { program: program([], 'pr2') } as any, null as any, null, null).element as any;
+            const b = createInstance('ojs-shaderfx', { program: program([], 'pr3'), pixelRatio: 1 } as any, null as any, null, null).element as any;
+            expect(a.pixelRatioWrites).toEqual([]);
+            expect(b.pixelRatioWrites).toEqual([]);
+        });
+
+        it('takes a value that is not a positive number as 1', () => {
+            const el = createInstance('ojs-shaderfx', { program: program([], 'pr4'), pixelRatio: -2 } as any, null as any, null, null).element as any;
+            expect(el.pixelRatioWrites).toEqual([]);
+        });
+
+        it('says once that a OneJS before 3.9.19 draws in points anyway', () => {
+            const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+            try {
+                MockShaderEffectElement.hasPixelRatio = false;
+                createInstance('ojs-shaderfx', { program: program([], 'pr5'), pixelRatio: 3 } as any, null as any, null, null);
+                createInstance('ojs-shaderfx', { program: program([], 'pr6'), pixelRatio: 2 } as any, null as any, null, null);
+                const lines = error.mock.calls.filter((c) => String(c[0]).includes('pixelRatio'));
+                expect(lines).toHaveLength(1);
+                expect(String(lines[0]![0])).toContain('OneJS 3.9.19');
+            } finally {
+                MockShaderEffectElement.hasPixelRatio = true;
+                error.mockRestore();
+            }
+        });
+    });
+
     it('sets a declared uniform by its slot', () => {
         const instance = createInstance('ojs-shaderfx',
             { program: program(['warp', 'hue']), uniforms: { hue: 0.25 } } as any,

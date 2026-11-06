@@ -128,6 +128,25 @@ function reportNoPixelated() {
     console.error(`[onejs-react] pixelated needs OneJS ${PIXELATED_ONEJS} or newer; this one smooths the picture. Update OneJS.`);
 }
 
+/** Whether the element draws more pixels than points: OneJS from 3.9.19 has `PixelRatio`. */
+function canSetPixelRatio(el: any): boolean {
+    try { return typeof el.PixelRatio === 'number'; } catch { return false; }
+}
+
+/** The OneJS that first draws at a pixel ratio, for the one line an older one gets. */
+const PIXEL_RATIO_ONEJS = '3.9.19';
+
+/**
+ * `pixelRatio` on a OneJS that cannot, said once. The picture still draws, at
+ * the element's size in points, so this is a line and not a refusal.
+ */
+let reportedNoPixelRatio = false;
+function reportNoPixelRatio() {
+    if (reportedNoPixelRatio) return;
+    reportedNoPixelRatio = true;
+    console.error(`[onejs-react] pixelRatio needs OneJS ${PIXEL_RATIO_ONEJS} or newer; this one draws at the element's size in points. Update OneJS.`);
+}
+
 /** Whether a program reads anything a host keeps between frames. A program built before `reads` existed reads none. */
 function readsBetweenFrames(p: any): boolean {
     const r = p.reads;
@@ -346,4 +365,16 @@ export function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         if (canPixelate(el)) el.Pixelated = pixelated;
         else if (pixelated) reportNoPixelated();
     }
+    // Pixels per layout point. Sent only when it changes: a new ratio is a new
+    // size, which clears a program's previous frame. Removing the prop is 1.
+    const ratio = pixelRatioOf(props.pixelRatio);
+    if (ratio !== pixelRatioOf(oldProps?.pixelRatio)) {
+        if (canSetPixelRatio(el)) el.PixelRatio = ratio;
+        else if (ratio !== 1) reportNoPixelRatio();
+    }
+}
+
+/** A pixel ratio as the element takes it: anything not a positive number is 1. */
+function pixelRatioOf(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 1;
 }

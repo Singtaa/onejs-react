@@ -1134,6 +1134,14 @@ export interface ShaderEffectProps extends BaseProps {
    * it. Needs OneJS 3.9.11.
    */
   pixelated?: boolean;
+  /**
+   * Pixels drawn per layout point, 1 by default. A panel scaled by the
+   * screen's density shows a picture drawn in points stretched; pass the
+   * density (oj's `stage.pixelRatio`) to draw one pixel per screen pixel, at
+   * that number squared the cost. A set `resolution` ignores it, and a change
+   * clears a program's previous frame, as a resize does. Needs OneJS 3.9.19.
+   */
+  pixelRatio?: number;
   /** Scalar shader properties. */
   floats?: Record<string, number>;
   /** float4 shader properties. */

@@ -725,6 +725,16 @@ export class MockShaderEffectElement extends MockVisualElement {
     static pixelates = true;
     /** Hard-edged pixels when the picture is smaller than the element. Off on a new element. */
     Pixelated: boolean | undefined = MockShaderEffectElement.pixelates ? false : undefined;
+    /** Whether a new element has `PixelRatio`, so a test can stand in for a OneJS before 3.9.19. */
+    static hasPixelRatio = true;
+    /** Each value written to `PixelRatio`, in order, so a test can see what was sent and when. */
+    pixelRatioWrites: number[] = [];
+    private _pixelRatio: number | undefined = MockShaderEffectElement.hasPixelRatio ? 1 : undefined;
+    get PixelRatio(): number | undefined { return this._pixelRatio; }
+    set PixelRatio(v: number | undefined) {
+        this.pixelRatioWrites.push(v as number);
+        this._pixelRatio = v;
+    }
     SetProgram = vi.fn();
     RecordProgram = vi.fn();
     WantsWebSource = false;

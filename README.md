@@ -28,7 +28,7 @@ npm adds the peers `react` and `unity-types`. A OneJS project already has this p
 | `src/style-parser.ts` | Converts style values (`"100px"`, `"#ff0000"`, enums) to the plain data `StyleBridge` reads |
 | `src/vector.ts` | `Transform2D` and `useVectorContent` for `Painter2D` drawing |
 | `src/painter.ts` | Batched drawing: `Painter`, `batchedVisualContent`, `useBatchedVectorContent` |
-| `src/shader-props.ts` | The shader elements' props (program, uniforms, textures, resolution, `pixelated`), shared by the elements and by passes |
+| `src/shader-props.ts` | The shader elements' props (program, uniforms, textures, resolution, `pixelated`, `pixelRatio`), shared by the elements and by passes |
 | `src/pass.ts` | `usePass` and `Pass`: a program drawn into a texture every frame for another program to read |
 | `src/particles.ts` | 2D particle control plane: `useParticles`, `createParticles`, wire schema (`toWire`) |
 | `src/texturefx.ts` | `TextureFX` layer builder (noise, shapes, SDFs, blends) |
