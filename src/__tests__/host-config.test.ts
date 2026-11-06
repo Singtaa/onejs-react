@@ -1571,6 +1571,17 @@ describe('ShaderProgram uniforms', () => {
         expect(el.SetTexture).not.toHaveBeenCalled();
     });
 
+    it('sends a ramp as a Float32Array, so whole-number colours still bind to float[]', () => {
+        const instance = createInstance('ojs-shaderfx',
+            { ramp: ['#ff0000', '#0000ff'] } as any, null as any, null, null);
+        const el = instance.element as any;
+        expect(el.SetRamp).toHaveBeenCalledTimes(1);
+        const [name, rgba] = el.SetRamp.mock.calls[0];
+        expect(name).toBe('_Ramp');
+        expect(rgba).toBeInstanceOf(Float32Array);
+        expect(Array.from(rgba)).toEqual([1, 0, 0, 1, 0, 0, 1, 1]);
+    });
+
     it('warns once about a texture name the program never declared', () => {
         const p = { ...program([], 'tex-typo'), textures: ['grain'] };
         const instance = createInstance('ojs-shaderfx',

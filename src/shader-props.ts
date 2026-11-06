@@ -330,7 +330,10 @@ export function applyShaderFxProps(el: any, props: any, oldProps?: any) {
         if (!same) {
             const flat: number[] = [];
             for (const c of props.ramp) flat.push(...toRGBA(c, 'TextureFX ramp'));
-            el.SetRamp(props.rampProperty ?? '_Ramp', flat);
+            // A Float32Array, which crosses as its bytes and binds to SetRamp's
+            // float[]; a plain array of whole numbers (an opaque red's 1,0,0,1)
+            // would arrive as int[] and find no method.
+            el.SetRamp(props.rampProperty ?? '_Ramp', Float32Array.from(flat));
         }
     }
     if (props.paused !== undefined && props.paused !== oldProps?.paused) {

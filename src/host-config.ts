@@ -97,7 +97,7 @@ declare const CS: {
             RemoveFromHierarchy: (childHandle: number) => void;
         };
         TreeViewBridge: {
-            SetRootItems: (treeView: CSObject, ids: number[], parentIds: number[]) => void;
+            SetRootItems: (treeView: CSObject, ids: Int32Array, parentIds: Int32Array) => void;
             GetSelectedIds: (treeView: CSObject) => unknown;
             GetSelectedIndices: (view: CSObject) => unknown;
         };
@@ -1289,7 +1289,8 @@ function applyTreeViewProps(element: CSTreeView, props: Record<string, unknown>,
     if (props.rootItems !== undefined && props.rootItems !== oldProps?.rootItems) {
         const flat = flattenTree(props.rootItems as TreeViewItem[]);
         state.dataById = flat.dataById;
-        CS.OneJS.TreeViewBridge.SetRootItems(element, flat.ids, flat.parentIds);
+        // Int32Arrays cross as their bytes, two copies however large the tree
+        CS.OneJS.TreeViewBridge.SetRootItems(element, Int32Array.from(flat.ids), Int32Array.from(flat.parentIds));
     }
 }
 

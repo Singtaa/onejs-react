@@ -667,9 +667,10 @@ export function createMockCS() {
             // all-expanded view); the selection getters return plain arrays the
             // way int[] marshals.
             TreeViewBridge: {
-                SetRootItems: (tv: MockTreeView, ids: number[], parentIds: number[]) => {
-                    tv._flatIds = ids;
-                    tv._flatParents = parentIds;
+                SetRootItems: (tv: MockTreeView, ids: Int32Array, parentIds: Int32Array) => {
+                    // The int[] the bridge receives, as the plain arrays the tests compare
+                    tv._flatIds = Array.from(ids);
+                    tv._flatParents = Array.from(parentIds);
                     tv._setRootItemsCalls++;
                 },
                 GetSelectedIds: (tv: MockTreeView) => tv._selectedIds,
