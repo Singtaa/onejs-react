@@ -782,6 +782,12 @@ export class MockShaderPass {
     SetProgramBuiltinTexture = vi.fn();
     SetProgramPass = vi.fn(() => true);
     Dispose = vi.fn();
+    /** Drawn steps; a program counts as compiled from the step `compilesAfter` says. */
+    Step = vi.fn(() => { this.steps++; });
+    steps = 0;
+    compilesAfter = 1;
+    get IsCompiled() { return this.steps >= this.compilesAfter; }
+    Output: unknown = { name: 'pass output' };
 
     constructor() {
         MockShaderPass.made.push(this);

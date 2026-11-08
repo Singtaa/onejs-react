@@ -86,7 +86,7 @@ export type { FlameProps, TextureFXProps } from './components';
 export { TextureFXBuilder, buildTextureFX, MAX_TEXTUREFX_LAYERS } from './texturefx';
 export type { TextureFXBuild, LayerHandle, TextureFXNoise, TextureFXBlend, TextureFXStop, TextureFXStops, NoiseOptions, ShapeOptions, BlendMode, ShapeKind, SDFKind, SDFParams, SDFCommonOptions } from './texturefx';
 export type { ShaderEffectProps, ShaderProgramProps, CompiledProgram, EncodedProgram } from './types';
-export { usePass, Pass } from './pass';
+export { usePass, createPass, Pass, DrawnPass } from './pass';
 export { LENT_TEXTURE, isLentTexture } from './shader-props';
 export { PASS_THROUGH_CLASS } from './class-names';
 export type { LentTexture } from './shader-props';

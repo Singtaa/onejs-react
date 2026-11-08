@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import React from "react"
 import { render, unmount } from "../renderer"
 import { ShaderProgram } from "../components"
-import { usePass, Pass, type PassOptions } from "../pass"
+import { usePass, createPass, Pass, type PassOptions } from "../pass"
 import { MockShaderPass, MockShaderEffectElement, createMockContainer, flushMicrotasks } from "./mocks"
 import type { CompiledProgram } from "../types"
 
@@ -125,5 +125,41 @@ describe("usePass", () => {
             MockShaderEffectElement.readsPasses = true
             error.mockRestore()
         }
+    })
+})
+
+describe("createPass", () => {
+    beforeEach(() => { MockShaderPass.made = [] })
+
+    it("sets the program at once, draws only when asked, and says when the page has compiled it", () => {
+        const drawn = createPass(scene, { uniforms: { glow: 0.25 }, resolution: [64, 32] })
+        const target = MockShaderPass.made[0]!
+        target.compilesAfter = 2
+        expect(drawn.pass).toBeInstanceOf(Pass)
+        expect(target.SetProgram.mock.calls[0]![3]).toBe("scene")
+        expect(target.SetUniform).toHaveBeenLastCalledWith(0, 0.25, 0, 0, 0)
+        expect(target.SetResolution).toHaveBeenLastCalledWith(64, 32)
+        expect(target.Step).not.toHaveBeenCalled()
+
+        expect(drawn.draw()).toBe(false)
+        expect(drawn.draw()).toBe(true)
+        expect(target.Step).toHaveBeenCalledTimes(2)
+        // A step has to move the clock, or the pass draws nothing.
+        expect(target.Step.mock.calls[0]![0]).toBeGreaterThan(0)
+        expect(drawn.texture).toBe(target.Output)
+    })
+
+    it("crosses only what changed, is read as a pass, and lets go when disposed", () => {
+        const noise = createPass(scene, { uniforms: { glow: 1 } })
+        const bent = createPass(blur, { textures: { src: noise.pass } })
+        const [n, b] = MockShaderPass.made
+        expect(b!.SetProgramPass).toHaveBeenCalledWith(0, n)
+        noise.update(scene, { uniforms: { glow: 1 } })
+        expect(n!.SetProgram).toHaveBeenCalledTimes(1)
+        expect(n!.SetUniform).toHaveBeenCalledTimes(1)
+        bent.dispose()
+        noise.dispose()
+        expect(b!.Dispose).toHaveBeenCalledTimes(1)
+        expect(n!.Dispose).toHaveBeenCalledTimes(1)
     })
 })

@@ -60,26 +60,88 @@ function makeTarget(): any {
  * The pass lives as long as the component that made it.
  */
 export function usePass<Names extends string = string>(program: CompiledProgram<Names>, options: PassOptions<Names> = {}): Pass {
-    const made = useRef<Pass | null>(null)
-    if (!made.current) made.current = new Pass(makeTarget())
-    const pass = made.current
-    const applied = useRef<Record<string, unknown> | undefined>(undefined)
+    const made = useRef<DrawnPass<Names> | null>(null)
+    if (!made.current) made.current = new DrawnPass<Names>(makeTarget())
+    const drawn = made.current
 
     // Before the frame draws, and before a reader's draw can need it. Only
     // what changed crosses, as on a ShaderProgram.
-    useLayoutEffect(() => {
-        const target = pass.target
+    useLayoutEffect(() => { drawn.update(program, options) })
+    useEffect(() => () => drawn.dispose(), [drawn])
+    return drawn.pass
+}
+
+/**
+ * A pass made outside a component, drawn only when asked: for a picture made
+ * once, at load, rather than every frame.
+ *
+ *     const noise = createPass(perlin, { uniforms: { seed: 7 }, resolution: [512, 512] })
+ *     const bent = createPass(warp, { textures: { src: noise.pass }, resolution: [512, 512] })
+ *     while (!bent.draw() || !noise.compiled) await nextFrame()
+ *     // bent.texture holds the picture now; dispose both when done with it.
+ *
+ * A page compiles a program in the background, so the first draws of a new
+ * program draw nothing: `draw` says whether this one has. A pass it reads
+ * draws first, in the same draw, so once every pass in a chain says
+ * `compiled` after a draw of the last, the whole chain is drawn.
+ */
+export function createPass<Names extends string = string>(program: CompiledProgram<Names>, options: PassOptions<Names> = {}): DrawnPass<Names> {
+    const drawn = new DrawnPass<Names>(makeTarget())
+    drawn.update(program, options)
+    return drawn
+}
+
+/** A step a draw advances a program's clock by: one frame at 60 Hz, since a step must move it. */
+const DRAW_STEP = 1 / 60
+
+/** A pass and what has crossed to it: what usePass keeps and createPass returns. */
+export class DrawnPass<Names extends string = string> {
+    /** What a ShaderProgram or another pass reads it as, through `textures`. */
+    readonly pass: Pass
+    private applied: Record<string, unknown> | undefined
+
+    /** @internal */
+    constructor(target: any) {
+        this.pass = new Pass(target)
+    }
+
+    /** Sets the program and its options. Only what changed crosses. */
+    update(program: CompiledProgram<Names>, options: PassOptions<Names> = {}): void {
+        const target = this.pass.target
         if (!target) return
         const props = { program, uniforms: options.uniforms, textures: options.textures, resolution: options.resolution }
-        applyShaderFxProps(target, props, applied.current)
+        applyShaderFxProps(target, props, this.applied)
         const scale = options.scale ?? 1
-        if (scale !== ((applied.current?.scale as number | undefined) ?? 1)) target.Scale = scale
-        applied.current = { ...props, scale }
-    })
-    useEffect(() => () => {
-        if (!pass.target) return
-        releaseLentTextures(pass.target)
-        pass.target.Dispose()
-    }, [pass])
-    return pass
+        if (scale !== ((this.applied?.scale as number | undefined) ?? 1)) target.Scale = scale
+        this.applied = { ...props, scale }
+    }
+
+    /**
+     * Draws once, now, after the passes it reads. True when this program drew;
+     * false while the page is still compiling it, or on a OneJS with no passes.
+     */
+    draw(): boolean {
+        const target = this.pass.target
+        if (!target) return false
+        target.Step(DRAW_STEP)
+        return this.compiled
+    }
+
+    /** Whether this program has drawn at least once: a page compiles it first. */
+    get compiled(): boolean {
+        return this.pass.target?.IsCompiled === true
+    }
+
+    /** The texture holding the last picture drawn, or null before the first. */
+    get texture(): unknown {
+        return this.pass.target?.Output ?? null
+    }
+
+    /** Lets go of the pass and what it borrowed. Nothing reading it sees a picture after this. */
+    dispose(): void {
+        const target = this.pass.target
+        if (!target) return
+        releaseLentTextures(target)
+        target.Dispose()
+    }
 }
