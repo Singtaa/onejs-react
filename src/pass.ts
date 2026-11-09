@@ -25,6 +25,15 @@ export interface PassOptions<Names extends string = string> {
      * pass of the blur at 0.5. Default 1.
      */
     scale?: number
+    /**
+     * Bits a channel the picture is kept at: 16, half floats, the default; or
+     * 32, floats, for a value a half cannot hold, such as a height that is
+     * stretched or lit. A 32-bit pass is not filtered, since many WebGL2 and
+     * WebGPU devices cannot filter floats: a reader fetches its texels, and
+     * a `sample` of it reads black on those devices. A device that cannot
+     * draw floats at all keeps 16, and says so once.
+     */
+    bits?: 16 | 32
 }
 
 /** The C# pass, or null on a OneJS that has none, which is said once. */
@@ -53,7 +62,7 @@ function makeTarget(): any {
  * The reading program declares `texture2D scene;` and reads it as it reads
  * any texture. A pass is drawn each frame before anything that reads it, so
  * a reader sees this frame's picture, and not at all while nothing reads it.
- * It keeps values over 1 and below 0 (16 bits a channel), so a bloom can
+ * It keeps values over 1 and below 0 (16 bits a channel, or `bits: 32`), so a bloom can
  * threshold what is brighter than white. A pass can read its own `previous`,
  * but not, through other passes, itself: that is refused, and says so.
  *
@@ -113,7 +122,12 @@ export class DrawnPass<Names extends string = string> {
         applyShaderFxProps(target, props, this.applied)
         const scale = options.scale ?? 1
         if (scale !== ((this.applied?.scale as number | undefined) ?? 1)) target.Scale = scale
-        this.applied = { ...props, scale }
+        const bits = options.bits ?? 16
+        if (bits !== ((this.applied?.bits as number | undefined) ?? 16)) {
+            if (typeof target.Bits !== "number") throw new Error("[OneJS] a 32-bit pass needs a newer OneJS: this one keeps passes at 16 bits")
+            target.Bits = bits
+        }
+        this.applied = { ...props, scale, bits }
     }
 
     /**

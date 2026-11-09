@@ -149,6 +149,20 @@ describe("createPass", () => {
         expect(drawn.texture).toBe(target.Output)
     })
 
+    it("keeps 16 bits a channel unless asked for 32, and says when the OneJS cannot", () => {
+        const height = createPass(scene, { bits: 32 })
+        const target = MockShaderPass.made[0]!
+        expect(target.Bits).toBe(32)
+        height.update(scene, {})
+        expect(target.Bits).toBe(16)
+        // A OneJS before Bits has no such property: 16 needs nothing from it, 32 is refused by name.
+        const plain = createPass(scene)
+        const older = MockShaderPass.made[1]! as unknown as { Bits?: number }
+        delete older.Bits
+        expect(() => plain.update(scene, { bits: 32 })).toThrow(/32-bit pass needs a newer OneJS/)
+        expect(() => plain.update(scene, {})).not.toThrow()
+    })
+
     it("crosses only what changed, is read as a pass, and lets go when disposed", () => {
         const noise = createPass(scene, { uniforms: { glow: 1 } })
         const bent = createPass(blur, { textures: { src: noise.pass } })

@@ -777,13 +777,14 @@ export class MockShaderPass {
     SetProgramWeb = vi.fn();
     SetResolution = vi.fn();
     Scale = 1;
+    Bits = 16;
     SetUniform = vi.fn();
     SetProgramTexture = vi.fn();
     SetProgramBuiltinTexture = vi.fn();
     SetProgramPass = vi.fn(() => true);
     Dispose = vi.fn();
     /** Drawn steps; a program counts as compiled from the step `compilesAfter` says. */
-    Step = vi.fn(() => { this.steps++; });
+    Step = vi.fn((_dt: number) => { this.steps++; });
     steps = 0;
     compilesAfter = 1;
     get IsCompiled() { return this.steps >= this.compilesAfter; }
